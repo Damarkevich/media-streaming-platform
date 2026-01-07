@@ -1,0 +1,111 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:51+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: movies/apps.py:8
+msgid "movies"
+msgstr ""
+
+#: movies/models.py:9 movies/models.py:84 movies/models.py:114
+msgid "created"
+msgstr ""
+
+#: movies/models.py:10
+msgid "modified"
+msgstr ""
+
+#: movies/models.py:24
+msgid "name"
+msgstr ""
+
+#: movies/models.py:25 movies/models.py:44
+msgid "description"
+msgstr ""
+
+#: movies/models.py:32 movies/models.py:82
+msgid "genre"
+msgstr ""
+
+#: movies/models.py:33 movies/models.py:64
+msgid "genres"
+msgstr ""
+
+#: movies/models.py:38
+msgid "movie"
+msgstr ""
+
+#: movies/models.py:39
+msgid "tv_show"
+msgstr ""
+
+#: movies/models.py:43
+msgid "title"
+msgstr ""
+
+#: movies/models.py:45
+msgid "creation_date"
+msgstr ""
+
+#: movies/models.py:47
+msgid "rating"
+msgstr ""
+
+#: movies/models.py:56
+msgid "type"
+msgstr ""
+
+#: movies/models.py:72 movies/models.py:79 movies/models.py:108
+msgid "film_work"
+msgstr ""
+
+#: movies/models.py:73
+msgid "film_works"
+msgstr ""
+
+#: movies/models.py:88
+msgid "genre_film_work"
+msgstr ""
+
+#: movies/models.py:89
+msgid "genre_film_works"
+msgstr ""
+
+#: movies/models.py:94
+msgid "full_name"
+msgstr ""
+
+#: movies/models.py:101 movies/models.py:111
+msgid "person"
+msgstr ""
+
+#: movies/models.py:102
+msgid "persons"
+msgstr ""
+
+#: movies/models.py:113
+msgid "role"
+msgstr ""
+
+#: movies/models.py:118
+msgid "person_film_work"
+msgstr ""
+
+#: movies/models.py:119
+msgid "person_film_works"
+msgstr ""

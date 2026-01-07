@@ -31,3 +31,6 @@ htmlcov/
 
 # Development editors/IDEs
 .vscode/
+
+# UV
+uv.lock

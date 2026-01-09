@@ -1,11 +1,16 @@
-# Проектное задание: SQL
+# Media Streaming Platform - Schema Design
 
-Результатом вашей работы в этом спринте должен стать DDL-файл с описанием базы данных. Заполнять базу или описывать в репозитории скрипты для её заполнения не нужно.
+## Overview
+This directory contains the database schema design for the media streaming platform.
 
-Критерии готовности:
+## Contents
+- Database schema definitions
+- Entity relationship diagrams
+- Data models and relationships
+- Indexing strategies
 
-- В репозитории есть DDL-файл с перечнем SQL-запросов, необходимых для создания базы с нуля.
-- Таблицы и названия полей соответствуют схеме из первого урока.
-- Созданы индексы и ограничения уникальности.
-- Все таблицы находятся в схеме content.
-- В качестве первичных ключей используется uuid.
+## Getting Started
+Review the schema files to understand the data structure and relationships used in the platform.
+
+## Documentation
+Additional documentation on schema design decisions and best practices can be found in the respective schema files.

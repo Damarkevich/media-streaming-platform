@@ -61,7 +61,7 @@ services:
 
   movies-etl-service:
     container_name: movies-etl-service
-    build: ../etl_service
+    build: ./etl_service
     restart: always
     depends_on:
       movies-db:
@@ -75,7 +75,7 @@ services:
 
   movies-admin:
     container_name: movies-admin
-    build: ../movies_admin
+    build: ./movies_admin
     restart: always
     volumes:
       - movies_admin_static:/opt/movies_admin/static

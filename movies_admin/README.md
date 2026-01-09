@@ -1,6 +1,6 @@
 # Movies Admin Panel
 
-A Django-based admin interface for managing movies in the Prakticum project. This Readme describes, how to run app locally.
+A Django-based admin interface for managing movies in the project. This Readme describes, how to run app locally.
 
 ## Prerequisites
 

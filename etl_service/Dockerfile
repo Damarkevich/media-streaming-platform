@@ -1,12 +1,15 @@
 FROM python:3.14
 
+COPY --from=ghcr.io/astral-sh/uv:0.9.22 /uv /uvx /bin/
+
 WORKDIR /opt/etl_service
 
-COPY requirements.txt requirements.txt
+ENV UV_NO_DEV=1
 
-RUN  pip install --upgrade pip \
-     && pip install -r requirements.txt
+COPY pyproject.toml uv.lock ./
+
+RUN  uv sync --locked
 
 COPY . .
 
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["uv", "run", "main.py"]

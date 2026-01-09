@@ -1,10 +1,10 @@
 #!/bin/sh
 
 # Create migrations
-python manage.py makemigrations --noinput
+uv run manage.py makemigrations --noinput
 
 # Run database migrations
-python manage.py migrate --noinput
+uv run manage.py migrate --noinput
 
 # Start gunicorn
-exec gunicorn config.wsgi --bind 0.0.0.0:8000
+exec uv run gunicorn config.wsgi --bind 0.0.0.0:8000

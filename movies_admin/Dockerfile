@@ -1,22 +1,24 @@
 FROM python:3.14
 
+COPY --from=ghcr.io/astral-sh/uv:0.9.22 /uv /uvx /bin/
+
 WORKDIR /opt/movies_admin
 
 ENV DJANGO_SETTINGS_MODULE 'config.settings'
+ENV UV_NO_DEV=1
 
-COPY requirements.txt requirements.txt
+COPY pyproject.toml uv.lock ./
 
 RUN  mkdir -p /var/www/static/ \
      && mkdir -p /opt/movies_admin/static/ \
-     && pip install --upgrade pip \
-     && pip install -r requirements.txt
+     && uv sync --locked
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN uv run manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-RUN chmod +x ./entrypoint.sh
+CMD ["sh", "entrypoint.sh"]
 
-ENTRYPOINT ["./entrypoint.sh"]
+

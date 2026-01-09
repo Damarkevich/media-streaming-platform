@@ -7,14 +7,26 @@ Production-ready microservices backend for an online cinema platform.
 
 This project appears to be a software application that utilizes Docker containerization for deployment and orchestration. The project structure includes an `infra` folder which contains infrastructure-related configuration files, specifically Docker Compose setup for managing multi-container Docker applications.
 
-## 2. How to run using docker-compose from infra folder
+## 3. Services
 
-To run this project using Docker Compose from the `infra` folder:
+This platform consists of the following microservices:
 
-1. Navigate to the `infra` directory:
-    ```bash
-    cd infra
-    ```
+### Core Services
+- **movies-admin** - A Django-based admin interface for managing movies in the project.
+- **async-api** - A FastAPI-based asynchronous API for accessing movies data from Elasticsearch in the project. 
+
+### Supporting Services
+- **sqlite-to-postgres** - A tool to migrate data from SQLite databases to PostgreSQL.
+- **etl-service** - ETL pipeline for transferring data from PostgreSQL to Elasticsearch. 
+
+### Infrastructure
+- **schema-design** - The database schema design for the media streaming platform.
+
+## 4. How to run using docker-compose
+
+To run this project using Docker Compose:
+
+1. Navigate to the root directory.
 
 2. Start the services using Docker Compose:
     ```bash

@@ -1,7 +1,7 @@
 import os
 from logging import config as logging_config
 
-from scr.core.logger import LOGGING
+from src.core.logger import LOGGING
 
 logging_config.dictConfig(LOGGING)
 

@@ -1,12 +1,13 @@
 from functools import lru_cache
+import json
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
-
-from scr.db.elastic import get_elastic
-from scr.db.redis import get_redis
-from scr.models.film import Film
+import rich
+from src.db.elastic import get_elastic
+from src.db.redis import get_redis
+from src.models.film import Film
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 minutes
 
@@ -73,6 +74,10 @@ class FilmService:
             print("Film found in cache.")
         return film
 
+    async def get_list(self, page_size: int = 50, page_number: int = 0):
+        films = await self._get_films_from_elastic(page_size, page_number)
+        return films
+
     async def _get_film_from_elastic(self, film_id: str) -> Film | None:
         """
         Retrieve a film document from Elasticsearch by its ID.
@@ -89,9 +94,23 @@ class FilmService:
         """
         try:
             doc = await self.elastic.get(index="movies", id=film_id)
+            print("Elasticsearch returned the film document:")
+            rich.print(doc)
         except NotFoundError:
             return None
         return Film(**doc["_source"])
+
+    async def _get_films_from_elastic(self, page_size: int, page_number: int):
+        try:
+            doc = await self.elastic.search(
+                index="movies", from_=page_number * page_size, size=page_size
+            )
+            print(f"Elasticsearch returned {len(doc['hits']['hits'])} films.")
+            rich.print(doc)
+        except NotFoundError:
+            return []
+        films = [Film(**item["_source"]) for item in doc["hits"]["hits"]]
+        return films
 
     async def _film_from_cache(self, film_id: str) -> Film | None:
         """

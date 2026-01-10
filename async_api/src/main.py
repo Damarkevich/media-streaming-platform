@@ -4,9 +4,9 @@ from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 from contextlib import asynccontextmanager
 
-from scr.api.v1 import films
-from scr.core import config
-from scr.db import elastic, redis
+from src.api.v1 import films
+from src.core import config
+from src.db import elastic, redis
 
 
 @asynccontextmanager

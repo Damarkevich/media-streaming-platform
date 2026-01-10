@@ -4,7 +4,7 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 
 from src.db.elastic import get_elastic
-from src.models.film import Film
+from src.models.es_models import Film
 
 
 class FilmService:

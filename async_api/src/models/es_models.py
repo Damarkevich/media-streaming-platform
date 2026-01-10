@@ -1,18 +1,18 @@
-from pydantic import BaseModel
+from pydantic import UUID4, BaseModel
 
 
 class Genre(BaseModel):
-    id: str
+    id: UUID4
     name: str
 
 
 class Person(BaseModel):
-    id: str
+    id: UUID4
     name: str
 
 
 class Film(BaseModel):
-    id: str
+    id: UUID4
     title: str
     imdb_rating: float
     description: str | None = None

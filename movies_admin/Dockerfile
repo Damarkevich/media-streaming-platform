@@ -1,4 +1,4 @@
-FROM python:3.14
+FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.22 /uv /uvx /bin/
 
@@ -11,13 +11,11 @@ COPY pyproject.toml uv.lock ./
 
 RUN  mkdir -p /var/www/static/ \
      && mkdir -p /opt/movies_admin/static/ \
-     && uv sync --locked
+     && uv sync --frozen --no-cache
 
 COPY . .
 
 RUN uv run manage.py collectstatic --noinput
-
-EXPOSE 8000
 
 CMD ["sh", "entrypoint.sh"]
 

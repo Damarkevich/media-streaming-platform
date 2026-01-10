@@ -62,7 +62,7 @@ services:
   movies-etl-service:
     container_name: movies-etl-service
     build: ./etl_service
-    restart: always
+    restart: unless-stopped
     depends_on:
       movies-db:
         condition: service_healthy
@@ -76,11 +76,23 @@ services:
   movies-admin:
     container_name: movies-admin
     build: ./movies_admin
-    restart: always
+    restart: unless-stopped
     volumes:
       - movies_admin_static:/opt/movies_admin/static
     depends_on:
       movies-db:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  movies-async-api:
+    container_name: movies-async-api
+    build: ./async_api
+    restart: unless-stopped
+    depends_on:
+      movies-elasticsearch:
+        condition: service_healthy
+      movies-redis:
         condition: service_healthy
     env_file:
       - .env
@@ -94,6 +106,9 @@ services:
       - movies_admin_static:/opt/movies_admin/static
     depends_on:
       - movies-admin
+      - movies-async-api
+      - movies-elasticsearch
+    restart: unless-stopped
     ports:
       - "80:80"
 

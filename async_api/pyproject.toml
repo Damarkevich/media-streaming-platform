@@ -6,13 +6,9 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "elasticsearch[async]>=9.2.1",
-    "fastapi>=0.128.0",
+    "fastapi[standard]>=0.128.0",
     "orjson>=3.11.5",
     "redis>=7.1.0",
     "rich>=14.2.0",
 ]
 
-[dependency-groups]
-dev = [
-    "fastapi[standard]>=0.128.0",
-]

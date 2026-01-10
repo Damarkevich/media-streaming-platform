@@ -29,5 +29,5 @@ A FastAPI-based asynchronous API for accessing movies data from Elasticsearch in
     uv run fastapi dev scr/main.py
     ```
 
-The API will be available at `http://localhost:8000`  
+The API will be available at `http://localhost:8000/api/`
 API documentation will be available at `http://localhost:8000/api/openapi`

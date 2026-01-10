@@ -72,10 +72,10 @@ def process_related_data(state: State, table_name: TableNames) -> None:
 
 if __name__ == "__main__":
     # Initial Elasticsearch setup
-    es_setup()
+    new_index_created: bool = es_setup()
 
     # Initialize state storage
-    state: State = state_setup()
+    state: State = state_setup(recreate_state=new_index_created)
 
     # Main ETL loop
     try:

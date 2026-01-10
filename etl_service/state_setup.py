@@ -16,7 +16,6 @@ REDIS_DB = os.getenv("REDIS_DB", "0")
 DEFAULT_TIMESTAMP = "0001-01-01T00:00:00.000000+00:00"
 
 
-
 def set_default_modification_data(state: State) -> None:
     """
     Initialize modification data timestamps in state if they are invalid or missing.
@@ -45,10 +44,21 @@ def set_default_modification_data(state: State) -> None:
             state.set_state(key.value, DEFAULT_TIMESTAMP)
 
 
-def state_setup():
+def state_setup(recreate_state: bool = False) -> State:
+    """
+    Initialize the state storage.
+
+    Args:
+        recreate_state (bool): If True, the state storage will be recreated/reset.
+
+    Returns:
+        State: An instance of the State class with the initialized storage.
+    """
     logger.info("Initializing state storage...")
     storage = RedisStorage(
-        redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=int(REDIS_DB)), key="etl_state",
+        redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=int(REDIS_DB)),
+        key="etl_state",
+        recreate_state=recreate_state,
     )
     state = State(storage)
 

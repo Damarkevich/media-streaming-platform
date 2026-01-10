@@ -179,7 +179,7 @@ def is_es_index_schema_mappings_valid(current_schema_mappings: dict[str, Any]) -
     return current_schema_mappings_json == desired_schema_mappings_json
 
 
-def es_setup():
+def es_setup() -> bool:
     """
     Set up the Elasticsearch index by validating and recreating it if necessary.
 
@@ -192,7 +192,7 @@ def es_setup():
     The function logs informational messages at each step of the process.
 
     Returns:
-        None
+        bool: True if a new index was created, False if the existing index was valid.
 
     Raises:
         Any exceptions raised by the called functions (get_current_es_index_schema_mappings,
@@ -204,11 +204,15 @@ def es_setup():
 
     current_schema_mappings: dict = get_current_es_index_schema_mappings()
 
+    new_index_created = False
+
     if not is_es_index_schema_mappings_valid(current_schema_mappings):
         logger.info("Elasticsearch index schema is invalid. Recreating index...")
         remove_es_index()
         create_es_index()
+        new_index_created = True
     else:
         logger.info("Elasticsearch index schema is valid. No action needed.")
 
     logger.info("Elasticsearch index setup completed.")
+    return new_index_created

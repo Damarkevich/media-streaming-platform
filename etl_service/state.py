@@ -117,9 +117,12 @@ class RedisStorage:
         {'last_updated': '2023-01-01'}
     """
 
-    def __init__(self, redis_client, key: str = "data") -> None:
+    def __init__(self, redis_client, key: str = "data", recreate_state: bool = False) -> None:
         self.redis_client = redis_client
         self.key = key
+
+        if recreate_state:
+            self.redis_client.delete(self.key)
 
     def save_state(self, state: dict[str, Any]) -> None:
         current_state = self.retrieve_state()

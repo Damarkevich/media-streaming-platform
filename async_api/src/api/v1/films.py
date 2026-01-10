@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import AfterValidator
+from pydantic import AfterValidator, UUID4
 
 from src.api.v1.schemas import Film, FilmDetail, Genre, Person
 from src.api.v1.validators import validate_sort
@@ -16,14 +16,14 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def film_details(
     request: Request,
-    film_id: str,
+    film_id: UUID4,
     film_service: FilmService = Depends(get_film_service),
 ) -> FilmDetail:
     """
     Retrieve detailed information about a specific film by its ID.
 
     Args:
-        film_id (str): The unique identifier of the film to retrieve.
+        film_id (UUID4): The unique identifier of the film to retrieve.
         film_service (FilmService, optional): The film service dependency for data access.
             Defaults to Depends(get_film_service).
 
@@ -55,6 +55,7 @@ async def film_list(
     page_size: int = 10,
     page_number: int = 0,
     sort: Annotated[str, AfterValidator(validate_sort)] = "-imdb_rating",
+    genre: UUID4 | None = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     """
@@ -65,6 +66,7 @@ async def film_list(
         page_number (int, optional): The page number to retrieve. Defaults to 0.
         sort (str, optional): A comma-separated string of fields to sort by.
                               Prefix a field with '-' for descending order. Defaults to '-imdb_rating'.
+        genre (UUID4 | None, optional): Filter films by genre ID. Defaults to None.
         film_service (FilmService, optional): The film service dependency for data access.
             Defaults to Depends(get_film_service).
 
@@ -75,6 +77,7 @@ async def film_list(
         page_size=page_size,
         page_number=page_number,
         sort=sort,
+        genre=genre,
     )
     data = [
         Film(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating)

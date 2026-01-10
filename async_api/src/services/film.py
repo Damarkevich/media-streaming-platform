@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
+from pydantic import UUID4
 
 from src.db.elastic import get_elastic
 from src.models.es_models import Film
@@ -28,12 +29,12 @@ class FilmService:
     def __init__(self, elastic: AsyncElasticsearch):
         self.elastic = elastic
 
-    async def get_by_id(self, film_id: str) -> Film | None:
+    async def get_by_id(self, film_id: UUID4) -> Film | None:
         """
         Retrieve a film document from Elasticsearch by its ID.
 
         Args:
-            film_id (str): The unique identifier of the film to retrieve.
+            film_id (UUID4): The unique identifier of the film to retrieve.
 
         Returns:
             Film | None: A Film object if the document is found, None otherwise.
@@ -43,7 +44,7 @@ class FilmService:
             Other Elasticsearch exceptions may propagate up.
         """
         try:
-            doc = await self.elastic.get(index="movies", id=film_id)
+            doc = await self.elastic.get(index="movies", id=str(film_id))
         except NotFoundError:
             return None
         return Film(**doc["_source"])
@@ -74,7 +75,32 @@ class FilmService:
             sort_fields.append({field: order})
         return sort_fields
 
-    async def get_list(self, page_size: int, page_number: int, sort: str):
+    def _prepare_es_query_params(self, genre: UUID4 | None = None) -> dict | None:
+        """
+        Prepare Elasticsearch query parameters for filtering by genre.
+
+        Args:
+            genre (UUID4 | None): The genre ID to filter films by. If None, no filtering is applied.
+        Returns:
+            dict | None: A dictionary representing the Elasticsearch query for genre filtering,
+                          or None if no genre filtering is applied.
+        """
+        if not genre:
+            return None
+        return {
+            "nested": {
+                "path": "genres",
+                "query": {"term": {"genres.id": str(genre)}},
+            }
+        }
+
+    async def get_list(
+        self,
+        page_size: int,
+        page_number: int,
+        sort: str,
+        genre: UUID4 | None = None,
+    ) -> list[Film]:
         """
         Retrieve a paginated list of films from Elasticsearch.
 
@@ -86,6 +112,7 @@ class FilmService:
             page_number (int): The zero-indexed page number to retrieve.
             sort (str): Sort parameter string that will be processed by
                 _prepare_es_sort_params to generate Elasticsearch sort parameters.
+            genre (UUID4 | None, optional): Filter films by genre ID. Defaults to None.
 
         Returns:
             list[Film]: A list of Film objects created from the Elasticsearch results.
@@ -97,12 +124,14 @@ class FilmService:
         """
 
         sort_params = self._prepare_es_sort_params(sort)
+        query_params = self._prepare_es_query_params(genre)
         try:
             doc = await self.elastic.search(
                 index="movies",
                 from_=page_number * page_size,
                 size=page_size,
                 sort=sort_params,
+                query=query_params,
             )
         except NotFoundError:
             return []

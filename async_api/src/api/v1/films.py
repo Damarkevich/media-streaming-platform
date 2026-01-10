@@ -2,53 +2,14 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator
 
+from src.api.v1.schemas import Film, FilmDetail, Genre, Person
+from src.api.v1.validators import validate_sort
 from src.core.cache import cache
 from src.services.film import FilmService, get_film_service
 
-
-def validate_sort(sort: str) -> str:
-    """Validate sort parameter to ensure it only contains allowed fields."""
-    allowed_fields = {"imdb_rating"}
-
-    for field in sort.split(","):
-        field_name = field.lstrip("-")
-        if field_name not in allowed_fields:
-            raise ValueError(
-                f"Invalid sort field: {field_name}, allowed fields are: {', '.join(allowed_fields)}"
-            )
-    return sort
-
-
 router = APIRouter(redirect_slashes=False)
-
-
-class Genre(BaseModel):
-    uuid: str
-    name: str
-
-
-class Person(BaseModel):
-    uuid: str
-    full_name: str
-
-
-class Film(BaseModel):
-    uuid: str
-    title: str
-    imdb_rating: float
-
-
-class FilmDetail(BaseModel):
-    uuid: str
-    title: str
-    imdb_rating: float
-    description: str
-    genre: list[Genre] = []
-    actors: list[Person] = []
-    writers: list[Person] = []
-    directors: list[Person] = []
 
 
 @router.get("/{film_id}", response_model=FilmDetail)

@@ -1,8 +1,10 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
-from contextlib import asynccontextmanager
 
 from src.api.v1 import films
 from src.core import config
@@ -10,7 +12,7 @@ from src.db import elastic, redis
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Manage the lifespan of the FastAPI application.
     This async context manager handles the startup and shutdown events for the application.

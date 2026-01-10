@@ -8,6 +8,7 @@ logging_config.dictConfig(LOGGING)
 PROJECT_NAME = os.getenv("PROJECT_NAME", "movies")
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+CACHE_EXPIRE_IN_SECONDS = int(os.getenv("CACHE_EXPIRE_IN_SECONDS", 300))
 
 ELASTIC_SCHEMA = os.getenv("ELASTIC_SCHEMA", "http://")
 ELASTIC_HOST = os.getenv("ELASTIC_HOST", "127.0.0.1")

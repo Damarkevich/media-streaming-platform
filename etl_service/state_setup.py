@@ -48,7 +48,7 @@ def set_default_modification_data(state: State) -> None:
 def state_setup():
     logger.info("Initializing state storage...")
     storage = RedisStorage(
-        redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=int(REDIS_DB))
+        redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), db=int(REDIS_DB)), key="etl_state",
     )
     state = State(storage)
 

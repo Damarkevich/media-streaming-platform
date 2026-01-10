@@ -17,6 +17,19 @@ class PersonLoadData(BaseModel):
     name: str
 
 
+class GenreLoadData(BaseModel):
+    """
+    Data model for genre information to be loaded into the database.
+
+    Attributes:
+        id (UUID): Unique identifier for the genre.
+        name (str): Full name of the genre.
+    """
+
+    id: UUID
+    name: str
+
+
 class FilmWorkLoadData(BaseModel):
     """
     Data model for film work information used in ETL loading process.
@@ -27,12 +40,13 @@ class FilmWorkLoadData(BaseModel):
     Attributes:
         id (UUID): Unique identifier for the film work.
         imdb_rating (float | None): IMDb rating score for the film, can be None if not rated.
-        genres (list[str]): List of genre names associated with the film.
         title (str): Title of the film work.
         description (str | None): Detailed description of the film, can be None if not available.
+        genres_names (list[str]): List of genre names as strings.
         directors_names (list[str]): List of director names as strings.
         actors_names (list[str]): List of actor names as strings.
         writers_names (list[str]): List of writer names as strings.
+        genres (list[GenreLoadData]): List of genre objects associated with the film.
         directors (list[PersonLoadData]): List of director person objects with detailed information.
         actors (list[PersonLoadData]): List of actor person objects with detailed information.
         writers (list[PersonLoadData]): List of writer person objects with detailed information.
@@ -40,12 +54,13 @@ class FilmWorkLoadData(BaseModel):
 
     id: UUID
     imdb_rating: float | None
-    genres: list[str]
     title: str
     description: str | None
+    genres_names: list[str]
     directors_names: list[str]
     actors_names: list[str]
     writers_names: list[str]
+    genres: list[GenreLoadData]
     directors: list[PersonLoadData]
     actors: list[PersonLoadData]
     writers: list[PersonLoadData]
@@ -62,15 +77,6 @@ def transform_data(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     Args:
         raw_data (list[dict[str, Any]]): A list of dictionaries containing raw film work data.
-            Each dictionary should have the following keys:
-            - id: Unique identifier for the film work
-            - imdb_rating: IMDb rating of the film
-            - genres: List of genre dictionaries with 'name' key
-            - title: Title of the film
-            - description: Description of the film
-            - directors: List of director dictionaries with 'id' and 'full_name' keys
-            - actors: List of actor dictionaries with 'id' and 'full_name' keys
-            - writers: List of writer dictionaries with 'id' and 'full_name' keys
 
     Returns:
         list[dict[str, Any]]: A list of transformed film work dictionaries ready for loading.
@@ -87,12 +93,16 @@ def transform_data(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         FilmWorkLoadData(
             id=record["id"],
             imdb_rating=record["imdb_rating"],
-            genres=[genre["name"] for genre in record["genres"]],
             title=record["title"],
             description=record["description"],
+            genres_names=[genre["name"] for genre in record["genres"]],
             directors_names=[director["full_name"] for director in record["directors"]],
             actors_names=[actor["full_name"] for actor in record["actors"]],
             writers_names=[writer["full_name"] for writer in record["writers"]],
+            genres=[
+                GenreLoadData(id=genre["id"], name=genre["name"])
+                for genre in record["genres"]
+            ],
             directors=[
                 PersonLoadData(id=director["id"], name=director["full_name"])
                 for director in record["directors"]

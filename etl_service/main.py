@@ -1,16 +1,17 @@
+import logging
 import random
 import time
 
-from dotenv import load_dotenv
+from config.etl_mappings import MAPPINGS, Mapping
+from config.logger import configure_logging
 from es_setup import es_setup
-from extractor import PostgresExtractor, TableNames
+from extractor import PostgresExtractor
 from loader import send_to_elasticsearch
-from logger import logger
 from state import State
 from state_setup import state_setup
 from transformer import transform_data
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 def get_jitter() -> float:
@@ -23,7 +24,7 @@ def get_jitter() -> float:
     return random.uniform(0, 0.1)
 
 
-def process_related_data(state: State, table_name: TableNames) -> None:
+def process_related_data(state: State, mapping: Mapping) -> None:
     """
     Process and synchronize data from a specific table to Elasticsearch.
 
@@ -46,31 +47,38 @@ def process_related_data(state: State, table_name: TableNames) -> None:
         - Progress is logged at each stage of the ETL process
         - State is automatically updated by the PostgresExtractor to track progress
     """
-    logger.info(f"Starting ETL cycle for {table_name}-related data...")
+    logger.info(f"Starting ETL cycle for {mapping.postgres_table}-related data...")
 
-    extractor = PostgresExtractor(state=state, table_name=table_name)
+    extractor = PostgresExtractor(state=state, table_name=mapping.postgres_table)
 
     while True:
         raw_data = extractor.get_film_work_batch()
 
         # If no new data, exit the function
         if not raw_data:
-            logger.info(f"No new {table_name} records to process. Exiting ETL cycle.")
+            logger.info(
+                f"No new {mapping.postgres_table} records to process. Exiting ETL cycle."
+            )
             return
 
         transformed_data = transform_data(raw_data)
         logger.info(
             f"Transformed data ready for Elasticsearch. Records count: {len(transformed_data)}"
         )
-        send_to_elasticsearch(transformed_data)
+        send_to_elasticsearch("movies", transformed_data)
 
-        logger.info(f"ETL cycle for {table_name}-related data completed.")
+        logger.info(f"ETL cycle for {'movies'}-related data completed.")
 
         # Small sleep to avoid overwhelming the system
         time.sleep(0.1 + get_jitter())
 
 
 if __name__ == "__main__":
+    # Configure logging
+    configure_logging()
+
+    logger.info("Starting ETL pipeline...")
+
     # Initial Elasticsearch setup
     new_index_created: bool = es_setup()
 
@@ -81,13 +89,13 @@ if __name__ == "__main__":
     try:
         while True:
             logger.info("Starting full ETL cycle...")
-            for table_name in TableNames:
+            for mapping in MAPPINGS:
                 try:
-                    process_related_data(state, table_name)
+                    process_related_data(state, mapping)
                     time.sleep(1 + get_jitter())
                 except Exception:
                     logger.exception(
-                        f"Unhandled error while executing ETL for table '{table_name}' "
+                        f"Unhandled error while executing ETL for table '{mapping.postgres_table}' "
                         f"in ETL cycle; skipping to next step.",
                     )
 

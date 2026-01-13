@@ -1,7 +1,8 @@
 import json
+import logging
 from typing import Any, Protocol
 
-from logger import logger
+logger = logging.getLogger(__name__)
 
 
 class BaseStorage(Protocol):
@@ -117,7 +118,9 @@ class RedisStorage:
         {'last_updated': '2023-01-01'}
     """
 
-    def __init__(self, redis_client, key: str = "data", recreate_state: bool = False) -> None:
+    def __init__(
+        self, redis_client, key: str = "data", recreate_state: bool = False
+    ) -> None:
         self.redis_client = redis_client
         self.key = key
 

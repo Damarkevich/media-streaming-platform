@@ -1,0 +1,9 @@
+- postgres_table: film_work
+  es_index: movies
+  es_index_file: config/es_schemas/movies.json
+- postgres_table: genre
+  es_index: genres
+  es_index_file: config/es_schemas/genres.json
+- postgres_table: person
+  es_index: persons
+  es_index_file: config/es_schemas/persons.json

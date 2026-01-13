@@ -1,19 +1,13 @@
-import os
+import logging
 from datetime import datetime
 
 import redis
-from dotenv import load_dotenv
 
-from logger import logger
+from config.etl_mappings import MAPPINGS
+from config.settings import DEFAULT_TIMESTAMP, REDIS_DB, REDIS_HOST, REDIS_PORT
 from state import RedisStorage, State
-from table_names import TableNames
 
-load_dotenv()
-
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
-REDIS_DB = os.getenv("REDIS_DB", "0")
-DEFAULT_TIMESTAMP = "0001-01-01T00:00:00.000000+00:00"
+logger = logging.getLogger(__name__)
 
 
 def set_default_modification_data(state: State) -> None:
@@ -35,13 +29,13 @@ def set_default_modification_data(state: State) -> None:
         - Uses DEFAULT_TIMESTAMP constant when resetting invalid or missing timestamps
     """
 
-    for key in TableNames:
-        value = state.get_state(key.value)
+    for mapping in MAPPINGS:
+        value = state.get_state(mapping.postgres_table)
 
         try:
             datetime.fromisoformat(value)
         except (ValueError, AttributeError, TypeError):
-            state.set_state(key.value, DEFAULT_TIMESTAMP)
+            state.set_state(mapping.postgres_table, DEFAULT_TIMESTAMP)
 
 
 def state_setup(recreate_state: bool = False) -> State:

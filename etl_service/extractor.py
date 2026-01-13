@@ -1,28 +1,17 @@
-import os
+import logging
 from contextlib import closing
 from datetime import datetime
 from typing import Any
 
 import psycopg
-from backoff import backoff
-from dotenv import load_dotenv
-from logger import logger
 from psycopg import sql
 from psycopg.rows import dict_row
+
+from backoff import backoff
+from config.settings import BATCH_SIZE, POSTGRES_CONFIG
 from state import State
-from table_names import TableNames
 
-load_dotenv()
-
-POSTGRES_CONFIG = {
-    "dbname": os.getenv("POSTGRES_DB", "movies_database"),
-    "user": os.getenv("POSTGRES_USER", "app"),
-    "password": os.getenv("POSTGRES_PASSWORD", "123qwe"),
-    "host": os.getenv("SQL_HOST", "localhost"),
-    "port": int(os.getenv("SQL_PORT", "6543")),
-    "options": os.getenv("SQL_OPTIONS", "-c search_path=public,content"),
-}
-POSTGRES_BATCH_SIZE = int(os.getenv("POSTGRES_BATCH_SIZE", "1000"))
+logger = logging.getLogger(__name__)
 
 
 class PostgresExtractor:
@@ -37,7 +26,7 @@ class PostgresExtractor:
         connection_factory (Callable): Factory function to create database connections
         batch_size (int): Number of records to fetch per batch
         state (State): State manager for tracking last processed timestamps
-        table_name (TableNames): Name of the table being monitored for changes
+        table_name (str): Name of the table being monitored for changes
         last_modified (str): ISO format timestamp of last processed record
         temp_film_work_last_modified (str): Temporary timestamp for film work records
             during related table processing
@@ -60,12 +49,12 @@ class PostgresExtractor:
         >>> batch = extractor.get_film_work_batch()
     """
 
-    def __init__(self, state: State, table_name: TableNames) -> None:
+    def __init__(self, state: State, table_name: str) -> None:
         self.connection_factory = lambda: psycopg.connect(**POSTGRES_CONFIG)
-        self.batch_size = POSTGRES_BATCH_SIZE
+        self.batch_size = BATCH_SIZE
         self.state: State = state
-        self.table_name: TableNames = table_name
-        self.last_modified: str = self.state.get_state(self.table_name.value)
+        self.table_name: str = table_name
+        self.last_modified: str = self.state.get_state(self.table_name)
         self.temp_film_work_last_modified: str = "0001-01-01T00:00:00.000000+00:00"
         logger.info(
             f"Initialized PostgresExtractor for table '{self.table_name}' with last_modified = {self.last_modified}"
@@ -92,9 +81,9 @@ class PostgresExtractor:
             - For FILM_WORK table, processes records directly via _process_film_work().
         """
         match self.table_name:
-            case TableNames.GENRE | TableNames.PERSON:
+            case "genre" | "person":
                 return self._process_record_related_film_work()
-            case TableNames.FILM_WORK:
+            case "film_work":
                 return self._process_film_work()
             case _:
                 raise ValueError(f"Unsupported table name: {self.table_name}")
@@ -124,7 +113,7 @@ class PostgresExtractor:
             f"to {new_timestamp}"
         )
         self.last_modified = new_timestamp
-        self.state.set_state(self.table_name.value, new_timestamp)
+        self.state.set_state(self.table_name, new_timestamp)
 
     def _set_temp_film_work_last_modified(self, timestamp: datetime) -> None:
         """
@@ -289,7 +278,7 @@ class PostgresExtractor:
             WHERE modified > %s
             ORDER BY modified
             LIMIT %s;
-        """).format(table=sql.Identifier(self.table_name.value))
+        """).format(table=sql.Identifier(self.table_name))
         return self._execute_query(query, (self.last_modified, self.batch_size))
 
     @backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10)
@@ -327,8 +316,8 @@ class PostgresExtractor:
             ORDER BY fw.modified
             LIMIT %s;
         """).format(
-            table_name=sql.Identifier(f"{self.table_name.value}_film_work"),
-            related_column_name=sql.Identifier(f"{self.table_name.value}_id"),
+            table_name=sql.Identifier(f"{self.table_name}_film_work"),
+            related_column_name=sql.Identifier(f"{self.table_name}_id"),
         )
         return self._execute_query(
             query, (ids, self.temp_film_work_last_modified, self.batch_size)

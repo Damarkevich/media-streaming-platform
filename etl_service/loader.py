@@ -1,23 +1,17 @@
 import json
-import os
+import logging
 from typing import Any
 
 import httpx
-from dotenv import load_dotenv
 
 from backoff import backoff
-from logger import logger
+from config.settings import ES_HOST, ES_PORT
 
-load_dotenv()
-
-
-ES_HOST = os.getenv("ES_HOST", "localhost")
-ES_PORT = os.getenv("ES_PORT", "9200")
-ES_SCHEMA_NAME = os.getenv("ES_SCHEMA_NAME", "movies")
+logger = logging.getLogger(__name__)
 
 
 @backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10)
-def send_to_elasticsearch(data: list[dict[str, Any]]) -> None:
+def send_to_elasticsearch(schema: str, data: list[dict[str, Any]]) -> None:
     """
     Send a batch of records to Elasticsearch using the bulk API.
 
@@ -36,7 +30,7 @@ def send_to_elasticsearch(data: list[dict[str, Any]]) -> None:
         - The HTTP request fails (non-200 status code)
         - Individual records fail to index (errors in response)
     """
-    url = f"http://{ES_HOST}:{ES_PORT}/{ES_SCHEMA_NAME}/_bulk"
+    url = f"http://{ES_HOST}:{ES_PORT}/{schema}/_bulk"
     method = "POST"
     headers = {"Content-Type": "application/x-ndjson"}
 
@@ -56,3 +50,7 @@ def send_to_elasticsearch(data: list[dict[str, Any]]) -> None:
 
     if response.json().get("errors"):
         logger.error("Some records failed to index in Elasticsearch.")
+        errors = response.json().get("items", [])
+        for error in errors:
+            if "index" in error and error["index"].get("error"):
+                logger.error(f"Indexing error: {error['index']['error']}")

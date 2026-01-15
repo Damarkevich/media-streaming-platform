@@ -5,11 +5,11 @@ import time
 from config.etl_mappings import MAPPINGS, Mapping
 from config.logger import configure_logging
 from es_setup import es_setup
-from extractor import PostgresExtractor
-from loader import send_to_elasticsearch
+from extractor import DataStorage, PostgresExtractor
+from loader import ESLoadder
 from state import State
 from state_setup import state_setup
-from transformer import transform_data
+from transformer import Transformer
 
 logger = logging.getLogger(__name__)
 
@@ -19,58 +19,44 @@ def get_jitter() -> float:
     Generate a random jitter value for retry delays.
 
     Returns:
-        A random float between 0 and 0.1 seconds to add variability to retry attempts.
+        A random float between 0 and 1 seconds to add variability to retry attempts.
     """
-    return random.uniform(0, 0.1)
+    return random.uniform(0, 1)
 
 
 def process_related_data(state: State, mapping: Mapping) -> None:
-    """
-    Process and synchronize data from a specific table to Elasticsearch.
-
-    This function performs an ETL (Extract, Transform, Load) cycle for data related to
-    a specific table. It continuously extracts batches of film work data that has been
-    modified, transforms it into the appropriate format, and loads it into Elasticsearch.
-
-    Args:
-        state (State): The state object that tracks the progress of the ETL process,
-            including timestamps and processed records.
-        table_name (TableNames): The name of the table to process (e.g., 'person',
-            'genre', 'film_work') that contains related data to synchronize.
-
-    Returns:
-        None: The function exits when there are no more records to process.
-
-    Note:
-        - The function runs in a loop until no new data is available
-        - A small sleep with jitter is applied between iterations to prevent system overload
-        - Progress is logged at each stage of the ETL process
-        - State is automatically updated by the PostgresExtractor to track progress
-    """
     logger.info(f"Starting ETL cycle for {mapping.postgres_table}-related data...")
 
-    extractor = PostgresExtractor(state=state, table_name=mapping.postgres_table)
+    last_modified = state.get_state(mapping.postgres_table)
+
+    extractor = PostgresExtractor(
+        last_modified=last_modified, table_name=mapping.postgres_table
+    )
 
     while True:
-        raw_data = extractor.get_film_work_batch()
+        data: DataStorage = extractor.get_data_batch()
 
-        # If no new data, exit the function
-        if not raw_data:
-            logger.info(
-                f"No new {mapping.postgres_table} records to process. Exiting ETL cycle."
-            )
+        if data.is_empty():
+            logger.info(f"No data to process for {mapping.postgres_table}.")
             return
 
-        transformed_data = transform_data(raw_data)
-        logger.info(
-            f"Transformed data ready for Elasticsearch. Records count: {len(transformed_data)}"
-        )
-        send_to_elasticsearch("movies", transformed_data)
+        transformer = Transformer(data=data)
+        data: DataStorage = transformer.transform()
 
-        logger.info(f"ETL cycle for {'movies'}-related data completed.")
+        logger.info("Transformed data ready for Elasticsearch.")
+
+        loader = ESLoadder(data=data)
+        loader.load()
+
+        # Update state with the latest modification timestamp
+        new_last_modified = data.new_last_modified
+        state.set_state(mapping.postgres_table, new_last_modified)
+
+        logger.info(f"ETL cycle for {mapping.postgres_table}-related data completed.")
 
         # Small sleep to avoid overwhelming the system
-        time.sleep(0.1 + get_jitter())
+        time.sleep(1 + get_jitter())
+        return
 
 
 if __name__ == "__main__":

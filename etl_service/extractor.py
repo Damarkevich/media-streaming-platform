@@ -1,233 +1,116 @@
 import logging
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 
 from backoff import backoff
-from config.settings import BATCH_SIZE, POSTGRES_CONFIG
-from state import State
+from config.settings import BATCH_SIZE, DEFAULT_TIMESTAMP, POSTGRES_CONFIG
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class DataStorage:
+    movies: list[dict[str, Any]]
+    genres: list[dict[str, Any]]
+    persons: list[dict[str, Any]]
+    new_last_modified: str = DEFAULT_TIMESTAMP
+
+    def is_empty(self) -> bool:
+        return not (self.movies or self.genres or self.persons)
+
+
 class PostgresExtractor:
-    """
-    Extracts film work data from PostgreSQL database with change tracking.
-
-    This class handles the extraction of film work records from a PostgreSQL database,
-    tracking changes based on modification timestamps. It supports extracting data
-    directly from the film_work table or indirectly through related genre and person tables.
-
-    Attributes:
-        connection_factory (Callable): Factory function to create database connections
-        batch_size (int): Number of records to fetch per batch
-        state (State): State manager for tracking last processed timestamps
-        table_name (str): Name of the table being monitored for changes
-        last_modified (str): ISO format timestamp of last processed record
-        temp_film_work_last_modified (str): Temporary timestamp for film work records
-            during related table processing
-
-    Methods:
-        get_film_work_batch: Main entry point to fetch a batch of film work records
-
-    Private Methods:
-        _update_last_modified: Updates the last processed timestamp in state
-        _process_record_related_film_work: Processes changes from genre/person tables
-        _process_film_work: Processes changes directly from film_work table
-        _execute_query: Executes SQL queries with automatic retry logic
-        _get_record_id_modified_batch: Fetches modified record IDs from monitored table
-        _get_film_work_for_related_ids_batch: Finds film works related to changed records
-        _get_complete_film_work_data: Retrieves complete film work data with all relations
-
-    Example:
-        >>> state = State(storage)
-        >>> extractor = PostgresExtractor(state, TableNames.GENRE)
-        >>> batch = extractor.get_film_work_batch()
-    """
-
-    def __init__(self, state: State, table_name: str) -> None:
+    def __init__(
+        self,
+        last_modified: str,
+        table_name: Literal["film_work", "genre", "person"],
+    ) -> None:
         self.connection_factory = lambda: psycopg.connect(**POSTGRES_CONFIG)
         self.batch_size = BATCH_SIZE
-        self.state: State = state
-        self.table_name: str = table_name
-        self.last_modified: str = self.state.get_state(self.table_name)
-        self.temp_film_work_last_modified: str = "0001-01-01T00:00:00.000000+00:00"
+        self.table_name: Literal["film_work", "genre", "person"] = table_name
+        self.last_modified: str = last_modified
+        self.new_last_modified: str = last_modified
+        self.film_work_data: list[dict[str, Any]] = []
+        self.genres_data: list[dict[str, Any]] = []
+        self.persons_data: list[dict[str, Any]] = []
         logger.info(
             f"Initialized PostgresExtractor for table '{self.table_name}' with last_modified = {self.last_modified}"
         )
 
-    def get_film_work_batch(self) -> list[dict[str, Any]]:
-        """
-        Retrieve a batch of film work records based on the current table being processed.
-
-        This method determines the appropriate processing strategy based on the table name
-        and returns a list of film work dictionaries.
-
-        Returns:
-            list[dict[str, Any]]: A list of dictionaries containing film work data.
-                Each dictionary represents a film work record with its associated attributes.
-
-        Raises:
-            ValueError: If the table_name is not one of the supported table names
-                (GENRE, PERSON, or FILM_WORK).
-
-        Note:
-            - For GENRE and PERSON tables, processes records through their relationships
-              to film works via _process_record_related_film_work().
-            - For FILM_WORK table, processes records directly via _process_film_work().
-        """
+    def get_data_batch(self) -> DataStorage:
         match self.table_name:
-            case "genre" | "person":
-                return self._process_record_related_film_work()
+            case "genre":
+                self._process_genre_data()
+            case "person":
+                self._process_person_data()
             case "film_work":
-                return self._process_film_work()
+                self._process_film_work_data()
             case _:
                 raise ValueError(f"Unsupported table name: {self.table_name}")
-
-    @backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10)
-    def _update_last_modified(self, timestamp: datetime) -> None:
-        """
-        Update the last modified timestamp for the current table.
-
-        This method updates both the instance's last_modified attribute and persists
-        the new timestamp to the state storage for the specified table.
-
-        Args:
-            timestamp (datetime): The new timestamp to set as the last modified time.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Updates self.last_modified with the ISO format string of the timestamp
-            - Persists the new timestamp to state storage via self.state.set_state()
-            - Logs an info message about the timestamp update
-        """
-        new_timestamp: str = timestamp.isoformat()
-        logger.info(
-            f"Updating last_modified for table '{self.table_name}' from {self.last_modified} "
-            f"to {new_timestamp}"
+        return DataStorage(
+            movies=self.film_work_data,
+            genres=self.genres_data,
+            persons=self.persons_data,
+            new_last_modified=self.new_last_modified,
         )
-        self.last_modified = new_timestamp
-        self.state.set_state(self.table_name, new_timestamp)
 
-    def _set_temp_film_work_last_modified(self, timestamp: datetime) -> None:
-        """
-        Set the temporary film work last modified timestamp.
-
-        This method updates the temporary last modified timestamp used when processing
-        film works related to changes in other tables (genre or person).
-
-        Args:
-            timestamp (datetime): The new timestamp to set as the temporary last modified time.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Updates self.temp_film_work_last_modified with the ISO format string of the timestamp
-        """
-        self.temp_film_work_last_modified = timestamp.isoformat()
-
-    def _reset_temp_film_work_last_modified(self) -> None:
-        """
-        Reset the temporary film work last modified timestamp to the default value.
-
-        This method sets the temporary last modified timestamp back to the initial
-        default value used for processing film works related to changes in other tables.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Sets self.temp_film_work_last_modified to "0001-01-01T00:00:00.000000+00:00"
-        """
-        self.temp_film_work_last_modified = "0001-01-01T00:00:00.000000+00:00"
-
-    def _process_record_related_film_work(self) -> list[dict[str, Any]]:
-        """
-        Process records from a related table and retrieve corresponding film work data.
-
-        This method continuously processes batches of modified records from a related table
-        (e.g., persons, genres) and fetches the complete film work data associated with those records.
-
-        The method performs the following steps:
-        1. Retrieves a batch of modified records based on their modification timestamp
-        2. Extracts record IDs from the batch
-        3. Queries for film work records related to these IDs
-        4. Updates tracking timestamps for processed records
-        5. Retrieves complete film work data for the found film work IDs
-
-        Returns:
-            list[dict[str, Any]]: A list of complete film work records with all related data,
-                                  or an empty list if no data is available to process.
-
-        Notes:
-            - The method runs in a loop until it finds film work records to process
-            - If no film work records are found for a batch, it updates the last modified
-              timestamp and continues to the next batch
-            - Temporary film work last modified timestamp is managed to track processing state
-            - Duplicate film work IDs are removed before fetching complete data
-        """
-
-        while True:
-            data_batch = self._get_record_id_modified_batch()
-            if not data_batch:
-                return []
-
-            record_ids = [record["id"] for record in data_batch]
-            logger.info(
-                f"Processing {len(record_ids)} modified records from table '{self.table_name}'"
-            )
-
-            film_work_records = self._get_film_work_for_related_ids_batch(record_ids)
-            logger.info(
-                f"Found {len(film_work_records)} related film work records for modified '{self.table_name}' records"
-            )
-
-            if not film_work_records:
-                self._update_last_modified(data_batch[-1]["modified"])
-                self._reset_temp_film_work_last_modified()
-                continue
-
-            film_work_ids = list({record["id"] for record in film_work_records})
-
-            self._set_temp_film_work_last_modified(film_work_records[-1]["modified"])
-
-            return self._get_complete_film_work_data(film_work_ids)
-
-    def _process_film_work(self) -> list[dict[str, Any]]:
-        """
-        Process a batch of film work records and retrieve their complete data.
-
-        This method orchestrates the extraction of film work records by:
-        1. Fetching a batch of modified film work records
-        2. Updating the last modified timestamp from the batch
-        3. Extracting unique film work IDs from the records
-        4. Retrieving complete film work data for those IDs
-
-        Returns:
-            list[dict[str, Any]]: A list of dictionaries containing complete film work data,
-                including all related information. Returns an empty list if no records are found.
-
-        Note:
-            The method updates the internal state by storing the last modified timestamp
-            from the processed batch for subsequent incremental extractions.
-        """
+    def _process_film_work_data(self) -> None:
         film_work_records = self._get_record_id_modified_batch()
-
         if not film_work_records:
-            return []
-
-        self._update_last_modified(film_work_records[-1]["modified"])
+            return
 
         film_work_ids = list({record["id"] for record in film_work_records})
+        self.film_work_data = self._get_complete_film_work_data(film_work_ids)
 
-        return self._get_complete_film_work_data(film_work_ids)
+        new_last_modified: datetime = max(
+            record["modified"] for record in film_work_records
+        )
+        self.new_last_modified = new_last_modified.isoformat()
+
+    def _process_genre_data(self) -> None:
+        genres_records = self._get_record_id_modified_batch()
+        if not genres_records:
+            return
+
+        genre_ids = [record["id"] for record in genres_records]
+        self.genres_data = self._get_complete_genre_data(genre_ids)
+
+        film_work_records = self._get_film_work_for_related_ids(genre_ids)
+        if not film_work_records:
+            return
+
+        film_work_ids = list({record["id"] for record in film_work_records})
+        self.film_work_data = self._get_complete_film_work_data(film_work_ids)
+
+        new_last_modified: datetime = max(
+            record["modified"] for record in genres_records
+        )
+        self.new_last_modified = new_last_modified.isoformat()
+
+    def _process_person_data(self) -> None:
+        persons_records = self._get_record_id_modified_batch()
+        if not persons_records:
+            return
+
+        person_ids = [record["id"] for record in persons_records]
+        self.persons_data = self._get_complete_person_data(person_ids)
+
+        film_work_records = self._get_film_work_for_related_ids(person_ids)
+        if not film_work_records:
+            return
+
+        film_work_ids = list({record["id"] for record in film_work_records})
+        self.film_work_data = self._get_complete_film_work_data(film_work_ids)
+        new_last_modified: datetime = max(
+            record["modified"] for record in persons_records
+        )
+        self.new_last_modified = new_last_modified.isoformat()
 
     @backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10)
     def _execute_query(self, query: sql.SQL, params: tuple) -> list[dict[str, Any]]:
@@ -281,47 +164,18 @@ class PostgresExtractor:
         """).format(table=sql.Identifier(self.table_name))
         return self._execute_query(query, (self.last_modified, self.batch_size))
 
-    @backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10)
-    def _get_film_work_for_related_ids_batch(
-        self, ids: list[str]
-    ) -> list[dict[str, Any]]:
-        """
-        Retrieve film work records associated with a batch of related entity IDs.
-
-        This method fetches film work records that are linked to the provided entity IDs
-        through a many-to-many relationship table. It only returns film works that have
-        been modified after a specified timestamp.
-
-        Args:
-            ids (list[str]): A list of entity IDs (e.g., person IDs or genre IDs) to find
-                associated film works for.
-
-        Returns:
-            list[dict[str, Any]]: A list of dictionaries containing film work data, where
-                each dictionary has 'id' and 'modified' keys. Results are ordered by
-                modification time and limited by batch_size.
-
-        Note:
-            The method constructs a dynamic SQL query based on self.table_name to join
-            the appropriate relationship table (e.g., 'person_film_work' or 'genre_film_work').
-            It filters results by self.temp_film_work_last_modified and limits results
-            by self.batch_size.
-        """
-
+    def _get_film_work_for_related_ids(self, ids: list[str]) -> list[dict[str, Any]]:
         query = sql.SQL("""
-            SELECT fw.id, fw.modified
+            SELECT fw.id
             FROM content.film_work fw
             INNER JOIN content.{table_name} rfw ON rfw.film_work_id = fw.id
-            WHERE rfw.{related_column_name} = ANY(%s) AND fw.modified > %s
-            ORDER BY fw.modified
-            LIMIT %s;
+            WHERE rfw.{related_column_name} = ANY(%s)
+            ORDER BY fw.id;
         """).format(
             table_name=sql.Identifier(f"{self.table_name}_film_work"),
             related_column_name=sql.Identifier(f"{self.table_name}_id"),
         )
-        return self._execute_query(
-            query, (ids, self.temp_film_work_last_modified, self.batch_size)
-        )
+        return self._execute_query(query, (ids,))
 
     def _get_complete_film_work_data(
         self, film_work_ids: list[str]
@@ -393,3 +247,36 @@ class PostgresExtractor:
             GROUP BY fw.id, fw.title, fw.description, fw.rating
         """)
         return self._execute_query(query, (film_work_ids,))
+
+    def _get_complete_genre_data(self, genre_ids: list[str]) -> list[dict[str, Any]]:
+        query = sql.SQL("""
+            SELECT
+                g.id,
+                g.name
+            FROM content.genre g
+            WHERE g.id = ANY(%s)
+        """)
+        return self._execute_query(query, (genre_ids,))
+
+    def _get_complete_person_data(self, person_ids: list[str]) -> list[dict[str, Any]]:
+        query = sql.SQL("""
+            SELECT
+                p.id,
+                p.full_name,
+                COALESCE(
+                    (
+                        SELECT json_agg(json_build_object('id', fw_inner.id, 'roles', fw_inner.roles))
+                        FROM (
+                            SELECT fw.id, array_agg(DISTINCT pfw_inner.role) AS roles
+                            FROM content.person_film_work pfw_inner
+                            JOIN content.film_work fw ON fw.id = pfw_inner.film_work_id
+                            WHERE pfw_inner.person_id = p.id
+                            GROUP BY fw.id
+                        ) fw_inner
+                    ),
+                    '[]'
+                ) AS films
+            FROM content.person p
+            WHERE p.id = ANY(%s)
+        """)
+        return self._execute_query(query, (person_ids,))

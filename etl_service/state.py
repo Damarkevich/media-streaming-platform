@@ -129,7 +129,9 @@ class RedisStorage:
 
     def save_state(self, state: dict[str, Any]) -> None:
         current_state = self.retrieve_state()
+        print(f"Current state before update: {current_state}")
         current_state.update(state)
+        print(f"Updated state to be saved: {current_state}")
         state_json = json.dumps(current_state)
         self.redis_client.set(self.key, state_json)
 
@@ -172,6 +174,7 @@ class State:
         self.storage = storage
 
     def set_state(self, key: str, value: Any) -> None:
+        print(f"Setting state: {key} = {value}")
         self.storage.save_state({key: value})
 
     def get_state(self, key: str) -> Any:

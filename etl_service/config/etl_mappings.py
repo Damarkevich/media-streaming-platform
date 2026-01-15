@@ -1,12 +1,13 @@
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel
 
 
 class Mapping(BaseModel):
-    postgres_table: str
-    es_index: str
+    postgres_table: Literal["film_work", "genre", "person"]
+    es_index: Literal["movies", "genres", "persons"]
     es_index_file: str
 
 

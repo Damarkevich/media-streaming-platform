@@ -97,7 +97,7 @@
           "id": {
             "type": "keyword"
           },
-          "name": {
+          "full_name": {
             "type": "text",
             "analyzer": "ru_en"
           }
@@ -110,7 +110,7 @@
           "id": {
             "type": "keyword"
           },
-          "name": {
+          "full_name": {
             "type": "text",
             "analyzer": "ru_en"
           }
@@ -123,7 +123,7 @@
           "id": {
             "type": "keyword"
           },
-          "name": {
+          "full_name": {
             "type": "text",
             "analyzer": "ru_en"
           }

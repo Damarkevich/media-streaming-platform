@@ -6,17 +6,28 @@ class Genre(BaseModel):
     name: str
 
 
-class Person(BaseModel):
+class PersonForFilm(BaseModel):
     id: UUID4
-    name: str
+    full_name: str
 
 
 class Film(BaseModel):
     id: UUID4
     title: str
     imdb_rating: float
-    description: str | None = None
+    description: str
     genres: list[Genre] = []
-    actors: list[Person] = []
-    writers: list[Person] = []
-    directors: list[Person] = []
+    actors: list[PersonForFilm] = []
+    writers: list[PersonForFilm] = []
+    directors: list[PersonForFilm] = []
+
+
+class FilmForPerson(BaseModel):
+    id: UUID4
+    roles: list[str] = []
+
+
+class Person(BaseModel):
+    id: UUID4
+    full_name: str
+    films: list[FilmForPerson] = []

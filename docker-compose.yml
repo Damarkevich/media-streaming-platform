@@ -96,6 +96,12 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   nginx:
     container_name: movies-nginx
@@ -105,9 +111,12 @@ services:
       - ./configs:/etc/nginx/conf.d:ro
       - movies_admin_static:/opt/movies_admin/static
     depends_on:
-      - movies-admin
-      - movies-async-api
-      - movies-elasticsearch
+      movies-admin:
+        condition: service_started
+      movies-async-api:
+        condition: service_healthy
+      movies-elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "80:80"

@@ -13,3 +13,7 @@ dependencies = [
     "uvicorn>=0.40.0",
 ]
 
+[dependency-groups]
+dev = [
+    "fastapi[standard]>=0.128.0",
+]

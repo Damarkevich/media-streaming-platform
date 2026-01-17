@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Request
 from http import HTTPStatus
-from fastapi import HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import UUID4
+
 from src.api.v1.schemas import Genre
 from src.core.cache import cache
 from src.services.genres import GenreService, get_genre_service
@@ -15,19 +16,10 @@ async def genres_list(
     request: Request,
     genre_service: GenreService = Depends(get_genre_service),
 ) -> list[Genre]:
-    """
-    Retrieve a list of genres.
-
-    Args:
-        film_service (FilmService, optional): The film service dependency for data access.
-            Defaults to Depends(get_film_service).
-
-    Returns:
-        list[Genre]: A list of Genre objects.
-    """
+    """Retrieve a list of genres."""
     genres = await genre_service.get_list()
-    data = [Genre(uuid=genre.id, name=genre.name) for genre in genres]
-    return data
+
+    return [Genre(uuid=genre.id, name=genre.name) for genre in genres]
 
 
 @router.get("/{genre_id}", response_model=Genre)
@@ -37,11 +29,9 @@ async def genre_detail(
     genre_id: UUID4,
     genre_service: GenreService = Depends(get_genre_service),
 ) -> Genre:
-    """
-    Retrieve detailed information about a specific genre by its ID.
-    """
+    """Retrieve detailed information about a specific genre by its ID."""
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genre not found")
-    data = Genre(uuid=genre.id, name=genre.name)
-    return data
+
+    return Genre(uuid=genre.id, name=genre.name)

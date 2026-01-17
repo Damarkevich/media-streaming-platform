@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
@@ -6,6 +7,9 @@ from pydantic import UUID4
 
 from src.db.elastic import get_elastic
 from src.models.es_models import Film
+from src.services.exceptions import ServiceUnavailableError
+
+logger = logging.getLogger(__name__)
 
 
 class FilmService:
@@ -81,6 +85,9 @@ class FilmService:
             )
         except NotFoundError:
             return []
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -109,6 +116,9 @@ class FilmService:
             )
         except NotFoundError:
             return []
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -126,6 +136,9 @@ class FilmService:
             )
         except NotFoundError:
             return []
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -147,6 +160,9 @@ class FilmService:
             doc = await self.elastic.get(index=self.index, id=str(film_id))
         except NotFoundError:
             return None
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return Film(**doc["_source"])
 
@@ -174,6 +190,9 @@ class FilmService:
             )
         except NotFoundError:
             return []
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return [Film(**doc["_source"]) for doc in response["docs"] if doc.get("found")]
 

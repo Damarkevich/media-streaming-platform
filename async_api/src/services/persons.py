@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
@@ -6,6 +7,9 @@ from pydantic import UUID4
 
 from src.db.elastic import get_elastic
 from src.models.es_models import Person
+from src.services.exceptions import ServiceUnavailableError
+
+logger = logging.getLogger(__name__)
 
 
 class PersonService:
@@ -45,6 +49,9 @@ class PersonService:
             )
         except NotFoundError:
             return []
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return [Person(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -66,6 +73,9 @@ class PersonService:
             doc = await self.elastic.get(index=self.index, id=str(person_id))
         except NotFoundError:
             return None
+        except ConnectionError as e:
+            logger.error(f"Elasticsearch connection error: {e}")
+            raise ServiceUnavailableError("Elasticsearch service is unavailable")
 
         return Person(**doc["_source"])
 

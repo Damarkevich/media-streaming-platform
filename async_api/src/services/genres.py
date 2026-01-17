@@ -5,7 +5,7 @@ from fastapi import Depends
 from pydantic import UUID4
 
 from src.db.elastic import get_elastic
-from src.models.es_models import Film, Genre
+from src.models.es_models import Genre
 
 
 class GenreService:
@@ -45,8 +45,8 @@ class GenreService:
             doc = await self.elastic.search(index=self.index)
         except NotFoundError:
             return []
-        genres = [Genre(**item["_source"]) for item in doc["hits"]["hits"]]
-        return genres
+
+        return [Genre(**item["_source"]) for item in doc["hits"]["hits"]]
 
     async def get_by_id(self, genre_id: UUID4) -> Genre | None:
         """
@@ -66,6 +66,7 @@ class GenreService:
             doc = await self.elastic.get(index=self.index, id=str(genre_id))
         except NotFoundError:
             return None
+
         return Genre(**doc["_source"])
 
 

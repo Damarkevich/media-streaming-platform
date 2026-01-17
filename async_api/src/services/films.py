@@ -25,6 +25,9 @@ class FilmService:
         get_by_id(film_id: str) -> Film | None:
             Retrieve a film document by its ID.
 
+        get_list_by_ids(film_ids: list[UUID4]) -> list[Film]:
+            Retrieve a list of film documents by their IDs.
+
         _prepare_es_sort_params(sort: str) -> list[dict[str, str]]:
             Prepare Elasticsearch sort parameters from a sort string.
 
@@ -41,11 +44,7 @@ class FilmService:
         self.elastic = elastic
 
     async def get_list(
-        self,
-        page_size: int,
-        page_number: int,
-        sort: str,
-        genre_id: UUID4 | None = None,
+        self, page_size: int, page_number: int, sort: str, genre_id: UUID4 | None = None
     ) -> list[Film]:
         """
         Retrieve a paginated list of films from Elasticsearch.
@@ -82,13 +81,10 @@ class FilmService:
             )
         except NotFoundError:
             return []
-        films = [Film(**item["_source"]) for item in doc["hits"]["hits"]]
-        return films
 
-    async def get_list_by_person(
-        self,
-        person_id: UUID4,
-    ) -> list[Film]:
+        return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
+
+    async def get_list_by_person(self, person_id: UUID4) -> list[Film]:
         """
         Retrieve a list of films from Elasticsearch for a specific person.
 
@@ -113,14 +109,11 @@ class FilmService:
             )
         except NotFoundError:
             return []
-        films = [Film(**item["_source"]) for item in doc["hits"]["hits"]]
-        return films
+
+        return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
     async def search(
-        self,
-        page_size: int = 10,
-        page_number: int = 0,
-        query: str | None = None,
+        self, page_size: int = 10, page_number: int = 0, query: str | None = None
     ) -> list[Film]:
         query_params = self._prepare_es_query_params(query)
 
@@ -134,8 +127,7 @@ class FilmService:
         except NotFoundError:
             return []
 
-        films = [Film(**item["_source"]) for item in doc["hits"]["hits"]]
-        return films
+        return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
     async def get_by_id(self, film_id: UUID4) -> Film | None:
         """
@@ -155,6 +147,7 @@ class FilmService:
             doc = await self.elastic.get(index=self.index, id=str(film_id))
         except NotFoundError:
             return None
+
         return Film(**doc["_source"])
 
     async def get_list_by_ids(self, film_ids: list[UUID4]) -> list[Film]:
@@ -224,6 +217,7 @@ class FilmService:
         """
         if not genre_id:
             return None
+
         return {
             "nested": {
                 "path": "genres",
@@ -268,12 +262,14 @@ class FilmService:
 
         Args:
             person_id (UUID4 | None): The person ID to filter films by. If None, no filtering is applied.
+
         Returns:
             dict | None: A dictionary representing the Elasticsearch query for person filtering,
                           or None if no person filtering is applied.
         """
         if not person_id:
             return None
+
         return {
             "bool": {
                 "should": [
@@ -302,9 +298,7 @@ class FilmService:
 
 
 @lru_cache()  # Cache the FilmService instance to avoid redundant creations
-def get_film_service(
-    elastic: AsyncElasticsearch = Depends(get_elastic),
-) -> FilmService:
+def get_film_service(elastic: AsyncElasticsearch = Depends(get_elastic)) -> FilmService:
     """
     Dependency function that creates and returns a FilmService instance.
 

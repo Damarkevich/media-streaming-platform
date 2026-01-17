@@ -16,17 +16,11 @@ class PersonService:
         elastic (AsyncElasticsearch): Elasticsearch client for querying person data.
 
     Methods:
-        get_list(page_size: int, page_number: int, sort: str) -> list[Person]:
-            Retrieve a paginated list of persons with sorting.
-
         search(page_size: int = 10, page_number: int = 0, query: str | None = None) -> list[Person]:
             Search for persons based on a query string.
 
         get_by_id(person_id: str) -> Person | None:
             Retrieve a person document by its ID.
-
-        _prepare_es_sort_params(sort: str) -> list[dict[str, str]]:
-            Prepare Elasticsearch sort parameters from a sort string.
 
         _prepare_es_query_params(query: str | None = None) -> dict | None:
             Prepare Elasticsearch query parameters for searching persons.
@@ -38,10 +32,7 @@ class PersonService:
         self.elastic = elastic
 
     async def search(
-        self,
-        page_size: int = 10,
-        page_number: int = 0,
-        query: str | None = None,
+        self, page_size: int = 10, page_number: int = 0, query: str | None = None
     ) -> list[Person]:
         query_params = self._prepare_es_query_params(query)
 
@@ -55,8 +46,7 @@ class PersonService:
         except NotFoundError:
             return []
 
-        persons = [Person(**item["_source"]) for item in doc["hits"]["hits"]]
-        return persons
+        return [Person(**item["_source"]) for item in doc["hits"]["hits"]]
 
     async def get_by_id(self, person_id: UUID4) -> Person | None:
         """
@@ -76,6 +66,7 @@ class PersonService:
             doc = await self.elastic.get(index=self.index, id=str(person_id))
         except NotFoundError:
             return None
+
         return Person(**doc["_source"])
 
     def _prepare_es_query_params(self, query: str | None = None) -> dict | None:

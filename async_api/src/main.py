@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
 from src.api.v1 import films, genres, persons
-from src.core import config
+from src.core.config import settings
 from src.core.lifespan import lifespan
 
 app = FastAPI(
-    title=config.PROJECT_NAME,
+    title=settings.project_name,
     docs_url="/api/openapi",
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,

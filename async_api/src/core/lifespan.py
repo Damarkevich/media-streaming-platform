@@ -5,7 +5,7 @@ from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
-from src.core import config
+from src.core.config import settings
 from src.db import elastic, redis
 
 
@@ -28,11 +28,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         the connection instances, making them accessible throughout the application.
     """
     redis.redis = Redis(
-        host=config.REDIS_HOST,
-        port=config.REDIS_PORT,
+        host=settings.redis_host,
+        port=settings.redis_port,
     )
     elastic.es = AsyncElasticsearch(
-        hosts=[f"{config.ELASTIC_SCHEMA}{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"],
+        hosts=[f"{settings.es_schema}{settings.es_host}:{settings.es_port}"],
         meta_header=False,
     )
 

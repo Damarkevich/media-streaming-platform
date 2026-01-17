@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
 
-from src.core import config
+from src.core.config import settings
 from src.db.redis import get_redis
 
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
                 await redis.set(
                     cache_key,
                     data,
-                    ex=config.CACHE_EXPIRE_IN_SECONDS,
+                    ex=settings.cache_expire_in_seconds,
                 )
                 logger.info(f"Cache set for key: {cache_key}")
             except Exception:

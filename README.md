@@ -1,11 +1,11 @@
 # media-streaming-platform
-Production-ready microservices backend for an online cinema platform.
+Microservices backend for an online cinema platform. Python 3.14 • FastAPI • Django • PostgreSQL • Elasticsearch • Redis • Docker • Nginx • uv
 
 # Project Documentation
 
 ## 1. What is this
 
-This project appears to be a software application that utilizes Docker containerization for deployment and orchestration. The project structure includes an `infra` folder which contains infrastructure-related configuration files, specifically Docker Compose setup for managing multi-container Docker applications.
+This project appears to be a software application that utilizes Docker containerization for deployment and orchestration. The project contains infrastructure-related configuration files, specifically Docker Compose setup for managing multi-container Docker applications.
 
 ## 3. Services
 

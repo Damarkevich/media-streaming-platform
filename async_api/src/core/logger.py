@@ -36,10 +36,6 @@ LOGGING = {
         },
     },
     "loggers": {
-        "": {
-            "handlers": LOG_DEFAULT_HANDLERS,
-            "level": "INFO",
-        },
         "uvicorn.error": {
             "level": "INFO",
         },
@@ -51,7 +47,6 @@ LOGGING = {
     },
     "root": {
         "level": "INFO",
-        "formatter": "verbose",
         "handlers": LOG_DEFAULT_HANDLERS,
     },
 }

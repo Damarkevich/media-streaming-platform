@@ -112,23 +112,6 @@ The application follows a layered architecture pattern:
    uv sync
    ```
 
-3. **Configure environment variables:**
-   
-   Create a `.env` file in the project root:
-   ```env
-   # Project
-   PROJECT_NAME=movies
-
-   # Redis Configuration
-   REDIS_HOST=127.0.0.1
-   REDIS_PORT=6379
-   CACHE_EXPIRE_IN_SECONDS=300
-
-   # Elasticsearch Configuration
-   ES_SCHEMA=http://
-   ES_HOST=localhost
-   ES_PORT=9200
-   ```
 
 ### Running the Application
 

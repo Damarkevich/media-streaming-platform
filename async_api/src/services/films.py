@@ -45,7 +45,7 @@ class FilmService:
         page_size: int,
         page_number: int,
         sort: str,
-        genre: UUID4 | None = None,
+        genre_id: UUID4 | None = None,
     ) -> list[Film]:
         """
         Retrieve a paginated list of films from Elasticsearch.
@@ -58,7 +58,7 @@ class FilmService:
             page_number (int): The zero-indexed page number to retrieve.
             sort (str): Sort parameter string that will be processed by
                 _prepare_es_sort_params to generate Elasticsearch sort parameters.
-            genre (UUID4 | None, optional): Filter films by genre ID. Defaults to None.
+            genre_id (UUID4 | None, optional): Filter films by genre ID. Defaults to None.
 
         Returns:
             list[Film]: A list of Film objects created from the Elasticsearch results.
@@ -70,7 +70,7 @@ class FilmService:
         """
 
         sort_params = self._prepare_es_sort_params(sort)
-        query_params = self._prepare_es_genre_query_params(genre)
+        query_params = self._prepare_es_genre_query_params(genre_id)
 
         try:
             doc = await self.elastic.search(
@@ -78,6 +78,37 @@ class FilmService:
                 from_=page_number * page_size,
                 size=page_size,
                 sort=sort_params,
+                query=query_params,
+            )
+        except NotFoundError:
+            return []
+        films = [Film(**item["_source"]) for item in doc["hits"]["hits"]]
+        return films
+
+    async def get_list_by_person(
+        self,
+        person_id: UUID4,
+    ) -> list[Film]:
+        """
+        Retrieve a list of films from Elasticsearch for a specific person.
+
+        Args:
+            person_id (UUID4): The unique identifier of the person to retrieve films for.
+
+        Returns:
+            list[Film]: A list of Film objects created from the Elasticsearch results.
+                Returns an empty list if no films are found or if a NotFoundError occurs.
+
+        Raises:
+            This method catches NotFoundError internally and returns an empty list,
+            so it does not propagate exceptions to the caller.
+        """
+
+        query_params = self._prepare_es_person_query_params(person_id)
+
+        try:
+            doc = await self.elastic.search(
+                index=self.index,
                 query=query_params,
             )
         except NotFoundError:
@@ -126,6 +157,33 @@ class FilmService:
             return None
         return Film(**doc["_source"])
 
+    async def get_list_by_ids(self, film_ids: list[UUID4]) -> list[Film]:
+        """
+        Retrieve a list of film documents from Elasticsearch by their IDs.
+
+        Args:
+            film_ids (list[UUID4]): A list of unique identifiers of the films to retrieve.
+
+        Returns:
+            list[Film]: A list of Film objects created from the Elasticsearch results.
+                Returns an empty list if no films are found or if a NotFoundError occurs.
+
+        Raises:
+            This method catches NotFoundError internally and returns an empty list,
+            so it does not propagate exceptions to the caller.
+        """
+        if not film_ids:
+            return []
+
+        try:
+            response = await self.elastic.mget(
+                index=self.index, ids=[str(film_id) for film_id in film_ids]
+            )
+        except NotFoundError:
+            return []
+
+        return [Film(**doc["_source"]) for doc in response["docs"] if doc.get("found")]
+
     def _prepare_es_sort_params(self, sort: str) -> list[dict[str, str]]:
         """
         Prepare Elasticsearch sort parameters from a comma-separated string.
@@ -152,22 +210,24 @@ class FilmService:
             sort_fields.append({field: order})
         return sort_fields
 
-    def _prepare_es_genre_query_params(self, genre: UUID4 | None = None) -> dict | None:
+    def _prepare_es_genre_query_params(
+        self, genre_id: UUID4 | None = None
+    ) -> dict | None:
         """
         Prepare Elasticsearch query parameters for filtering by genre.
 
         Args:
-            genre (UUID4 | None): The genre ID to filter films by. If None, no filtering is applied.
+            genre_id (UUID4 | None): The genre ID to filter films by. If None, no filtering is applied.
         Returns:
             dict | None: A dictionary representing the Elasticsearch query for genre filtering,
                           or None if no genre filtering is applied.
         """
-        if not genre:
+        if not genre_id:
             return None
         return {
             "nested": {
                 "path": "genres",
-                "query": {"term": {"genres.id": str(genre)}},
+                "query": {"term": {"genres.id": str(genre_id)}},
             }
         }
 
@@ -197,6 +257,46 @@ class FilmService:
                         "fuzziness": "AUTO",
                     }
                 }
+            }
+        }
+
+    def _prepare_es_person_query_params(
+        self, person_id: UUID4 | None = None
+    ) -> dict | None:
+        """
+        Prepare Elasticsearch query parameters for filtering by person.
+
+        Args:
+            person_id (UUID4 | None): The person ID to filter films by. If None, no filtering is applied.
+        Returns:
+            dict | None: A dictionary representing the Elasticsearch query for person filtering,
+                          or None if no person filtering is applied.
+        """
+        if not person_id:
+            return None
+        return {
+            "bool": {
+                "should": [
+                    {
+                        "nested": {
+                            "path": "actors",
+                            "query": {"term": {"actors.id": str(person_id)}},
+                        }
+                    },
+                    {
+                        "nested": {
+                            "path": "directors",
+                            "query": {"term": {"directors.id": str(person_id)}},
+                        }
+                    },
+                    {
+                        "nested": {
+                            "path": "writers",
+                            "query": {"term": {"writers.id": str(person_id)}},
+                        }
+                    },
+                ],
+                "minimum_should_match": 1,
             }
         }
 

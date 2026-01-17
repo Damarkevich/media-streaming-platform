@@ -4,10 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import AfterValidator, UUID4
 
-from src.api.v1.schemas import Film, FilmDetail, Genre, Person
+from src.api.v1.schemas import Film, FilmDetail, Genre, PersonForFilm
 from src.api.v1.validators import validate_sort
 from src.core.cache import cache
-from src.services.film import FilmService, get_film_service
+from src.services.films import FilmService, get_film_service
 
 router = APIRouter(redirect_slashes=False)
 
@@ -41,7 +41,7 @@ async def films_list(
         page_size=page_size,
         page_number=page_number,
         sort=sort,
-        genre=genre,
+        genre_id=genre,
     )
     data = [
         Film(uuid=film.id, title=film.title, imdb_rating=film.imdb_rating)
@@ -112,9 +112,11 @@ async def film_details(
         uuid=film.id,
         title=film.title,
         imdb_rating=film.imdb_rating,
-        description=film.description or "",
+        description=film.description,
         genre=[Genre(uuid=g.id, name=g.name) for g in film.genres],
-        actors=[Person(uuid=a.id, full_name=a.name) for a in film.actors],
-        writers=[Person(uuid=w.id, full_name=w.name) for w in film.writers],
-        directors=[Person(uuid=d.id, full_name=d.name) for d in film.directors],
+        actors=[PersonForFilm(uuid=a.id, full_name=a.full_name) for a in film.actors],
+        writers=[PersonForFilm(uuid=w.id, full_name=w.full_name) for w in film.writers],
+        directors=[
+            PersonForFilm(uuid=d.id, full_name=d.full_name) for d in film.directors
+        ],
     )

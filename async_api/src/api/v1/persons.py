@@ -1,8 +1,8 @@
 from http import HTTPStatus
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import UUID4
-from typing_extensions import Annotated
 
 from src.api.v1.schemas import Film, FilmForPerson, Person
 from src.core.cache import cache
@@ -16,7 +16,7 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def persons_search(
     request: Request,
-    query: Annotated[str, Query(description="Search query string")] = "",
+    query: Annotated[str, Query(description="Search query string", min_length=1)],
     page_size: Annotated[
         int, Query(description="Pagination page size", ge=1, le=100)
     ] = 10,

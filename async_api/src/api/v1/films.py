@@ -42,7 +42,7 @@ async def films_list(
 @cache()
 async def films_search(
     request: Request,
-    query: Annotated[str, Query(description="Search query string")] = "",
+    query: Annotated[str, Query(description="Search query string", min_length=1)] = "",
     page_size: Annotated[
         int, Query(description="Pagination page size", ge=1, le=100)
     ] = 10,

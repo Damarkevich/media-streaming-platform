@@ -1,7 +1,8 @@
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import UUID4
+from typing_extensions import Annotated
 
 from src.api.v1.schemas import Film, FilmForPerson, Person
 from src.core.cache import cache
@@ -15,9 +16,11 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def persons_search(
     request: Request,
-    query: str,
-    page_size: int = 10,
-    page_number: int = 0,
+    query: Annotated[str, Query(description="Search query string")] = "",
+    page_size: Annotated[
+        int, Query(description="Pagination page size", ge=1, le=100)
+    ] = 10,
+    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Person]:
     """Search for persons by a full name."""
@@ -42,7 +45,7 @@ async def persons_search(
 @cache()
 async def person_films(
     request: Request,
-    person_id: UUID4,
+    person_id: Annotated[UUID4, Path(description="Person ID")],
     person_service: PersonService = Depends(get_person_service),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
@@ -68,7 +71,7 @@ async def person_films(
 @cache()
 async def person_details(
     request: Request,
-    person_id: UUID4,
+    person_id: Annotated[UUID4, Path(description="Person ID")],
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:
     """Retrieve detailed information about a specific person by its ID."""

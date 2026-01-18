@@ -2,7 +2,7 @@ import functools
 import hashlib
 import json
 import logging
-from typing import Any, Awaitable, Callable, Mapping, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, Mapping
 from urllib.parse import urlencode
 
 from fastapi import Request
@@ -11,9 +11,6 @@ from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.db.redis import get_redis
-
-P = ParamSpec("P")
-T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +124,7 @@ def cache[T, **P](
 
     Args:
         expire_in_seconds (int): Cache expiration time in seconds. If not provided,
-            defaults to settings.CACHE_EXPIRE_IN_SECONDS.
+            defaults to settings.cache_expire_in_seconds.
 
     Returns:
         Callable: A decorator that wraps async functions with caching functionality.
@@ -135,7 +132,7 @@ def cache[T, **P](
     Cache Behavior:
         - Only GET requests are cached
         - Cache keys are built from function name, method, path params, and query params
-        - Cache expiration is controlled by expire_in_seconds parameter or config.CACHE_EXPIRE_IN_SECONDS
+        - Cache expiration is controlled by expire_in_seconds parameter or config.cache_expire_in_seconds
         - If Redis is unavailable or operations fail, the function executes normally
         - Results are JSON-serialized before caching
 
@@ -160,14 +157,14 @@ def cache[T, **P](
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 1. Extract Request
-            request: Request | None = None
+            request: object | None = None
             for arg in args:
                 if isinstance(arg, Request):
                     request = arg
                     break
             if request is None:
                 request = kwargs.get("request")
-            if request is None:
+            if request is None or not isinstance(request, Request):
                 logger.error(
                     "Cache decorator requires 'request' parameter of type Request"
                 )

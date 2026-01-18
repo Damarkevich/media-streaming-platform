@@ -26,7 +26,7 @@ class GenreService:
 
     index = "genres"
 
-    def __init__(self, elastic: AsyncElasticsearch):
+    def __init__(self, elastic: AsyncElasticsearch) -> None:
         self.elastic = elastic
 
     async def get_list(self) -> list[Genre]:

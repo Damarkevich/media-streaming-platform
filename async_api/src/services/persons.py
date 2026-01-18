@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from typing import Any
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
@@ -32,7 +33,7 @@ class PersonService:
 
     index = "persons"
 
-    def __init__(self, elastic: AsyncElasticsearch):
+    def __init__(self, elastic: AsyncElasticsearch) -> None:
         self.elastic = elastic
 
     async def search(
@@ -79,7 +80,9 @@ class PersonService:
 
         return Person(**doc["_source"])
 
-    def _prepare_es_query_params(self, query: str | None = None) -> dict | None:
+    def _prepare_es_query_params(
+        self, query: str | None = None
+    ) -> dict[str, Any] | None:
         """
         Prepare Elasticsearch query parameters for searching persons.
 

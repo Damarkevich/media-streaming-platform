@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import UUID4, AfterValidator
 
 from src.api.v1.schemas import Film, FilmDetail, Genre, PersonForFilm
@@ -16,10 +16,12 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def films_list(
     request: Request,
-    page_size: int = 10,
-    page_number: int = 0,
+    page_size: Annotated[
+        int, Query(description="Pagination page size", ge=1, le=100)
+    ] = 10,
+    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
     sort: Annotated[str, AfterValidator(validate_sort)] = "-imdb_rating",
-    genre: UUID4 | None = None,
+    genre: Annotated[UUID4 | None, Query(description="Filter by genre ID")] = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     """Retrieve a paginated list of films with optional sorting and genre filtering."""
@@ -40,9 +42,11 @@ async def films_list(
 @cache()
 async def films_search(
     request: Request,
-    query: str,
-    page_size: int = 10,
-    page_number: int = 0,
+    query: Annotated[str, Query(description="Search query string", min_length=1)] = "",
+    page_size: Annotated[
+        int, Query(description="Pagination page size", ge=1, le=100)
+    ] = 10,
+    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     """Search for films by title and description."""
@@ -62,7 +66,7 @@ async def films_search(
 @cache()
 async def film_details(
     request: Request,
-    film_id: UUID4,
+    film_id: Annotated[UUID4, Path(description="The ID of the film to retrieve")],
     film_service: FilmService = Depends(get_film_service),
 ) -> FilmDetail:
     """Retrieve detailed information about a specific film by its ID."""

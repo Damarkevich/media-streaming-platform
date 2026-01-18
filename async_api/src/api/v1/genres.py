@@ -1,6 +1,7 @@
 from http import HTTPStatus
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import UUID4
 
 from src.api.v1.schemas import Genre
@@ -26,7 +27,7 @@ async def genres_list(
 @cache()
 async def genre_detail(
     request: Request,
-    genre_id: UUID4,
+    genre_id: Annotated[UUID4, Path(description="Genre ID")],
     genre_service: GenreService = Depends(get_genre_service),
 ) -> Genre:
     """Retrieve detailed information about a specific genre by its ID."""

@@ -1,9 +1,11 @@
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_DEFAULT_HANDLERS = [
+from typing import Any
+
+LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_DEFAULT_HANDLERS: list[str] = [
     "console",
 ]
 
-LOGGING = {
+LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {

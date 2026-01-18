@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from typing import Any
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
@@ -44,7 +45,7 @@ class FilmService:
 
     index = "movies"
 
-    def __init__(self, elastic: AsyncElasticsearch):
+    def __init__(self, elastic: AsyncElasticsearch) -> None:
         self.elastic = elastic
 
     async def get_list(
@@ -213,7 +214,7 @@ class FilmService:
             >>> _prepare_es_sort_params("title,-rating")
             [{"title": "asc"}, {"rating": "desc"}]
         """
-        sort_fields = []
+        sort_fields: list[dict[str, str]] = []
         for field in sort.split(","):
             order = "asc"
             if field.startswith("-"):
@@ -224,7 +225,7 @@ class FilmService:
 
     def _prepare_es_genre_query_params(
         self, genre_id: UUID4 | None = None
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Prepare Elasticsearch query parameters for filtering by genre.
 
@@ -244,7 +245,9 @@ class FilmService:
             }
         }
 
-    def _prepare_es_query_params(self, query: str | None = None) -> dict | None:
+    def _prepare_es_query_params(
+        self, query: str | None = None
+    ) -> dict[str, Any] | None:
         """
         Prepare Elasticsearch query parameters for searching films.
 
@@ -275,7 +278,7 @@ class FilmService:
 
     def _prepare_es_person_query_params(
         self, person_id: UUID4 | None = None
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Prepare Elasticsearch query parameters for filtering by person.
 

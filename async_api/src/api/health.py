@@ -7,7 +7,7 @@ router = APIRouter(redirect_slashes=False)
 
 
 @router.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str | dict[str, str]]:
     """Health check endpoint to verify the status of Redis and Elasticsearch services."""
     redis_ok = await check_redis()
     es_ok = await check_es()

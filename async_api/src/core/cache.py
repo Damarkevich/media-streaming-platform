@@ -2,14 +2,18 @@ import functools
 import hashlib
 import json
 import logging
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable, Mapping, ParamSpec, TypeVar
 from urllib.parse import urlencode
 
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
+from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.db.redis import get_redis
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +114,9 @@ def identity_hash(identity: str) -> str:
     return hashlib.sha256(identity.encode()).hexdigest()[:16]
 
 
-def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
+def cache[T, **P](
+    expire_in_seconds: int = settings.cache_expire_in_seconds,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """
     A decorator factory that adds Redis caching to async GET request handlers.
 
@@ -119,13 +125,17 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
     builds a cache key based on the request parameters, and manages cache storage
     and retrieval.
 
+    Args:
+        expire_in_seconds (int): Cache expiration time in seconds. If not provided,
+            defaults to settings.CACHE_EXPIRE_IN_SECONDS.
+
     Returns:
         Callable: A decorator that wraps async functions with caching functionality.
 
     Cache Behavior:
         - Only GET requests are cached
         - Cache keys are built from function name, method, path params, and query params
-        - Cache expiration is controlled by config.CACHE_EXPIRE_IN_SECONDS
+        - Cache expiration is controlled by expire_in_seconds parameter or config.CACHE_EXPIRE_IN_SECONDS
         - If Redis is unavailable or operations fail, the function executes normally
         - Results are JSON-serialized before caching
 
@@ -133,6 +143,10 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
         >>> @cache()
         ... async def get_movies(request: Request, page: int = 1):
         ...     return await fetch_movies(page)
+
+        >>> @cache(expire_in_seconds=300)
+        ... async def get_popular_movies(request: Request):
+        ...     return await fetch_popular_movies()
 
     Notes:
         - The decorated function must accept a Request object either as a positional
@@ -142,9 +156,9 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
         - Cached data is deserialized from JSON on cache hits
     """
 
-    def decorator(func: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> Any:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 1. Extract Request
             request: Request | None = None
             for arg in args:
@@ -171,7 +185,7 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
             cache_key = f"{func_name}:{identity_hash(identity)}"
 
             # 3. Get Redis
-            redis = None
+            redis: Redis | None = None
             try:
                 redis = await get_redis()
             except Exception:
@@ -182,7 +196,7 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
 
             # 4. Try to get from Redis
             try:
-                cached = await redis.get(cache_key)
+                cached: bytes | None = await redis.get(cache_key)
             except Exception:
                 logger.exception(
                     f"Redis cache get failed for key '{cache_key}'; proceeding without cache",
@@ -200,11 +214,7 @@ def cache() -> Callable[[Callable[..., Awaitable]], Callable[..., Awaitable]]:
             # 6. Store in Redis
             try:
                 data = json.dumps(jsonable_encoder(result))
-                await redis.set(
-                    cache_key,
-                    data,
-                    ex=settings.cache_expire_in_seconds,
-                )
+                await redis.set(cache_key, data, ex=expire_in_seconds)
                 logger.info(f"Cache set for key: {cache_key}")
             except Exception:
                 logger.exception(

@@ -1,0 +1,96 @@
+services:
+  test-elasticsearch:
+    container_name: test-elasticsearch
+    image: elasticsearch:9.2.3
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: curl -s http://test-elasticsearch:9200 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  test-redis:
+    container_name: test-redis
+    image: redis:8.4.0
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+  test-fastapi:
+    container_name: test-fastapi
+    build: ../../.
+    image: fastapi-image
+    ports:
+      - "8000:8000"
+    environment:
+      - ES_HOST=test-elasticsearch
+      - ES_PORT=9200
+      - ES_SCHEMA=http://
+      - REDIS_HOST=test-redis
+      - REDIS_PORT=6379
+    depends_on:
+      test-elasticsearch:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://localhost:8000/api/health'').read()" || exit 1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  tests:
+    container_name: tests
+    image: fastapi-image
+    volumes:
+      - .:/tests/functional
+      - ../../pyproject.toml:/app/pyproject.toml
+    working_dir: /tests/functional
+    environment:
+      - PYTHONPATH=/tests/functional
+      - ES_HOST=test-elasticsearch
+      - ES_PORT=9200
+      - ES_SCHEMA=http://
+      - ES_INDEX=movies
+      - REDIS_HOST=test-redis
+      - REDIS_PORT=6379
+      - SERVICE_URL=http://test-fastapi:8000
+    depends_on:
+      test-elasticsearch:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+      test-fastapi:
+        condition: service_healthy
+    command: >
+      sh -c "cd /app && uv sync --group test
+      && cd /tests/functional
+      && uv run --project /app python utils/wait_for_es.py
+      && uv run --project /app python utils/wait_for_redis.py
+      && uv run --project /app pytest src -v"

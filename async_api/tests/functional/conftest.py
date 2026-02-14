@@ -37,17 +37,18 @@ async def aio_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
 @pytest_asyncio.fixture
 async def es_write_data(
     es_client: AsyncElasticsearch,
-) -> Callable[[list[dict[str, Any]]], Any]:
+) -> Callable[[str, list[dict[str, Any]]], Any]:
     """Fixture to write test data to Elasticsearch."""
 
-    async def inner(data: list[dict[str, Any]]):
-        await es_client.indices.create(
-            index=test_settings.es_index, **test_settings.es_index_mapping
-        )
+    async def inner(index: str, data: list[dict[str, Any]]):
+        if not await es_client.indices.exists(index=index):
+            await es_client.indices.create(
+                index=index, **test_settings.es_index_mapping(index)
+            )
 
         _, errors = await async_bulk(client=es_client, actions=data)
 
-        await es_client.indices.refresh(index=test_settings.es_index)
+        await es_client.indices.refresh(index=index)
 
         if errors:
             raise Exception("Failed to write data to Elasticsearch")
@@ -56,12 +57,18 @@ async def es_write_data(
 
 
 @pytest_asyncio.fixture
-async def es_clear_data(es_client: AsyncElasticsearch) -> Callable[[], Any]:
+async def es_clear_data(es_client: AsyncElasticsearch) -> Callable[[str], Any]:
     """Fixture to clear all data from the Elasticsearch."""
 
-    async def inner() -> Any:
-        if await es_client.indices.exists(index=test_settings.es_index):
-            await es_client.indices.delete(index=test_settings.es_index)
+    async def inner(index: str) -> Any:
+        if await es_client.indices.exists(index=index):
+            await es_client.delete_by_query(
+                index=index,
+                query={"match_all": {}},
+                conflicts="proceed",
+                refresh=True,
+            )
+            await es_client.indices.refresh(index=index)
 
     return inner
 
@@ -80,7 +87,9 @@ async def redis_clear_data(redis_client: Redis) -> Callable[[], Any]:
 async def make_get_request(aio_client: aiohttp.ClientSession):
     """Fixture to make GET requests to the FastAPI service."""
 
-    async def inner(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
+    async def inner(
+        endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         url = test_settings.service_url + endpoint
         async with aio_client.get(url, params=params) as response:
             body: Any = await response.json()
@@ -114,3 +123,32 @@ def film_factory():
         return {**default, **kwargs}
 
     return _create_film
+
+
+@pytest.fixture
+def person_factory():
+    """Factory fixture to create person test data with customizable fields."""
+
+    def _create_person(**kwargs: Any) -> dict[str, Any]:
+        default: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "full_name": "Test Person",
+            "films": [{"id": str(uuid.uuid4()), "roles": ["actor"]}],
+        }
+        return {**default, **kwargs}
+
+    return _create_person
+
+
+@pytest.fixture
+def genre_factory():
+    """Factory fixture to create genre test data with customizable fields."""
+
+    def _create_genre(**kwargs: Any) -> dict[str, Any]:
+        default: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "name": "Test Genre",
+        }
+        return {**default, **kwargs}
+
+    return _create_genre

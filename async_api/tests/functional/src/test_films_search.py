@@ -2,7 +2,8 @@ from typing import Any, Callable
 
 import pytest
 
-from tests.functional.settings import test_settings
+ES_INDEX = "movies"
+FILMS_SEARCH_ENDPOINT = "/api/v1/films/search"
 
 
 @pytest.mark.parametrize(
@@ -51,10 +52,10 @@ from tests.functional.settings import test_settings
     ],
 )
 @pytest.mark.asyncio
-async def test_search(
-    es_clear_data: Callable[[], Any],
+async def test_films_search(
+    es_clear_data: Callable[[str], Any],
     redis_clear_data: Callable[[], Any],
-    es_write_data: Callable[[list[dict[str, Any]]], Any],
+    es_write_data: Callable[[str, list[dict[str, Any]]], Any],
     make_get_request: Callable[[str, dict[str, Any]], Any],
     film_factory: Callable[..., dict[str, Any]],
     query_data: dict[str, Any],
@@ -63,7 +64,7 @@ async def test_search(
     """Test search with pagination and validation."""
 
     # Clear existing data to ensure test isolation
-    await es_clear_data()
+    await es_clear_data(ES_INDEX)
     await redis_clear_data()
 
     es_data: list[dict[str, Any]] = [
@@ -75,13 +76,13 @@ async def test_search(
 
     bulk_query: list[dict[str, Any]] = []
     for row in es_data:
-        data: dict[str, Any] = {"_index": test_settings.es_index, "_id": row["id"]}
+        data: dict[str, Any] = {"_index": ES_INDEX, "_id": row["id"]}
         data.update({"_source": row})
         bulk_query.append(data)
 
-    await es_write_data(bulk_query)
+    await es_write_data(ES_INDEX, bulk_query)
 
-    response_dict = await make_get_request("/api/v1/films/search", query_data)
+    response_dict = await make_get_request(FILMS_SEARCH_ENDPOINT, query_data)
 
     body = response_dict["body"]
     status = response_dict["status"]
@@ -96,16 +97,16 @@ async def test_search(
 
 
 @pytest.mark.asyncio
-async def test_search_by_phrase(
-    es_write_data: Callable[[list[dict[str, Any]]], Any],
-    es_clear_data: Callable[[], Any],
+async def test_films_search_by_phrase(
+    es_write_data: Callable[[str, list[dict[str, Any]]], Any],
+    es_clear_data: Callable[[str], Any],
     redis_clear_data: Callable[[], Any],
     make_get_request: Callable[[str, dict[str, Any]], Any],
     film_factory: Callable[..., dict[str, Any]],
 ):
     """Test search by multi-word phrase in title and description."""
     # Clear existing data to ensure test isolation
-    await es_clear_data()
+    await es_clear_data(ES_INDEX)
     await redis_clear_data()
 
     es_data: list[dict[str, Any]] = [
@@ -125,15 +126,14 @@ async def test_search_by_phrase(
 
     bulk_query: list[dict[str, Any]] = []
     for row in es_data:
-        data: dict[str, Any] = {"_index": test_settings.es_index, "_id": row["id"]}
+        data: dict[str, Any] = {"_index": ES_INDEX, "_id": row["id"]}
         data.update({"_source": row})
         bulk_query.append(data)
 
-    await es_write_data(bulk_query)
-
+    await es_write_data(ES_INDEX, bulk_query)
     # Search by phrase in title
     response_dict = await make_get_request(
-        "/api/v1/films/search", {"query": "Star Wars", "page_size": 10}
+        FILMS_SEARCH_ENDPOINT, {"query": "Star Wars", "page_size": 10}
     )
     assert response_dict["status"] == 200
     assert len(response_dict["body"]) >= 1
@@ -147,7 +147,7 @@ async def test_search_by_phrase(
 
     # Search by phrase in description
     response_dict = await make_get_request(
-        "/api/v1/films/search", {"query": "Star Wars fans", "page_size": 10}
+        FILMS_SEARCH_ENDPOINT, {"query": "Star Wars fans", "page_size": 10}
     )
     assert response_dict["status"] == 200
     assert len(response_dict["body"]) >= 1
@@ -160,17 +160,17 @@ async def test_search_by_phrase(
 
 
 @pytest.mark.asyncio
-async def test_search_cache(
-    es_clear_data: Callable[[], Any],
+async def test_films_search_cache(
+    es_clear_data: Callable[[str], Any],
     redis_clear_data: Callable[[], Any],
-    es_write_data: Callable[[list[dict[str, Any]]], Any],
+    es_write_data: Callable[[str, list[dict[str, Any]]], Any],
     make_get_request: Callable[[str, dict[str, Any]], Any],
     film_factory: Callable[..., dict[str, Any]],
 ):
     """Test that search results are cached and returned from cache on repeated requests."""
 
     # Clear existing data to ensure test isolation
-    await es_clear_data()
+    await es_clear_data(ES_INDEX)
     await redis_clear_data()
 
     es_data: list[dict[str, Any]] = [
@@ -181,26 +181,26 @@ async def test_search_cache(
 
     bulk_query: list[dict[str, Any]] = []
     for row in es_data:
-        data: dict[str, Any] = {"_index": test_settings.es_index, "_id": row["id"]}
+        data: dict[str, Any] = {"_index": ES_INDEX, "_id": row["id"]}
         data.update({"_source": row})
         bulk_query.append(data)
 
-    await es_write_data(bulk_query)
+    await es_write_data(ES_INDEX, bulk_query)
 
     # First request - should hit the database
     response1 = await make_get_request(
-        "/api/v1/films/search", {"query": "Cached Movie", "page_size": 10}
+        FILMS_SEARCH_ENDPOINT, {"query": "Cached Movie", "page_size": 10}
     )
     assert response1["status"] == 200
     assert len(response1["body"]) == 1
     first_result = response1["body"]
 
     # Remove the movie from Elasticsearch to ensure that cache is used for the second request
-    await es_clear_data()
+    await es_clear_data(ES_INDEX)
 
     # Second request with same parameters - should return cached result
     response2 = await make_get_request(
-        "/api/v1/films/search", {"query": "Cached Movie", "page_size": 10}
+        FILMS_SEARCH_ENDPOINT, {"query": "Cached Movie", "page_size": 10}
     )
     assert response2["status"] == 200
     assert len(response2["body"]) == 1
@@ -208,7 +208,7 @@ async def test_search_cache(
 
     # Different parameters - should not use cache
     response3 = await make_get_request(
-        "/api/v1/films/search", {"query": "Cached Movie", "page_size": 5}
+        FILMS_SEARCH_ENDPOINT, {"query": "Cached Movie", "page_size": 5}
     )
     assert response3["status"] == 200
     assert len(response3["body"]) == 0

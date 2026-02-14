@@ -123,7 +123,7 @@ uv run fastapi dev src/main.py
 
 The API will be available at:
 - **API Base URL**: http://localhost:8000/api/v1/
-- **Health Check**: http://localhost:8000/health
+- **Health Check**: http://localhost:8000/api/health
 - **API Documentation**: http://localhost:8000/api/openapi
 - **OpenAPI JSON**: http://localhost:8000/api/openapi.json
 
@@ -145,7 +145,7 @@ docker run -p 8000:8000 --env-file .env async-api
 Check that all services are running:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/api/health
 ```
 
 Expected response:
@@ -185,6 +185,44 @@ curl "http://localhost:8000/api/v1/persons/search?query=tom%20hanks"
 ```bash
 curl "http://localhost:8000/api/v1/persons/{person_id}/film"
 ```
+
+## ✅ Testing
+
+### Functional Test Coverage
+
+Functional tests cover all public GET endpoints:
+
+- `/api/health`
+- `/api/v1/films`
+- `/api/v1/films/search`
+- `/api/v1/films/{film_id}`
+- `/api/v1/genres`
+- `/api/v1/genres/{genre_id}`
+- `/api/v1/persons/search`
+- `/api/v1/persons/{person_id}`
+- `/api/v1/persons/{person_id}/film`
+
+Covered scenarios include:
+
+- happy path responses
+- validation errors (`422`)
+- not found cases (`404`)
+- cache behavior (repeat request after source data cleanup)
+
+### Run Functional Tests
+
+Run all functional tests:
+
+```bash
+uv run --group test pytest -v tests/functional/src
+```
+
+Run with slowest tests report:
+
+```bash
+uv run --group test pytest -q tests/functional/src --durations=15
+```
+
 
 ## 🏗 Project Structure
 

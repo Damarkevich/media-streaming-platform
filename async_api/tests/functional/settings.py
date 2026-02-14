@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from tests.functional.testdata.es_mapping import ES_MAPPING
+from tests.functional.testdata.es_mapping import ES_MAPPINGS
 
 
 class TestSettings(BaseSettings):
@@ -11,7 +11,6 @@ class TestSettings(BaseSettings):
     es_host: str = "test-elasticsearch"
     es_port: int = 9200
     es_schema: str = "http://"
-    es_index: str = "movies"
 
     redis_host: str = "test-redis"
     redis_port: int = 6379
@@ -26,9 +25,8 @@ class TestSettings(BaseSettings):
     def redis_url(self) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}"
 
-    @property
-    def es_index_mapping(self) -> dict[str, Any]:
-        return ES_MAPPING
+    def es_index_mapping(self, index_name: str) -> dict[str, Any]:
+        return ES_MAPPINGS.get(index_name, {})
 
 
 test_settings = TestSettings()

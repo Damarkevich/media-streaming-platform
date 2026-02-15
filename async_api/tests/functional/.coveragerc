@@ -1,0 +1,28 @@
+[run]
+source = src
+omit = 
+    */tests/*
+    */__pycache__/*
+    */site-packages/*
+    .venv/*
+parallel = true
+concurrency = multiprocessing,thread
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @abc.abstractmethod
+
+[html]
+directory = htmlcov
+
+[paths]
+source =
+    src/
+    /app/src/

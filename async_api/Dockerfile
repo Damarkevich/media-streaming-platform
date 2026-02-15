@@ -3,6 +3,11 @@ FROM python:3.14-slim
 # Install uv.
 COPY --from=ghcr.io/astral-sh/uv:0.9.18 /uv /uvx /bin/
 
+# Install curl for container healthchecks.
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends curl \
+	&& rm -rf /var/lib/apt/lists/*
+
 # Copy the application into the container.
 COPY . /app
 

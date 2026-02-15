@@ -1,7 +1,8 @@
 import time
 
-from tests.functional.settings import test_settings
 from redis import Redis
+
+from tests.functional.settings import test_settings
 
 REDIS_HOST = test_settings.redis_host
 REDIS_PORT = test_settings.redis_port

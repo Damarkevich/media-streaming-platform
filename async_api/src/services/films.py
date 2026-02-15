@@ -92,37 +92,6 @@ class FilmService:
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
-    async def get_list_by_person(self, person_id: UUID4) -> list[Film]:
-        """
-        Retrieve a list of films from Elasticsearch for a specific person.
-
-        Args:
-            person_id (UUID4): The unique identifier of the person to retrieve films for.
-
-        Returns:
-            list[Film]: A list of Film objects created from the Elasticsearch results.
-                Returns an empty list if no films are found or if a NotFoundError occurs.
-
-        Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
-        """
-
-        query_params = self._prepare_es_person_query_params(person_id)
-
-        try:
-            doc = await self.elastic.search(
-                index=self.index,
-                query=query_params,
-            )
-        except NotFoundError:
-            return []
-        except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
-
-        return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
-
     async def search(
         self, page_size: int = 10, page_number: int = 0, query: str | None = None
     ) -> list[Film]:
@@ -273,48 +242,6 @@ class FilmService:
                         "fuzziness": "AUTO",
                     }
                 }
-            }
-        }
-
-    def _prepare_es_person_query_params(
-        self, person_id: UUID4 | None = None
-    ) -> dict[str, Any] | None:
-        """
-        Prepare Elasticsearch query parameters for filtering by person.
-
-        Args:
-            person_id (UUID4 | None): The person ID to filter films by. If None, no filtering is applied.
-
-        Returns:
-            dict | None: A dictionary representing the Elasticsearch query for person filtering,
-                          or None if no person filtering is applied.
-        """
-        if not person_id:
-            return None
-
-        return {
-            "bool": {
-                "should": [
-                    {
-                        "nested": {
-                            "path": "actors",
-                            "query": {"term": {"actors.id": str(person_id)}},
-                        }
-                    },
-                    {
-                        "nested": {
-                            "path": "directors",
-                            "query": {"term": {"directors.id": str(person_id)}},
-                        }
-                    },
-                    {
-                        "nested": {
-                            "path": "writers",
-                            "query": {"term": {"writers.id": str(person_id)}},
-                        }
-                    },
-                ],
-                "minimum_should_match": 1,
             }
         }
 

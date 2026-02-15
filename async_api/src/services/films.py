@@ -2,7 +2,7 @@ import logging
 from functools import lru_cache
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConnectionError, NotFoundError
 from fastapi import Depends
 from pydantic import UUID4
 

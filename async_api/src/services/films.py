@@ -73,8 +73,7 @@ class FilmService:
                 Returns an empty list if no films are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
 
         sort_params = self._prepare_es_sort_params(sort)
@@ -117,8 +116,7 @@ class FilmService:
                 Returns an empty list if no films are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         query_params = self._prepare_es_query_params(query)
 
@@ -148,8 +146,7 @@ class FilmService:
             Film | None: A Film object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(film_id))
@@ -173,8 +170,7 @@ class FilmService:
                 Returns an empty list if no films are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         if not film_ids:
             return []

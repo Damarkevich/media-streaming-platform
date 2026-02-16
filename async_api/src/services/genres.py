@@ -20,8 +20,11 @@ class GenreService:
         elastic (AsyncElasticsearch): Elasticsearch client for querying genre data.
 
     Methods:
-        get_list() -> list[Genre]:
-            Retrieve a list of genres.
+        get_list(page_size: int, page_number: int) -> list[Genre]:
+            Retrieve a paginated list of genres.
+
+        get_by_id(genre_id: UUID4) -> Genre | None:
+            Retrieve a genre document by its ID.
     """
 
     index = "genres"
@@ -35,7 +38,7 @@ class GenreService:
         page_number: int,
     ) -> list[Genre]:
         """
-        Retrieve a list of genres from Elasticsearch.
+        Retrieve a paginated list of genres from Elasticsearch.
 
         This method queries the 'genres' index in Elasticsearch with pagination
         parameters, then converts the results into Genre objects.
@@ -49,8 +52,7 @@ class GenreService:
                 Returns an empty list if no genres are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
 
         try:
@@ -78,8 +80,7 @@ class GenreService:
             Genre | None: A Genre object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(genre_id))

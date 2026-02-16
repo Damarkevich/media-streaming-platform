@@ -42,6 +42,20 @@ class PersonService:
         page_number: int,
         query: str | None = None,
     ) -> list[Person]:
+        """
+        Search for persons in Elasticsearch based on a query string, with pagination.
+
+        Args:
+            page_size (int): The number of results to return per page.
+            page_number (int): The page number to retrieve.
+            query (str | None): The search query string. If None, no text search is applied.
+
+        Returns:
+            list[Person]: A list of Person objects matching the search criteria.
+
+        Raises:
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
+        """
         query_params = self._prepare_es_query_params(query)
 
         try:
@@ -70,8 +84,7 @@ class PersonService:
             Person | None: A Person object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(person_id))

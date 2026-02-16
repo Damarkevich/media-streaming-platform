@@ -40,7 +40,7 @@ async def films_list(
 @cache()
 async def films_search(
     request: Request,
-    query: Annotated[str, Query(description="Search query string", min_length=1)] = "",
+    query: Annotated[str, Query(description="Search query string", min_length=1)],
     pagination: PaginationParams = Depends(PaginationParams),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:

@@ -24,7 +24,7 @@ app.include_router(persons.router, prefix="/api/v1/persons", tags=["persons"])
 @app.exception_handler(ServiceUnavailableError)
 async def service_unavailable_exception_handler(
     request: Request, exc: ServiceUnavailableError
-):
+) -> ORJSONResponse:
     return ORJSONResponse(
         status_code=503,
         content={"detail": "Service temporarily unavailable."},

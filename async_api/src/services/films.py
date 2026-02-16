@@ -2,7 +2,7 @@ import logging
 from functools import lru_cache
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConnectionError, NotFoundError
 from fastapi import Depends
 from pydantic import UUID4
 
@@ -24,7 +24,7 @@ class FilmService:
         get_list(page_size: int, page_number: int, sort: str) -> list[Film]:
             Retrieve a paginated list of films with sorting.
 
-        search(page_size: int = 10, page_number: int = 0, query: str | None = None) -> list[Film]:
+        search(page_size: int, page_number: int, query: str | None = None) -> list[Film]:
             Search for films based on a query string.
 
         get_by_id(film_id: str) -> Film | None:
@@ -49,7 +49,11 @@ class FilmService:
         self.elastic = elastic
 
     async def get_list(
-        self, page_size: int, page_number: int, sort: str, genre_id: UUID4 | None = None
+        self,
+        page_size: int,
+        page_number: int,
+        sort: str,
+        genre_id: UUID4 | None = None,
     ) -> list[Film]:
         """
         Retrieve a paginated list of films from Elasticsearch.
@@ -69,8 +73,7 @@ class FilmService:
                 Returns an empty list if no films are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
 
         sort_params = self._prepare_es_sort_params(sort)
@@ -93,8 +96,28 @@ class FilmService:
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
     async def search(
-        self, page_size: int = 10, page_number: int = 0, query: str | None = None
+        self,
+        page_size: int,
+        page_number: int,
+        query: str | None = None,
     ) -> list[Film]:
+        """
+        Search for films in Elasticsearch based on a query string.
+        This method queries the 'movies' index in Elasticsearch with pagination
+        and search parameters, then converts the results into Film objects.
+
+        Args:
+            page_size (int): The number of films to return per page.
+            page_number (int): The zero-indexed page number to retrieve.
+            query (str | None, optional): The search query string. Defaults to None.
+
+        Returns:
+            list[Film]: A list of Film objects created from the Elasticsearch results.
+                Returns an empty list if no films are found or if a NotFoundError occurs.
+
+        Raises:
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
+        """
         query_params = self._prepare_es_query_params(query)
 
         try:
@@ -123,8 +146,7 @@ class FilmService:
             Film | None: A Film object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(film_id))
@@ -148,8 +170,7 @@ class FilmService:
                 Returns an empty list if no films are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         if not film_ids:
             return []

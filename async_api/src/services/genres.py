@@ -1,7 +1,7 @@
 import logging
 from functools import lru_cache
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConnectionError, NotFoundError
 from fastapi import Depends
 from pydantic import UUID4
 
@@ -20,8 +20,11 @@ class GenreService:
         elastic (AsyncElasticsearch): Elasticsearch client for querying genre data.
 
     Methods:
-        get_list() -> list[Genre]:
-            Retrieve a list of genres.
+        get_list(page_size: int, page_number: int) -> list[Genre]:
+            Retrieve a paginated list of genres.
+
+        get_by_id(genre_id: UUID4) -> Genre | None:
+            Retrieve a genre document by its ID.
     """
 
     index = "genres"
@@ -29,24 +32,35 @@ class GenreService:
     def __init__(self, elastic: AsyncElasticsearch) -> None:
         self.elastic = elastic
 
-    async def get_list(self) -> list[Genre]:
+    async def get_list(
+        self,
+        page_size: int,
+        page_number: int,
+    ) -> list[Genre]:
         """
-        Retrieve a list of genres from Elasticsearch.
+        Retrieve a paginated list of genres from Elasticsearch.
 
-        This method queries the 'movies' index in Elasticsearch,
-        then converts the results into Genre objects.
+        This method queries the 'genres' index in Elasticsearch with pagination
+        parameters, then converts the results into Genre objects.
+
+        Args:
+            page_size (int): The number of genres to return per page.
+            page_number (int): The zero-indexed page number to retrieve.
 
         Returns:
             list[Genre]: A list of Genre objects created from the Elasticsearch results.
                 Returns an empty list if no genres are found or if a NotFoundError occurs.
 
         Raises:
-            This method catches NotFoundError internally and returns an empty list,
-            so it does not propagate exceptions to the caller.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
 
         try:
-            doc = await self.elastic.search(index=self.index)
+            doc = await self.elastic.search(
+                index=self.index,
+                from_=page_number * page_size,
+                size=page_size,
+            )
         except NotFoundError:
             return []
         except ConnectionError as e:
@@ -66,8 +80,7 @@ class GenreService:
             Genre | None: A Genre object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(genre_id))

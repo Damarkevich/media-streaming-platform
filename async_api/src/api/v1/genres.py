@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from pydantic import UUID4
 
+from src.api.v1.paginators import PaginationParams
 from src.api.v1.schemas import Genre
 from src.core.cache import cache
 from src.services.genres import GenreService, get_genre_service
@@ -15,10 +16,14 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def genres_list(
     request: Request,
+    pagination: PaginationParams = Depends(PaginationParams),
     genre_service: GenreService = Depends(get_genre_service),
 ) -> list[Genre]:
     """Retrieve a list of genres."""
-    genres = await genre_service.get_list()
+    genres = await genre_service.get_list(
+        page_size=pagination.page_size,
+        page_number=pagination.page_number,
+    )
 
     return [Genre(uuid=genre.id, name=genre.name) for genre in genres]
 

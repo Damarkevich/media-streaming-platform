@@ -2,7 +2,7 @@ import logging
 from functools import lru_cache
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConnectionError, NotFoundError
 from fastapi import Depends
 from pydantic import UUID4
 
@@ -21,7 +21,7 @@ class PersonService:
         elastic (AsyncElasticsearch): Elasticsearch client for querying person data.
 
     Methods:
-        search(page_size: int = 10, page_number: int = 0, query: str | None = None) -> list[Person]:
+        search(page_size: int, page_number: int, query: str | None = None) -> list[Person]:
             Search for persons based on a query string.
 
         get_by_id(person_id: str) -> Person | None:
@@ -37,8 +37,25 @@ class PersonService:
         self.elastic = elastic
 
     async def search(
-        self, page_size: int = 10, page_number: int = 0, query: str | None = None
+        self,
+        page_size: int,
+        page_number: int,
+        query: str | None = None,
     ) -> list[Person]:
+        """
+        Search for persons in Elasticsearch based on a query string, with pagination.
+
+        Args:
+            page_size (int): The number of results to return per page.
+            page_number (int): The page number to retrieve.
+            query (str | None): The search query string. If None, no text search is applied.
+
+        Returns:
+            list[Person]: A list of Person objects matching the search criteria.
+
+        Raises:
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
+        """
         query_params = self._prepare_es_query_params(query)
 
         try:
@@ -67,8 +84,7 @@ class PersonService:
             Person | None: A Person object if the document is found, None otherwise.
 
         Raises:
-            This method catches NotFoundError internally and returns None instead of raising.
-            Other Elasticsearch exceptions may propagate up.
+            ServiceUnavailableError: If there is a connection error with Elasticsearch.
         """
         try:
             doc = await self.elastic.get(index=self.index, id=str(person_id))

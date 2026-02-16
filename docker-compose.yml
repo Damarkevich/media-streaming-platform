@@ -30,7 +30,7 @@ services:
         hard: -1
     mem_limit: 1g
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     restart: unless-stopped
     env_file:
       - .env
@@ -48,7 +48,7 @@ services:
     volumes:
       - movies_redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     restart: unless-stopped
     env_file:
       - .env

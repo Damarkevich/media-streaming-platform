@@ -11,8 +11,32 @@ GENRES_ENDPOINT = "/api/v1/genres"
     "query_data, expected_answer",
     [
         (
+            {"page_size": 50},
+            {"status": 200, "length": 5},
+        ),
+        (
+            {"page_size": 50, "page_number": 1},
+            {"status": 200, "length": 0},
+        ),
+        (
+            {"page_size": 50, "page_number": 2},
+            {"status": 200, "length": 0},
+        ),
+        (
             {},
             {"status": 200, "length": 5},
+        ),
+        (
+            {"page_size": 0},
+            {"status": 422, "length": 1},
+        ),
+        (
+            {"page_number": -1},
+            {"status": 422, "length": 1},
+        ),
+        (
+            {"page_size": 101},
+            {"status": 422, "length": 1},
         ),
     ],
 )

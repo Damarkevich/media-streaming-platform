@@ -21,7 +21,7 @@ class PersonService:
         elastic (AsyncElasticsearch): Elasticsearch client for querying person data.
 
     Methods:
-        search(page_size: int = 10, page_number: int = 0, query: str | None = None) -> list[Person]:
+        search(page_size: int, page_number: int, query: str | None = None) -> list[Person]:
             Search for persons based on a query string.
 
         get_by_id(person_id: str) -> Person | None:
@@ -37,7 +37,10 @@ class PersonService:
         self.elastic = elastic
 
     async def search(
-        self, page_size: int = 10, page_number: int = 0, query: str | None = None
+        self,
+        page_size: int,
+        page_number: int,
+        query: str | None = None,
     ) -> list[Person]:
         query_params = self._prepare_es_query_params(query)
 

@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import UUID4
 
+from src.api.v1.paginators import PaginationParams
 from src.api.v1.schemas import Film, FilmForPerson, Person
 from src.core.cache import cache
 from src.services.films import FilmService, get_film_service
@@ -17,17 +18,14 @@ router = APIRouter(redirect_slashes=False)
 async def persons_search(
     request: Request,
     query: Annotated[str, Query(description="Search query string", min_length=1)],
-    page_size: Annotated[
-        int, Query(description="Pagination page size", ge=1, le=100)
-    ] = 10,
-    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
+    pagination: PaginationParams = Depends(PaginationParams),
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Person]:
     """Search for persons by a full name."""
     persons = await person_service.search(
         query=query,
-        page_size=page_size,
-        page_number=page_number,
+        page_size=pagination.page_size,
+        page_number=pagination.page_number,
     )
     return [
         Person(

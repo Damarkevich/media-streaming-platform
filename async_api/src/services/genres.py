@@ -29,12 +29,20 @@ class GenreService:
     def __init__(self, elastic: AsyncElasticsearch) -> None:
         self.elastic = elastic
 
-    async def get_list(self) -> list[Genre]:
+    async def get_list(
+        self,
+        page_size: int,
+        page_number: int,
+    ) -> list[Genre]:
         """
         Retrieve a list of genres from Elasticsearch.
 
-        This method queries the 'movies' index in Elasticsearch,
-        then converts the results into Genre objects.
+        This method queries the 'genres' index in Elasticsearch with pagination
+        parameters, then converts the results into Genre objects.
+
+        Args:
+            page_size (int): The number of genres to return per page.
+            page_number (int): The zero-indexed page number to retrieve.
 
         Returns:
             list[Genre]: A list of Genre objects created from the Elasticsearch results.
@@ -46,7 +54,11 @@ class GenreService:
         """
 
         try:
-            doc = await self.elastic.search(index=self.index)
+            doc = await self.elastic.search(
+                index=self.index,
+                from_=page_number * page_size,
+                size=page_size,
+            )
         except NotFoundError:
             return []
         except ConnectionError as e:

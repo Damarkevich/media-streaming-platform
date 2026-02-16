@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import UUID4, AfterValidator
 
+from src.api.v1.paginators import PaginationParams
 from src.api.v1.schemas import Film, FilmDetail, Genre, PersonForFilm
 from src.api.v1.validators import validate_sort
 from src.core.cache import cache
@@ -16,18 +17,15 @@ router = APIRouter(redirect_slashes=False)
 @cache()
 async def films_list(
     request: Request,
-    page_size: Annotated[
-        int, Query(description="Pagination page size", ge=1, le=100)
-    ] = 10,
-    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
     sort: Annotated[str, AfterValidator(validate_sort)] = "-imdb_rating",
     genre: Annotated[UUID4 | None, Query(description="Filter by genre ID")] = None,
+    pagination: PaginationParams = Depends(PaginationParams),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     """Retrieve a paginated list of films with optional sorting and genre filtering."""
     films = await film_service.get_list(
-        page_size=page_size,
-        page_number=page_number,
+        page_size=pagination.page_size,
+        page_number=pagination.page_number,
         sort=sort,
         genre_id=genre,
     )
@@ -43,17 +41,14 @@ async def films_list(
 async def films_search(
     request: Request,
     query: Annotated[str, Query(description="Search query string", min_length=1)] = "",
-    page_size: Annotated[
-        int, Query(description="Pagination page size", ge=1, le=100)
-    ] = 10,
-    page_number: Annotated[int, Query(description="Pagination page number", ge=0)] = 0,
+    pagination: PaginationParams = Depends(PaginationParams),
     film_service: FilmService = Depends(get_film_service),
 ) -> list[Film]:
     """Search for films by title and description."""
     films = await film_service.search(
         query=query,
-        page_size=page_size,
-        page_number=page_number,
+        page_size=pagination.page_size,
+        page_number=pagination.page_number,
     )
 
     return [

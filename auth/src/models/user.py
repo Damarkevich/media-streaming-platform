@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.db.postgres import Base
@@ -12,19 +13,20 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = {"schema": "auth"}
 
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        unique=True,
         nullable=False,
     )
-    login = Column(String(255), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    first_name = Column(String(50))
-    last_name = Column(String(50))
-    created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    login: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     def __init__(self, login: str, password: str, first_name: str, last_name: str):

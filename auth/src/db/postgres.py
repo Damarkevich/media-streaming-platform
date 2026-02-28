@@ -19,7 +19,7 @@ dsn = (
 
 engine = create_async_engine(
     dsn,
-    echo=True,
+    echo=settings.sql_echo,
     future=True,
     connect_args={
         "server_settings": {"search_path": f"{settings.postgres_db_schema},public"}
@@ -33,11 +33,12 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def create_database() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def purge_database():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+async def check_postgres() -> bool:
+    """Check the connection to PostgreSQL by executing a simple query."""
+    try:
+        async with async_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            return result.scalar() == 1
+    except Exception as e:
+        logger.error(f"Error connecting to PostgreSQL: {e}")
+        raise

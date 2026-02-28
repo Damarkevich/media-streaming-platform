@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: auth
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.14
+Description-Content-Type: text/markdown
+Requires-Dist: alembic>=1.18.4
+Requires-Dist: async-fastapi-jwt-auth>=0.6.6
+Requires-Dist: asyncpg>=0.31.0
+Requires-Dist: fastapi[standard]>=0.129.1
+Requires-Dist: orjson>=3.11.7
+Requires-Dist: passlib>=1.7.4
+Requires-Dist: redis>=7.2.0
+Requires-Dist: sqlalchemy[asyncio]>=2.0.46
+Requires-Dist: typer>=0.24.0
+Requires-Dist: werkzeug>=3.1.6

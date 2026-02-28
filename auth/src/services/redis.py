@@ -1,4 +1,4 @@
-from db.redis import redis
+from src.db.redis import redis
 
 
 class RedisClient:

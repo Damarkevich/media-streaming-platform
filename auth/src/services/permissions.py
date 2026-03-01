@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import delete, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.postgres import get_session

@@ -1,12 +1,17 @@
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.db.postgres import Base
+from src.models.role import UserRole
+
+if TYPE_CHECKING:
+    from src.models.role import Role
 
 
 class User(Base):
@@ -27,6 +32,11 @@ class User(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+    roles: Mapped[list["Role"]] = relationship(
+        "Role",
+        secondary=UserRole.__table__,
+        back_populates="users",
     )
 
     def __init__(self, login: str, password: str, first_name: str, last_name: str):

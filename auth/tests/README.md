@@ -28,6 +28,15 @@ Run unit tests:
 uv run pytest tests/unit -q
 ```
 
+Run focused suites:
+
+```bash
+uv run pytest tests/unit/test_blacklist_checker.py -q
+uv run pytest tests/unit/test_jwt_blacklist_loader.py -q
+uv run pytest tests/unit/test_authorization_service_cache.py -q
+uv run pytest tests/functional/test_roles_access_permissions.py -q
+```
+
 ## Coverage
 
 Full coverage report:
@@ -43,3 +52,11 @@ uv run pytest tests --cov=src --cov-fail-under=80
 ```
 
 Coverage HTML report path: `auth/htmlcov/index.html`.
+
+## What is covered
+
+- JWT issue/refresh/revoke flows
+- Access-token denylist checks (Redis)
+- Refresh-token denylist checks (PostgreSQL)
+- RBAC access checks (`403` on missing permission)
+- Permission cache behavior and invalidation paths

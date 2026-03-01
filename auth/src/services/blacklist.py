@@ -1,17 +1,23 @@
 import logging
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.postgres import async_session
-from src.db.redis import get_redis
+from src.db.postgres import async_session, get_session
 from src.models.token import BlacklistedToken
+from src.services.redis import RedisClient, create_redis_client, get_redis_client
 
 logger = logging.getLogger(__name__)
-ACCESS_BLACKLIST_KEY_PREFIX = "blacklist:access:"
 
 
 class HybridBlacklistChecker:
     """Checks token revocation across Redis (access) and Postgres (refresh)."""
+
+    def __init__(self, redis_client: RedisClient, db: AsyncSession) -> None:
+        self.redis_client = redis_client
+        self.db = db
 
     async def is_token_revoked(self, token_type: str, jti: str) -> bool:
         if token_type == "access":
@@ -24,27 +30,31 @@ class HybridBlacklistChecker:
 
     async def _is_access_token_blacklisted(self, jti: str) -> bool:
         try:
-            redis = await get_redis()
-            is_blacklisted = await redis.get(f"{ACCESS_BLACKLIST_KEY_PREFIX}{jti}")
-            return is_blacklisted is not None
+            return await self.redis_client.is_access_token_blacklisted(jti)
         except Exception:
             logger.exception("Access-token blacklist check failed")
             return True
 
     async def _is_refresh_token_blacklisted(self, jti: str) -> bool:
         try:
-            async with async_session() as session:
-                result = await session.execute(
-                    select(BlacklistedToken).where(BlacklistedToken.jti == jti)
-                )
-                return result.scalar_one_or_none() is not None
+            result = await self.db.execute(
+                select(BlacklistedToken).where(BlacklistedToken.jti == jti)
+            )
+            return result.scalar_one_or_none() is not None
         except Exception:
             logger.exception("Refresh-token blacklist check failed")
             return True
 
 
-blacklist_checker = HybridBlacklistChecker()
+def get_blacklist_checker(
+    redis_client: Annotated[RedisClient, Depends(get_redis_client)],
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> HybridBlacklistChecker:
+    return HybridBlacklistChecker(redis_client=redis_client, db=db)
 
 
-def get_blacklist_checker() -> HybridBlacklistChecker:
-    return blacklist_checker
+async def check_token_revoked_runtime(token_type: str, jti: str) -> bool:
+    redis_client = await create_redis_client()
+    async with async_session() as db:
+        checker = HybridBlacklistChecker(redis_client=redis_client, db=db)
+        return await checker.is_token_revoked(token_type=token_type, jti=jti)

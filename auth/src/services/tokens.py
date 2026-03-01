@@ -4,21 +4,20 @@ from uuid import UUID
 
 from async_fastapi_jwt_auth import AuthJWT
 from fastapi import Depends
-from redis.asyncio import Redis
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.jwt import auth_dep
 from src.db.postgres import get_session
-from src.db.redis import get_redis
 from src.models.token import BlacklistedToken
+from src.services.redis import RedisClient, get_redis_client
 
 
 class TokenService:
     """Token-related application service."""
 
-    def __init__(self, db: AsyncSession, auth: AuthJWT, redis: Redis):
+    def __init__(self, db: AsyncSession, auth: AuthJWT, redis_client: RedisClient):
         """Initialize the service.
 
         Args:
@@ -27,7 +26,7 @@ class TokenService:
         """
         self.db = db
         self.auth = auth
-        self.redis = redis
+        self.redis_client = redis_client
 
     async def issue_tokens(self, user_id: UUID, fresh: bool = False) -> tuple[str, str]:
         """Issue new tokens for a user.
@@ -54,10 +53,9 @@ class TokenService:
         return access_token, refresh_token
 
     async def add_access_to_blacklist(self, jti: str):
-        await self.redis.setex(
-            name=f"blacklist:access:{jti}",
-            time=settings.access_token_expires,
-            value="true",
+        await self.redis_client.add_access_token_to_blacklist(
+            jti=jti,
+            ttl_seconds=settings.access_token_expires,
         )
 
     async def add_refresh_to_blacklist(self, jti: str):
@@ -72,17 +70,17 @@ class TokenService:
 
 def get_token_service(
     db: Annotated[AsyncSession, Depends(get_session)],
-    redis: Annotated[Redis, Depends(get_redis)],
+    redis_client: Annotated[RedisClient, Depends(get_redis_client)],
     auth: Annotated[AuthJWT, Depends(auth_dep)],
 ) -> TokenService:
     """FastAPI dependency provider for TokenService.
 
     Args:
         db: Injected request-scoped async session.
-        redis: Injected Redis client instance.
+        redis_client: Injected Redis client wrapper.
         auth: Injected AuthJWT instance.
 
     Returns:
         TokenService instance bound to the current session.
     """
-    return TokenService(db=db, redis=redis, auth=auth)
+    return TokenService(db=db, redis_client=redis_client, auth=auth)

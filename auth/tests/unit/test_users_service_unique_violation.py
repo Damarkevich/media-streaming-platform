@@ -1,6 +1,6 @@
 from sqlalchemy.exc import IntegrityError
 
-from src.services.users import _is_login_unique_violation
+from src.services.utils import is_field_unique_violation
 
 
 class FakeOrigError:
@@ -34,7 +34,7 @@ def test_is_login_unique_violation_returns_true_for_login_constraint() -> None:
         )
     )
 
-    assert _is_login_unique_violation(exc) is True
+    assert is_field_unique_violation(exc, "login") is True
 
 
 def test_is_login_unique_violation_returns_true_when_login_in_message() -> None:
@@ -45,7 +45,7 @@ def test_is_login_unique_violation_returns_true_when_login_in_message() -> None:
         )
     )
 
-    assert _is_login_unique_violation(exc) is True
+    assert is_field_unique_violation(exc, "login") is True
 
 
 def test_is_login_unique_violation_returns_false_for_other_sqlstate() -> None:
@@ -57,4 +57,4 @@ def test_is_login_unique_violation_returns_false_for_other_sqlstate() -> None:
         )
     )
 
-    assert _is_login_unique_violation(exc) is False
+    assert is_field_unique_violation(exc, "login") is False

@@ -1,7 +1,10 @@
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
+
 import pytest
 from async_fastapi_jwt_auth import AuthJWT
 
-import src.core.jwt
+import src.core.jwt as jwt_module
 
 
 class DummyChecker:
@@ -19,9 +22,20 @@ async def test_check_if_token_in_blacklist_returns_false_when_jti_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     checker = DummyChecker(return_value=True)
-    monkeypatch.setattr("src.core.jwt.get_blacklist_checker", lambda: checker)
 
-    callback = AuthJWT._token_in_denylist_callback
+    async def _check_token_revoked_runtime(*, token_type: str, jti: str) -> bool:
+        return await checker.is_token_revoked(token_type=token_type, jti=jti)
+
+    monkeypatch.setattr(
+        jwt_module,
+        "check_token_revoked_runtime",
+        _check_token_revoked_runtime,
+    )
+
+    callback = cast(
+        Callable[[dict[str, str | int | bool]], Awaitable[bool]],
+        getattr(cast(Any, AuthJWT), "_token_in_denylist_callback"),
+    )
     assert callback is not None
     result = await callback({"type": "access"})
 
@@ -34,9 +48,20 @@ async def test_check_if_token_in_blacklist_normalizes_token_type_and_uses_checke
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     checker = DummyChecker(return_value=True)
-    monkeypatch.setattr("src.core.jwt.get_blacklist_checker", lambda: checker)
 
-    callback = AuthJWT._token_in_denylist_callback
+    async def _check_token_revoked_runtime(*, token_type: str, jti: str) -> bool:
+        return await checker.is_token_revoked(token_type=token_type, jti=jti)
+
+    monkeypatch.setattr(
+        jwt_module,
+        "check_token_revoked_runtime",
+        _check_token_revoked_runtime,
+    )
+
+    callback = cast(
+        Callable[[dict[str, str | int | bool]], Awaitable[bool]],
+        getattr(cast(Any, AuthJWT), "_token_in_denylist_callback"),
+    )
     assert callback is not None
     result = await callback({"jti": "abc-123", "type": "  Access "})
 

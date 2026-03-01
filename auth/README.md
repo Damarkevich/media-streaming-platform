@@ -14,6 +14,8 @@ This service is responsible for:
 - access-token revocation via Redis blacklist;
 - refresh-token revocation via PostgreSQL blacklist;
 - identifying the currently authenticated user (`/users/me`).
+- role and permission management (RBAC);
+- permission-based access control for administrative endpoints.
 
 ### Key Features
 
@@ -21,6 +23,9 @@ This service is responsible for:
 - **JWT Authentication** (`async-fastapi-jwt-auth`)
 - **Access Token Revocation** via Redis blacklist
 - **Refresh Token Revocation** via PostgreSQL blacklist table
+- **RBAC Authorization** with role/permission assignments
+- **Permission Guard Dependencies** returning `403` when permission is missing
+- **Permission Cache** in Redis with TTL + invalidation on RBAC changes
 - **Password Validation** with explicit complexity rules
 - **PostgreSQL Persistence** for users and blacklisted tokens
 - **Health Check Endpoint** for Redis/PostgreSQL availability
@@ -35,7 +40,7 @@ The application follows a layered architecture:
 ┌─────────────────┐
 │   API Layer     │  FastAPI routes and HTTP mapping
 ├─────────────────┤
-│ Service Layer   │  User/token business logic
+│ Service Layer   │  User/token/RBAC business logic
 ├─────────────────┤
 │   DB Layer      │  PostgreSQL session and Redis client
 └─────────────────┘
@@ -56,6 +61,45 @@ The application follows a layered architecture:
 - `GET /me` — return current user profile
 - `PATCH /me/login` — change current user login
 - `PATCH /me/password` — change current user password
+- `GET /me/logs` — return logs of current user
+- `GET /me/roles` — return roles of current user
+
+#### Roles (`/api/v1/roles`)
+
+- `GET /` — list roles
+- `GET /{role_id}` — get role by ID
+- `POST /` — create role
+- `PATCH /{role_id}` — update role name
+- `DELETE /{role_id}` — delete role
+- `GET /{role_id}/permissions` — list role permissions
+- `PUT /{role_id}/users/{user_id}` — assign role to user
+- `DELETE /{role_id}/users/{user_id}` — remove role from user
+
+#### Permissions (`/api/v1/permissions`)
+
+- `GET /` — list permissions
+- `PUT /{permission_id}/roles/{role_id}` — assign permission to role
+- `DELETE /{permission_id}/roles/{role_id}` — remove permission from role
+
+### RBAC and Access Control
+
+- Roles/permissions endpoints are protected by `require_permission(...)` dependencies.
+- Missing permission returns `403 Forbidden`.
+- Effective user permissions are calculated from `user_roles` and `role_permissions`.
+- Effective permissions are cached in Redis (`auth:user_permissions:<user_id>`) for `PERMISSIONS_CACHE_TTL` seconds.
+- Cache invalidates on role-user and role-permission assignment changes.
+
+#### Permission → Endpoint Matrix
+
+| Permission | Protected endpoints |
+|---|---|
+| `roles:read` | `GET /api/v1/roles`, `GET /api/v1/roles/{role_id}` |
+| `roles:create` | `POST /api/v1/roles` |
+| `roles:update` | `PATCH /api/v1/roles/{role_id}` |
+| `roles:delete` | `DELETE /api/v1/roles/{role_id}` |
+| `roles:assign` | `PUT /api/v1/roles/{role_id}/users/{user_id}`, `DELETE /api/v1/roles/{role_id}/users/{user_id}` |
+| `permissions:read` | `GET /api/v1/permissions`, `GET /api/v1/roles/{role_id}/permissions` |
+| `permissions:assign` | `PUT /api/v1/permissions/{permission_id}/roles/{role_id}`, `DELETE /api/v1/permissions/{permission_id}/roles/{role_id}` |
 
 #### Health (`/api`)
 
@@ -87,6 +131,18 @@ The table below lists application-level and auth-related error codes returned by
 | `GET /api/v1/users/me` | `401` (authentication required, token invalid, or token revoked), `404` (user not found), `422` (wrong token type or token validation error) |
 | `PATCH /api/v1/users/me/login` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `409` (login already exists), `422` (request validation error, wrong token type, or token validation error) |
 | `PATCH /api/v1/users/me/password` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `422` (request validation error, wrong token type, or token validation error) |
+| `GET /api/v1/users/me/roles` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
+| `GET /api/v1/roles` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
+| `GET /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `422` (wrong token type or token validation error) |
+| `POST /api/v1/roles` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `409` (role name already exists), `422` (validation error) |
+| `PATCH /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `409` (role name already exists), `422` (request validation error, wrong token type, or token validation error) |
+| `DELETE /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `422` (wrong token type or token validation error) |
+| `GET /api/v1/roles/{role_id}/permissions` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
+| `PUT /api/v1/roles/{role_id}/users/{user_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or user not found), `422` (request validation error, wrong token type, or token validation error) |
+| `DELETE /api/v1/roles/{role_id}/users/{user_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or user not found), `422` (request validation error, wrong token type, or token validation error) |
+| `GET /api/v1/permissions` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
+| `PUT /api/v1/permissions/{permission_id}/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or permission not found), `422` (request validation error, wrong token type, or token validation error) |
+| `DELETE /api/v1/permissions/{permission_id}/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or permission not found), `422` (request validation error, wrong token type, or token validation error) |
 
 ## 🛠 Tech Stack
 
@@ -172,12 +228,14 @@ auth/
 │   │   ├── health.py
 │   │   └── v1/
 │   │       ├── auth.py
+│   │       ├── permissions.py
+│   │       ├── roles.py
 │   │       └── users.py
 │   ├── core/                # settings, jwt config, lifespan
 │   ├── db/                  # postgres and redis access
 │   ├── models/              # SQLAlchemy models
 │   ├── schemas/             # Pydantic schemas
-│   └── services/            # domain services
+│   └── services/            # domain services (users, tokens, RBAC, authorization)
 ├── tests/
 │   ├── functional/
 │   └── unit/
@@ -194,8 +252,10 @@ Main settings are loaded from environment variables (or `.env`):
 - `REFRESH_TOKEN_EXPIRES`
 - `SQL_ECHO` (enabled only when `APP_ENV=dev`)
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `POSTGRES_DB_SCHEMA`
 - `SQL_HOST`, `SQL_PORT`
 - `REDIS_HOST`, `REDIS_PORT`
+- `PERMISSIONS_CACHE_TTL`
 
 > Note: `AUTHJWT_SECRET_KEY` is mandatory and must be non-empty.
 

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
+    permissions_cache_ttl: int = 60
 
     postgres_db: str = "auth_database"
     postgres_user: str = "app"

@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.services.permissions import (
     PermissionNotFoundError,
@@ -259,3 +259,88 @@ async def test_role_permission_exists_helper_returns_boolean() -> None:
 
     assert first is True
     assert second is False
+
+
+@pytest.mark.asyncio
+async def test_assign_permission_to_role_success_commits_and_invalidates() -> None:
+    """Ensure successful permission assignment commits and invalidates role users."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    db.commit = AsyncMock()
+    redis_client = AsyncMock()
+    service = PermissionService(db=db, redis_client=redis_client)
+    service._role_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._permission_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._role_permission_exists = AsyncMock(return_value=False)  # type: ignore[method-assign]
+    service._invalidate_role_users_permissions_cache = AsyncMock()  # type: ignore[method-assign]
+    role_id = uuid4()
+
+    await service.assign_permission_to_role(role_id, uuid4())
+
+    db.add.assert_called_once()
+    db.commit.assert_awaited_once()
+    service._invalidate_role_users_permissions_cache.assert_awaited_once_with(role_id)  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_assign_permission_to_role_reraises_sqlalchemy_error() -> None:
+    """Ensure generic SQLAlchemy errors in assignment are rolled back and re-raised."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    db.commit = AsyncMock(side_effect=SQLAlchemyError("db failed"))
+    db.rollback = AsyncMock()
+    redis_client = AsyncMock()
+    service = PermissionService(db=db, redis_client=redis_client)
+    service._role_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._permission_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._role_permission_exists = AsyncMock(return_value=False)  # type: ignore[method-assign]
+
+    with pytest.raises(SQLAlchemyError):
+        await service.assign_permission_to_role(uuid4(), uuid4())
+
+    db.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_remove_permission_from_role_raises_when_role_missing() -> None:
+    """Ensure remove operation fails with domain error when role does not exist."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    service = PermissionService(db=db, redis_client=AsyncMock())
+    service._role_exists = AsyncMock(return_value=False)  # type: ignore[method-assign]
+    service._permission_exists = AsyncMock()  # type: ignore[method-assign]
+
+    with pytest.raises(RoleNotFoundError):
+        await service.remove_permission_from_role(uuid4(), uuid4())
+
+    service._permission_exists.assert_not_awaited()  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_remove_permission_from_role_raises_when_permission_missing() -> None:
+    """Ensure remove operation fails with domain error when permission is absent."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    service = PermissionService(db=db, redis_client=AsyncMock())
+    service._role_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._permission_exists = AsyncMock(return_value=False)  # type: ignore[method-assign]
+
+    with pytest.raises(PermissionNotFoundError):
+        await service.remove_permission_from_role(uuid4(), uuid4())
+
+
+@pytest.mark.asyncio
+async def test_remove_permission_from_role_reraises_sqlalchemy_error() -> None:
+    """Ensure SQLAlchemy errors in remove operation are rolled back and re-raised."""
+    db = AsyncMock()
+    db.add = MagicMock()
+    db.execute = AsyncMock(side_effect=SQLAlchemyError("db failed"))
+    db.rollback = AsyncMock()
+    service = PermissionService(db=db, redis_client=AsyncMock())
+    service._role_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+    service._permission_exists = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+    with pytest.raises(SQLAlchemyError):
+        await service.remove_permission_from_role(uuid4(), uuid4())
+
+    db.rollback.assert_awaited_once()

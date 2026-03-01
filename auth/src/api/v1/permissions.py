@@ -12,7 +12,7 @@ from src.api.v1.responses import (
 )
 from src.models.role import Permission, PermissionName
 from src.schemas.permissions import PermissionResponse
-from src.services.authorization import require_permission
+from src.services.permission_check import require_permission
 from src.services.permissions import (
     PermissionNotFoundError,
     PermissionService,

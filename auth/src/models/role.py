@@ -15,9 +15,6 @@ if TYPE_CHECKING:
 
 class PermissionName(StrEnum):
     PERMISSIONS_READ = "permissions:read"
-    PERMISSIONS_CREATE = "permissions:create"
-    PERMISSIONS_UPDATE = "permissions:update"
-    PERMISSIONS_DELETE = "permissions:delete"
     PERMISSIONS_ASSIGN = "permissions:assign"
     ROLES_READ = "roles:read"
     ROLES_CREATE = "roles:create"
@@ -34,12 +31,14 @@ class RolePermission(Base):
         UUID(as_uuid=True),
         ForeignKey("auth.roles.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         nullable=False,
     )
     permission_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("auth.permissions.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         nullable=False,
     )
 
@@ -52,12 +51,14 @@ class UserRole(Base):
         UUID(as_uuid=True),
         ForeignKey("auth.users.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         nullable=False,
     )
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("auth.roles.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         nullable=False,
     )
 
@@ -78,6 +79,7 @@ class Permission(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        index=True,
         nullable=False,
     )
 
@@ -105,6 +107,7 @@ class Role(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        index=True,
         nullable=False,
     )
     permissions: Mapped[list[Permission]] = relationship(

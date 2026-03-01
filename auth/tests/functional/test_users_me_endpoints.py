@@ -1,4 +1,20 @@
+from uuid import UUID
+
 import pytest
+
+from src.main import app
+from src.models.role import PermissionName
+from src.services.permission_check import get_permission_check_service
+
+
+class _FakePermissionCheckService:
+    def __init__(self, allowed: bool) -> None:
+        self.allowed = allowed
+        self.calls: list[tuple[UUID, PermissionName]] = []
+
+    async def has_permission(self, user_id: UUID, permission: PermissionName) -> bool:
+        self.calls.append((user_id, permission))
+        return self.allowed
 
 
 @pytest.mark.asyncio
@@ -151,3 +167,42 @@ async def test_users_me_logs_unauthorized_returns_401(test_client) -> None:
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Authentication required"
+
+
+@pytest.mark.asyncio
+async def test_users_me_has_permission_returns_boolean(test_client) -> None:
+    fake_permission_check_service = _FakePermissionCheckService(allowed=True)
+    app.dependency_overrides[get_permission_check_service] = lambda: (
+        fake_permission_check_service
+    )
+
+    try:
+        response = await test_client.get(
+            "/api/v1/users/me/has_permission/roles:read",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"has_permission": True}
+        assert fake_permission_check_service.calls
+        _, checked_permission = fake_permission_check_service.calls[0]
+        assert checked_permission == PermissionName.ROLES_READ
+    finally:
+        app.dependency_overrides.pop(get_permission_check_service, None)
+
+
+@pytest.mark.asyncio
+async def test_users_me_has_permission_invalid_name_returns_422(test_client) -> None:
+    fake_permission_check_service = _FakePermissionCheckService(allowed=True)
+    app.dependency_overrides[get_permission_check_service] = lambda: (
+        fake_permission_check_service
+    )
+
+    try:
+        response = await test_client.get(
+            "/api/v1/users/me/has_permission/not-a-permission",
+        )
+
+        assert response.status_code == 422
+        assert fake_permission_check_service.calls == []
+    finally:
+        app.dependency_overrides.pop(get_permission_check_service, None)

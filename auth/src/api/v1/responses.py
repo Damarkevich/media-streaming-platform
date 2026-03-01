@@ -136,6 +136,18 @@ GET_USER_ROLES_RESPONSES: OpenAPIResponses = _normalize_responses(
     }
 )
 
+GET_HAS_PERMISSION_RESPONSES: OpenAPIResponses = _normalize_responses(
+    {
+        HTTPStatus.UNAUTHORIZED: {
+            "model": ApiError,
+            "description": "Authentication required, token invalid, or token revoked",
+        },
+        HTTPStatus.UNPROCESSABLE_ENTITY: {
+            "description": "Request validation error, wrong token type, or token validation error",
+        },
+    }
+)
+
 GET_ROLES_RESPONSES: OpenAPIResponses = _normalize_responses(
     {
         HTTPStatus.UNAUTHORIZED: {

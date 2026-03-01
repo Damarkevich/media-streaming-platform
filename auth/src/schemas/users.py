@@ -51,3 +51,7 @@ class UserPasswordChangeRequest(BaseModel):
     @classmethod
     def validate_new_password(cls, value: str) -> str:
         return validate_strong_password(value)
+
+
+class UserPermissionCheckResponse(BaseModel):
+    has_permission: bool

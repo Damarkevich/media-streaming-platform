@@ -16,9 +16,7 @@ class LogType(StrEnum):
 class Log(Base):
     __tablename__ = "logs"
     __table_args__ = (
-        Index("ix_logs_user_id", "user_id"),
-        Index("ix_logs_created_at", "created_at"),
-        Index("ix_logs_user_id_created_at", "user_id", "created_at"),
+        Index("ix_auth_logs_user_id_created_at", "user_id", "created_at"),
         {"schema": "auth"},
     )
 
@@ -30,12 +28,14 @@ class Log(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
+        index=True,
         nullable=False,
     )
     log_type: Mapped[LogType] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        index=True,
         nullable=False,
     )
 

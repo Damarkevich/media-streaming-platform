@@ -22,7 +22,7 @@ from src.schemas.roles import (
     RoleResponse,
     RoleUpdate,
 )
-from src.services.authorization import require_permission
+from src.services.permission_check import require_permission
 from src.services.permissions import PermissionService, get_permission_service
 from src.services.roles import (
     RoleAlreadyExistsError,

@@ -1,8 +1,8 @@
-"""seed permissions from enum
+"""remove unused permissions
 
-Revision ID: c4f2d9a8b1e7
-Revises: b8d7f6c3a2e1
-Create Date: 2026-03-01 19:05:00.000000
+Revision ID: e9b4c7a1d2f3
+Revises: c4f2d9a8b1e7
+Create Date: 2026-03-01 20:30:00.000000
 
 """
 
@@ -15,29 +15,39 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "c4f2d9a8b1e7"
-down_revision: Union[str, Sequence[str], None] = "b8d7f6c3a2e1"
+revision: str = "e9b4c7a1d2f3"
+down_revision: Union[str, Sequence[str], None] = "c4f2d9a8b1e7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-PERMISSIONS_TO_ADD: tuple[str, ...] = (
-    "permissions:read",
-    "permissions:assign",
-    "roles:read",
-    "roles:create",
-    "roles:update",
-    "roles:delete",
-    "roles:assign",
+REMOVED_PERMISSIONS: tuple[str, ...] = (
+    "permissions:create",
+    "permissions:update",
+    "permissions:delete",
 )
 
 
 def upgrade() -> None:
     """Upgrade schema."""
+    bind = op.get_bind()
+    bind.execute(
+        sa.text(
+            """
+            DELETE FROM auth.permissions
+            WHERE name = ANY(:permission_names)
+            """
+        ),
+        {"permission_names": list(REMOVED_PERMISSIONS)},
+    )
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
     now_utc = datetime.now(timezone.utc)
     bind = op.get_bind()
 
-    for permission_name in PERMISSIONS_TO_ADD:
+    for permission_name in REMOVED_PERMISSIONS:
         bind.execute(
             sa.text(
                 """
@@ -52,17 +62,3 @@ def upgrade() -> None:
                 "created_at": now_utc,
             },
         )
-
-
-def downgrade() -> None:
-    """Downgrade schema."""
-    bind = op.get_bind()
-    bind.execute(
-        sa.text(
-            """
-            DELETE FROM auth.permissions
-            WHERE name = ANY(:permission_names)
-            """
-        ),
-        {"permission_names": list(PERMISSIONS_TO_ADD)},
-    )

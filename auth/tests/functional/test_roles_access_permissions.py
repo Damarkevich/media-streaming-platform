@@ -6,7 +6,7 @@ from httpx import AsyncClient
 
 from src.main import app
 from src.models.role import PermissionName
-from src.services.authorization import get_authorization_service
+from src.services.permission_check import get_permission_check_service
 from src.services.roles import get_role_service
 
 
@@ -74,7 +74,7 @@ class FakePermissionService:
         return None
 
 
-class FakeAuthorizationService:
+class FakePermissionCheckService:
     def __init__(self, allowed: bool) -> None:
         self.allowed = allowed
         self.calls: list[tuple[UUID, PermissionName]] = []
@@ -88,13 +88,15 @@ def _override_services(
     *,
     role_service: FakeRoleService,
     permission_service: FakePermissionService,
-    authorization_service: FakeAuthorizationService,
+    permission_check_service: FakePermissionCheckService,
 ) -> None:
     from src.services.permissions import get_permission_service
 
     app.dependency_overrides[get_role_service] = lambda: role_service
     app.dependency_overrides[get_permission_service] = lambda: permission_service
-    app.dependency_overrides[get_authorization_service] = lambda: authorization_service
+    app.dependency_overrides[get_permission_check_service] = lambda: (
+        permission_check_service
+    )
 
 
 @pytest.mark.asyncio
@@ -107,20 +109,20 @@ async def test_get_roles_returns_403_when_roles_read_permission_missing(
     fake_permission_service = FakePermissionService(
         permissions=[SimpleNamespace(id=uuid4(), name=PermissionName.PERMISSIONS_READ)]
     )
-    fake_authorization_service = FakeAuthorizationService(allowed=False)
+    fake_permission_check_service = FakePermissionCheckService(allowed=False)
 
     _override_services(
         role_service=fake_role_service,
         permission_service=fake_permission_service,
-        authorization_service=fake_authorization_service,
+        permission_check_service=fake_permission_check_service,
     )
 
     response = await test_client.get("/api/v1/roles")
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Permission 'roles:read' is required"
-    assert fake_authorization_service.calls
-    _, checked_permission = fake_authorization_service.calls[0]
+    assert fake_permission_check_service.calls
+    _, checked_permission = fake_permission_check_service.calls[0]
     assert checked_permission == PermissionName.ROLES_READ
 
 
@@ -135,20 +137,20 @@ async def test_get_roles_returns_200_when_roles_read_permission_present(
     fake_permission_service = FakePermissionService(
         permissions=[SimpleNamespace(id=uuid4(), name=PermissionName.PERMISSIONS_READ)]
     )
-    fake_authorization_service = FakeAuthorizationService(allowed=True)
+    fake_permission_check_service = FakePermissionCheckService(allowed=True)
 
     _override_services(
         role_service=fake_role_service,
         permission_service=fake_permission_service,
-        authorization_service=fake_authorization_service,
+        permission_check_service=fake_permission_check_service,
     )
 
     response = await test_client.get("/api/v1/roles")
 
     assert response.status_code == 200
     assert response.json() == [{"id": str(role_id), "name": "admin"}]
-    assert fake_authorization_service.calls
-    _, checked_permission = fake_authorization_service.calls[0]
+    assert fake_permission_check_service.calls
+    _, checked_permission = fake_permission_check_service.calls[0]
     assert checked_permission == PermissionName.ROLES_READ
 
 
@@ -222,12 +224,12 @@ async def test_roles_and_permissions_endpoints_return_403_without_permission(
     fake_permission_service = FakePermissionService(
         permissions=[SimpleNamespace(id=uuid4(), name=PermissionName.PERMISSIONS_READ)]
     )
-    fake_authorization_service = FakeAuthorizationService(allowed=False)
+    fake_permission_check_service = FakePermissionCheckService(allowed=False)
 
     _override_services(
         role_service=fake_role_service,
         permission_service=fake_permission_service,
-        authorization_service=fake_authorization_service,
+        permission_check_service=fake_permission_check_service,
     )
 
     response = await test_client.request(method, url, json=payload)
@@ -237,6 +239,6 @@ async def test_roles_and_permissions_endpoints_return_403_without_permission(
         response.json()["detail"]
         == f"Permission '{expected_permission.value}' is required"
     )
-    assert fake_authorization_service.calls
-    _, checked_permission = fake_authorization_service.calls[0]
+    assert fake_permission_check_service.calls
+    _, checked_permission = fake_permission_check_service.calls[0]
     assert checked_permission == expected_permission

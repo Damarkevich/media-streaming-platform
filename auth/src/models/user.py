@@ -38,12 +38,21 @@ class User(Base):
         secondary=UserRole.__table__,
         back_populates="users",
     )
+    is_superuser: Mapped[bool] = mapped_column(default=False, nullable=False)
 
-    def __init__(self, login: str, password: str, first_name: str, last_name: str):
+    def __init__(
+        self,
+        login: str,
+        password: str,
+        first_name: str,
+        last_name: str,
+        is_superuser: bool = False,
+    ):
         self.login = login
         self.set_password(password)
         self.first_name = first_name
         self.last_name = last_name
+        self.is_superuser = is_superuser
 
     @staticmethod
     def hash_password(password: str) -> str:

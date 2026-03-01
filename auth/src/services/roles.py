@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.postgres import get_session
 from src.models.role import Role, UserRole
 from src.models.user import User
-from src.services.authorization import invalidate_user_permissions_cache
+from src.services.permission_check import invalidate_user_permissions_cache
 from src.services.redis import RedisClient, get_redis_client
 from src.services.utils import is_field_unique_violation
 

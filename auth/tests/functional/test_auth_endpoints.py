@@ -1,5 +1,7 @@
 import pytest
 
+from src.models.log import LogType
+
 
 @pytest.mark.asyncio
 async def test_signup_returns_201(test_client) -> None:
@@ -45,6 +47,23 @@ async def test_login_invalid_credentials_returns_401(test_client) -> None:
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid login or password"
+
+
+@pytest.mark.asyncio
+async def test_login_success_returns_tokens_and_logs_action(test_client) -> None:
+    response = await test_client.post(
+        "/api/v1/auth/login",
+        json={"login": "valid", "password": "ValidPass1!"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "access_token" in body
+    assert "refresh_token" in body
+    assert test_client.fake_user_service.last_logged_user_id == str(  # type: ignore[attr-defined]
+        test_client.fake_user_service.authenticated_user_id  # type: ignore[attr-defined]
+    )
+    assert test_client.fake_user_service.last_logged_type == LogType.LOGIN  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio

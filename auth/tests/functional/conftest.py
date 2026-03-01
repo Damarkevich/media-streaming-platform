@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.core.jwt import auth_dep
 from src.main import app
+from src.models.log import LogType
 from src.schemas.users import UserResponse
 from src.services.tokens import get_token_service
 from src.services.users import UserAlreadyExistsError, get_user_service
@@ -26,6 +27,8 @@ class FakeUserService:
     )
     changed_login: str | None = None
     changed_password: str | None = None
+    last_logged_user_id: str | None = None
+    last_logged_type: LogType | None = None
 
     async def create_user(
         self,
@@ -46,6 +49,10 @@ class FakeUserService:
         if login == "bad" or password == "bad":
             return None
         return SimpleNamespace(id=self.authenticated_user_id)
+
+    async def log_user_action(self, user, log_type) -> None:
+        self.last_logged_user_id = str(user.id)
+        self.last_logged_type = log_type
 
     async def get_user_by_id(self, user_id: str) -> UserResponse | None:
         if self.existing_user and str(self.existing_user.id) == user_id:

@@ -11,6 +11,7 @@ from src.api.v1.responses import (
     SIGNUP_RESPONSES,
 )
 from src.core.jwt import auth_dep
+from src.models.log import LogType
 from src.models.user import User
 from src.schemas.tokens import TokenResponse
 from src.schemas.users import (
@@ -60,6 +61,8 @@ async def login(
     access_token, refresh_token = await token_service.issue_tokens(
         str(user.id), fresh=True
     )
+    await user_service.log_user_action(user, LogType.LOGIN)
+
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 

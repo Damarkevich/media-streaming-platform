@@ -1,15 +1,18 @@
+import logging
 from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.postgres import get_session
+from src.models.log import Log, LogType
 from src.models.user import User
 
 POSTGRES_UNIQUE_VIOLATION_SQLSTATE = "23505"
 LOGIN_FIELD_NAME = "login"
+logger = logging.getLogger(__name__)
 
 
 class UserAlreadyExistsError(Exception):
@@ -174,6 +177,27 @@ class UserService:
         """
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalars().one_or_none()
+
+    async def log_user_action(self, user: User, log_type: LogType) -> None:
+        """Log a user action.
+
+        Args:
+            user: The User instance.
+            log_type: The type of action to log.
+
+        Notes:
+            This operation is best-effort and should not break the main request
+            flow. Any database error is rolled back and logged.
+        """
+        log_entry = Log(user_id=user.id, log_type=log_type)
+        self.db.add(log_entry)
+        try:
+            await self.db.commit()
+        except SQLAlchemyError:
+            await self.db.rollback()
+            logger.warning(
+                f"Failed to persist user action log for user_id={user.id} and log_type={log_type}"
+            )
 
 
 def get_user_service(db: Annotated[AsyncSession, Depends(get_session)]) -> UserService:

@@ -17,6 +17,9 @@ class FakeUserServiceForLogin:
             return SimpleNamespace(id="8d2f1ca5-f48a-4eb3-a56e-5a6d5a5c0d42")
         return None
 
+    async def log_user_action(self, user, log_type) -> None:
+        return None
+
 
 class _FakeScalarResult:
     def __init__(self, value):
@@ -86,6 +89,19 @@ async def _build_auth_client(
     return AsyncClient(transport=transport, base_url="http://test")
 
 
+@asynccontextmanager
+async def _auth_client_ctx(
+    monkeypatch: pytest.MonkeyPatch,
+    blacklisted_jtis: set[str],
+):
+    client = await _build_auth_client(monkeypatch, blacklisted_jtis)
+    try:
+        async with client as open_client:
+            yield open_client
+    finally:
+        app.dependency_overrides.clear()
+
+
 async def _login_and_get_tokens(client: AsyncClient) -> tuple[str, str]:
     login_response = await client.post(
         "/api/v1/auth/login",
@@ -102,7 +118,7 @@ async def test_refresh_token_is_revoked_after_logout(
 ) -> None:
     blacklisted_jtis: set[str] = set()
 
-    async with await _build_auth_client(monkeypatch, blacklisted_jtis) as client:
+    async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
         _, refresh_token = await _login_and_get_tokens(client)
 
         logout_response = await client.delete(
@@ -125,8 +141,6 @@ async def test_refresh_token_is_revoked_after_logout(
         assert refresh_response_again.status_code == 401
         assert refresh_response_again.json()["detail"] == "Token has been revoked"
 
-    app.dependency_overrides.clear()
-
 
 @pytest.mark.asyncio
 async def test_access_token_is_revoked_after_access_revoke(
@@ -134,7 +148,7 @@ async def test_access_token_is_revoked_after_access_revoke(
 ) -> None:
     blacklisted_jtis: set[str] = set()
 
-    async with await _build_auth_client(monkeypatch, blacklisted_jtis) as client:
+    async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
         access_token, _ = await _login_and_get_tokens(client)
 
         first_revoke = await client.delete(
@@ -150,8 +164,6 @@ async def test_access_token_is_revoked_after_access_revoke(
         assert second_revoke.status_code == 401
         assert second_revoke.json()["detail"] == "Token has been revoked"
 
-    app.dependency_overrides.clear()
-
 
 @pytest.mark.asyncio
 async def test_refresh_with_access_token_is_denied(
@@ -159,7 +171,7 @@ async def test_refresh_with_access_token_is_denied(
 ) -> None:
     blacklisted_jtis: set[str] = set()
 
-    async with await _build_auth_client(monkeypatch, blacklisted_jtis) as client:
+    async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
         access_token, _ = await _login_and_get_tokens(client)
 
         response = await client.post(
@@ -170,8 +182,6 @@ async def test_refresh_with_access_token_is_denied(
         assert response.status_code == 422
         assert isinstance(response.json().get("detail"), str)
 
-    app.dependency_overrides.clear()
-
 
 @pytest.mark.asyncio
 async def test_me_with_refresh_token_is_denied(
@@ -179,7 +189,7 @@ async def test_me_with_refresh_token_is_denied(
 ) -> None:
     blacklisted_jtis: set[str] = set()
 
-    async with await _build_auth_client(monkeypatch, blacklisted_jtis) as client:
+    async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
         _, refresh_token = await _login_and_get_tokens(client)
 
         response = await client.get(
@@ -190,8 +200,6 @@ async def test_me_with_refresh_token_is_denied(
         assert response.status_code == 422
         assert isinstance(response.json().get("detail"), str)
 
-    app.dependency_overrides.clear()
-
 
 @pytest.mark.asyncio
 async def test_refresh_with_expired_refresh_token_is_denied(
@@ -200,7 +208,7 @@ async def test_refresh_with_expired_refresh_token_is_denied(
     blacklisted_jtis: set[str] = set()
     monkeypatch.setattr("src.services.tokens.settings.refresh_token_expires", -1)
 
-    async with await _build_auth_client(monkeypatch, blacklisted_jtis) as client:
+    async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
         _, refresh_token = await _login_and_get_tokens(client)
 
         response = await client.post(
@@ -210,5 +218,3 @@ async def test_refresh_with_expired_refresh_token_is_denied(
 
         assert response.status_code == 422
         assert isinstance(response.json().get("detail"), str)
-
-    app.dependency_overrides.clear()

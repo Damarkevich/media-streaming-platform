@@ -1,5 +1,6 @@
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import select, update
@@ -9,39 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.postgres import get_session
 from src.models.log import Log, LogType
 from src.models.user import User
+from src.services.utils import is_field_unique_violation
 
-POSTGRES_UNIQUE_VIOLATION_SQLSTATE = "23505"
-LOGIN_FIELD_NAME = "login"
 logger = logging.getLogger(__name__)
 
 
 class UserAlreadyExistsError(Exception):
     """Raised when a user cannot be created because the login is already taken."""
-
-
-def _is_login_unique_violation(exc: IntegrityError) -> bool:
-    """Check whether an IntegrityError is a unique violation for the login field.
-
-    This helper is intentionally conservative: it returns True only when the
-    underlying database error looks like a Postgres unique-constraint violation
-    and the constraint/message indicates it relates to the login.
-
-    Args:
-        exc: SQLAlchemy IntegrityError raised during commit.
-
-    Returns:
-        True if the error most likely represents a duplicate login.
-    """
-    orig = getattr(exc, "orig", None)
-    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
-    if sqlstate != POSTGRES_UNIQUE_VIOLATION_SQLSTATE:
-        return False
-
-    constraint = getattr(orig, "constraint_name", None)
-    if isinstance(constraint, str) and LOGIN_FIELD_NAME in constraint.lower():
-        return True
-
-    return LOGIN_FIELD_NAME in str(orig).lower()
 
 
 class UserService:
@@ -92,17 +67,17 @@ class UserService:
             await self.db.commit()
         except IntegrityError as exc:
             await self.db.rollback()
-            if _is_login_unique_violation(exc):
+            if is_field_unique_violation(exc, "login"):
                 raise UserAlreadyExistsError from exc
             raise
         await self.db.refresh(user)
         return user
 
-    async def change_password(self, user_id: str, new_password: str) -> bool:
+    async def change_password(self, user_id: UUID, new_password: str) -> bool:
         """Change a user's password.
 
         Args:
-            user_id: The UUID of the user as a string.
+            user_id: The UUID of the user.
             new_password: The new raw password to set.
 
         Returns:
@@ -119,11 +94,11 @@ class UserService:
         await self.db.commit()
         return user is not None
 
-    async def change_login(self, user_id: str, new_login: str) -> bool:
+    async def change_login(self, user_id: UUID, new_login: str) -> bool:
         """Change a user's login.
 
         Args:
-            user_id: The UUID of the user as a string.
+            user_id: The UUID of the user.
             new_login: The new login to set.
 
         Returns:
@@ -145,7 +120,7 @@ class UserService:
             await self.db.commit()
         except IntegrityError as exc:
             await self.db.rollback()
-            if _is_login_unique_violation(exc):
+            if is_field_unique_violation(exc, "login"):
                 raise UserAlreadyExistsError from exc
             raise
         return user is not None
@@ -166,11 +141,11 @@ class UserService:
             return user
         return None
 
-    async def get_user_by_id(self, user_id: str) -> User | None:
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
         """Retrieve a user by their unique ID.
 
         Args:
-            user_id: The UUID of the user as a string.
+            user_id: The UUID of the user.
 
         Returns:
             The User instance if found, else None.
@@ -199,16 +174,16 @@ class UserService:
                 f"Failed to persist user action log for user_id={user.id} and log_type={log_type}"
             )
 
-    async def get_list_of_user_logs(
+    async def get_user_logs(
         self,
-        user_id: str,
+        user_id: UUID,
         page_size: int,
         page_number: int,
     ) -> list[Log]:
         """Get a paginated list of logs for a given user.
 
         Args:
-            user_id: The UUID of the user as a string.
+            user_id: The UUID of the user.
             page_size: The number of logs to return per page.
             page_number: The page number to return.
 

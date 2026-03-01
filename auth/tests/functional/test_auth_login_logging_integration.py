@@ -12,7 +12,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 class FakeTokenService:
-    async def issue_tokens(self, user_id: str, fresh: bool = False) -> tuple[str, str]:
+    async def issue_tokens(
+        self, user_id: uuid.UUID, fresh: bool = False
+    ) -> tuple[str, str]:
         return (f"access-{user_id}", f"refresh-{user_id}")
 
 

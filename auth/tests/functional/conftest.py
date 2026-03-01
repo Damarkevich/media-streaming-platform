@@ -69,29 +69,29 @@ class FakeUserService:
         self.last_logged_user_id = str(user.id)
         self.last_logged_type = log_type
 
-    async def get_user_by_id(self, user_id: str) -> UserResponse | None:
-        if self.existing_user and str(self.existing_user.id) == user_id:
+    async def get_user_by_id(self, user_id: UUID) -> UserResponse | None:
+        if self.existing_user and self.existing_user.id == user_id:
             return self.existing_user
         return None
 
-    async def change_login(self, user_id: str, new_login: str) -> bool:
-        if not self.existing_user or str(self.existing_user.id) != user_id:
+    async def change_login(self, user_id: UUID, new_login: str) -> bool:
+        if not self.existing_user or self.existing_user.id != user_id:
             return False
         if new_login == "duplicate":
             raise UserAlreadyExistsError()
         self.changed_login = new_login
         return True
 
-    async def change_password(self, user_id: str, new_password: str) -> bool:
-        if not self.existing_user or str(self.existing_user.id) != user_id:
+    async def change_password(self, user_id: UUID, new_password: str) -> bool:
+        if not self.existing_user or self.existing_user.id != user_id:
             return False
         self.changed_password = new_password
         return True
 
-    async def get_list_of_user_logs(
-        self, user_id: str, page_size: int, page_number: int
+    async def get_user_logs(
+        self, user_id: UUID, page_size: int, page_number: int
     ) -> list[SimpleNamespace]:
-        if not self.existing_user or str(self.existing_user.id) != user_id:
+        if not self.existing_user or self.existing_user.id != user_id:
             return []
         offset = page_number * page_size
         return self.user_logs[offset : offset + page_size]
@@ -102,7 +102,7 @@ class FakeTokenService:
     last_access_blacklisted_jti: str | None = None
     last_refresh_blacklisted_jti: str | None = None
 
-    async def issue_tokens(self, user_id: str, fresh: bool = False) -> tuple[str, str]:
+    async def issue_tokens(self, user_id: UUID, fresh: bool = False) -> tuple[str, str]:
         return (f"access-{user_id}", f"refresh-{user_id}")
 
     async def add_access_to_blacklist(self, jti: str) -> None:

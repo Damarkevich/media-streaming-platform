@@ -1,5 +1,6 @@
 from datetime import timedelta
 from typing import Annotated
+from uuid import UUID
 
 from async_fastapi_jwt_auth import AuthJWT
 from fastapi import Depends
@@ -28,7 +29,7 @@ class TokenService:
         self.auth = auth
         self.redis = redis
 
-    async def issue_tokens(self, user_id: str, fresh: bool = False) -> tuple[str, str]:
+    async def issue_tokens(self, user_id: UUID, fresh: bool = False) -> tuple[str, str]:
         """Issue new tokens for a user.
 
         This method can be extended to include additional logic, such as
@@ -44,11 +45,11 @@ class TokenService:
         """
         access_token_expires = timedelta(seconds=settings.access_token_expires)
         access_token = await self.auth.create_access_token(
-            subject=user_id, expires_time=access_token_expires, fresh=fresh
+            subject=str(user_id), expires_time=access_token_expires, fresh=fresh
         )
         refresh_token_expires = timedelta(seconds=settings.refresh_token_expires)
         refresh_token = await self.auth.create_refresh_token(
-            subject=user_id, expires_time=refresh_token_expires
+            subject=str(user_id), expires_time=refresh_token_expires
         )
         return access_token, refresh_token
 

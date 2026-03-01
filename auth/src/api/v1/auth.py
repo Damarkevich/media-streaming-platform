@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Annotated
+from uuid import UUID
 
 from async_fastapi_jwt_auth import AuthJWT
 from fastapi import APIRouter, Depends, HTTPException
@@ -58,9 +59,7 @@ async def login(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail="Invalid login or password",
         )
-    access_token, refresh_token = await token_service.issue_tokens(
-        str(user.id), fresh=True
-    )
+    access_token, refresh_token = await token_service.issue_tokens(user.id, fresh=True)
     await user_service.log_user_action(user, LogType.LOGIN)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
@@ -77,9 +76,9 @@ async def refresh_token(
 ) -> TokenResponse:
     await auth.jwt_refresh_token_required()
 
-    user_id: str | int | None = await auth.get_jwt_subject()
+    user_id: UUID = UUID(str(await auth.get_jwt_subject()))
     new_access_token, new_refresh_token = await token_service.issue_tokens(
-        str(user_id), fresh=False
+        user_id, fresh=False
     )
 
     old_refresh_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))

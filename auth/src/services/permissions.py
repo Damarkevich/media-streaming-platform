@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.postgres import get_session
@@ -36,6 +36,9 @@ class PermissionService:
         Args:
             db: Request-scoped SQLAlchemy async session.
             redis_client: Injected Redis client wrapper.
+
+        Returns:
+            None.
         """
         self.db = db
         self.redis_client = redis_client
@@ -51,6 +54,9 @@ class PermissionService:
 
         Returns:
             A list of Permission instances for the requested page.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         offset = page_number * page_size
         stmt = (
@@ -70,6 +76,9 @@ class PermissionService:
 
         Returns:
             A list of Permission instances assigned to the role.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         stmt = (
             select(Permission)
@@ -88,6 +97,14 @@ class PermissionService:
         Args:
             role_id: The UUID of the role.
             permission_id: The UUID of the permission.
+
+        Returns:
+            None.
+
+        Raises:
+            RoleNotFoundError: If role does not exist.
+            PermissionNotFoundError: If permission does not exist.
+            SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
             raise RoleNotFoundError("Role not found")
@@ -123,6 +140,14 @@ class PermissionService:
         Args:
             role_id: The UUID of the role.
             permission_id: The UUID of the permission.
+
+        Returns:
+            None.
+
+        Raises:
+            RoleNotFoundError: If role does not exist.
+            PermissionNotFoundError: If permission does not exist.
+            SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
             raise RoleNotFoundError("Role not found")
@@ -144,16 +169,50 @@ class PermissionService:
             raise
 
     async def _role_exists(self, role_id: UUID) -> bool:
+        """Return whether role with given ID exists.
+
+        Args:
+            role_id: Role identifier.
+
+        Returns:
+            True when role exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(select(Role.id).where(Role.id == role_id))
         return result.scalar_one_or_none() is not None
 
     async def _permission_exists(self, permission_id: UUID) -> bool:
+        """Return whether permission with given ID exists.
+
+        Args:
+            permission_id: Permission identifier.
+
+        Returns:
+            True when permission exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(
             select(Permission.id).where(Permission.id == permission_id)
         )
         return result.scalar_one_or_none() is not None
 
     async def _role_permission_exists(self, role_id: UUID, permission_id: UUID) -> bool:
+        """Return whether role-permission relation already exists.
+
+        Args:
+            role_id: Role identifier.
+            permission_id: Permission identifier.
+
+        Returns:
+            True when relation exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(
             select(RolePermission)
             .where(
@@ -165,6 +224,17 @@ class PermissionService:
         return result.scalars().one_or_none() is not None
 
     async def _invalidate_role_users_permissions_cache(self, role_id: UUID) -> None:
+        """Invalidate permission cache for all users assigned to role.
+
+        Args:
+            role_id: Role identifier whose related users should be invalidated.
+
+        Returns:
+            None.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(
             select(UserRole.user_id).where(UserRole.role_id == role_id)
         )

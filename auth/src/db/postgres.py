@@ -29,6 +29,7 @@ async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a request-scoped asynchronous SQLAlchemy session."""
     async with async_session() as session:
         yield session
 

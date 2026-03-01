@@ -5,6 +5,7 @@ from src.models.log import LogType
 
 @pytest.mark.asyncio
 async def test_signup_returns_201(test_client) -> None:
+    """Ensure signup returns 201 and user profile payload."""
     response = await test_client.post(
         "/api/v1/auth/signup",
         json={
@@ -24,6 +25,7 @@ async def test_signup_returns_201(test_client) -> None:
 
 @pytest.mark.asyncio
 async def test_signup_duplicate_returns_409(test_client) -> None:
+    """Ensure duplicate signup returns conflict error."""
     response = await test_client.post(
         "/api/v1/auth/signup",
         json={
@@ -40,6 +42,7 @@ async def test_signup_duplicate_returns_409(test_client) -> None:
 
 @pytest.mark.asyncio
 async def test_login_invalid_credentials_returns_401(test_client) -> None:
+    """Ensure login with invalid credentials is rejected."""
     response = await test_client.post(
         "/api/v1/auth/login",
         json={"login": "bad", "password": "bad"},
@@ -51,6 +54,7 @@ async def test_login_invalid_credentials_returns_401(test_client) -> None:
 
 @pytest.mark.asyncio
 async def test_login_success_returns_tokens_and_logs_action(test_client) -> None:
+    """Ensure successful login returns token pair and writes login log."""
     response = await test_client.post(
         "/api/v1/auth/login",
         json={"login": "valid", "password": "ValidPass1!"},
@@ -68,6 +72,7 @@ async def test_login_success_returns_tokens_and_logs_action(test_client) -> None
 
 @pytest.mark.asyncio
 async def test_refresh_returns_new_tokens(test_client) -> None:
+    """Ensure refresh endpoint returns new access and refresh tokens."""
     response = await test_client.post("/api/v1/auth/refresh")
 
     assert response.status_code == 200
@@ -78,6 +83,7 @@ async def test_refresh_returns_new_tokens(test_client) -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_revoke_adds_jti_to_blacklist(test_client) -> None:
+    """Ensure refresh revoke stores token JTI in blacklist."""
     response = await test_client.delete("/api/v1/auth/refresh-revoke")
 
     assert response.status_code == 204
@@ -86,6 +92,7 @@ async def test_refresh_revoke_adds_jti_to_blacklist(test_client) -> None:
 
 @pytest.mark.asyncio
 async def test_access_revoke_adds_jti_to_blacklist(test_client) -> None:
+    """Ensure access revoke stores token JTI in blacklist."""
     response = await test_client.delete("/api/v1/auth/access-revoke")
 
     assert response.status_code == 204

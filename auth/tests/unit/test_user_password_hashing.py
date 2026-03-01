@@ -2,6 +2,7 @@ from src.models.user import User
 
 
 def test_user_set_password_hashes_password_and_keeps_check_working() -> None:
+    """Ensure setting password stores hash and preserves password verification."""
     user = User(
         login="hash_user",
         password="InitialPass1!",

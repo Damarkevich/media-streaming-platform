@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class User(Base):
+    """User account entity with credentials and RBAC links."""
+
     __tablename__ = "users"
     __table_args__ = {"schema": "auth"}
 

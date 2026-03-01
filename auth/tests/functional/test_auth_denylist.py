@@ -12,6 +12,8 @@ from src.services.users import get_user_service
 
 
 class FakeUserServiceForLogin:
+    """Minimal user service for login flow in denylist tests."""
+
     async def authenticate_user(
         self, login: str, password: str
     ) -> SimpleNamespace | None:
@@ -24,6 +26,8 @@ class FakeUserServiceForLogin:
 
 
 class _FakeScalarResult:
+    """Scalar result stub compatible with SQLAlchemy result API."""
+
     def __init__(self, value: object | None) -> None:
         self.value = value
 
@@ -32,6 +36,8 @@ class _FakeScalarResult:
 
 
 class InMemoryBlacklistSession:
+    """In-memory session emulating refresh-token blacklist behavior."""
+
     def __init__(self, storage: set[str]) -> None:
         self.storage = storage
 
@@ -56,6 +62,8 @@ class InMemoryBlacklistSession:
 
 
 class FakeRedis:
+    """Minimal in-memory Redis stub used by denylist tests."""
+
     def __init__(self) -> None:
         self.storage: dict[str, str] = {}
 
@@ -70,6 +78,7 @@ async def _build_auth_client(
     monkeypatch: pytest.MonkeyPatch,
     blacklisted_jtis: set[str],
 ) -> AsyncClient:
+    """Build test client with overridden auth dependencies and in-memory stores."""
     redis_module.redis = FakeRedis()
 
     async def override_get_session() -> AsyncGenerator[InMemoryBlacklistSession, None]:
@@ -98,6 +107,7 @@ async def _auth_client_ctx(
     monkeypatch: pytest.MonkeyPatch,
     blacklisted_jtis: set[str],
 ) -> AsyncGenerator[AsyncClient, None]:
+    """Provide managed test client context for denylist scenarios."""
     client = await _build_auth_client(monkeypatch, blacklisted_jtis)
     try:
         async with client as open_client:
@@ -107,6 +117,7 @@ async def _auth_client_ctx(
 
 
 async def _login_and_get_tokens(client: AsyncClient) -> tuple[str, str]:
+    """Authenticate test user and return issued access/refresh tokens."""
     login_response = await client.post(
         "/api/v1/auth/login",
         json={"login": "valid_user", "password": "ValidPass1!"},
@@ -120,6 +131,7 @@ async def _login_and_get_tokens(client: AsyncClient) -> tuple[str, str]:
 async def test_refresh_token_is_revoked_after_logout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure refresh token becomes unusable after refresh revoke call."""
     blacklisted_jtis: set[str] = set()
 
     async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
@@ -150,6 +162,7 @@ async def test_refresh_token_is_revoked_after_logout(
 async def test_access_token_is_revoked_after_access_revoke(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure access token is rejected after access revoke call."""
     blacklisted_jtis: set[str] = set()
 
     async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
@@ -173,6 +186,7 @@ async def test_access_token_is_revoked_after_access_revoke(
 async def test_refresh_with_access_token_is_denied(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure refresh endpoint rejects access tokens."""
     blacklisted_jtis: set[str] = set()
 
     async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
@@ -191,6 +205,7 @@ async def test_refresh_with_access_token_is_denied(
 async def test_me_with_refresh_token_is_denied(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure access-protected endpoint rejects refresh tokens."""
     blacklisted_jtis: set[str] = set()
 
     async with _auth_client_ctx(monkeypatch, blacklisted_jtis) as client:
@@ -209,6 +224,7 @@ async def test_me_with_refresh_token_is_denied(
 async def test_refresh_with_expired_refresh_token_is_denied(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure expired refresh token cannot be used to rotate tokens."""
     blacklisted_jtis: set[str] = set()
     monkeypatch.setattr("src.services.tokens.settings.refresh_token_expires", -1)
 

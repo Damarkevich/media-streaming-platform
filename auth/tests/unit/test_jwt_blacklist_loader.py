@@ -8,6 +8,8 @@ import src.core.jwt as jwt_module
 
 
 class DummyChecker:
+    """Revocation checker stub used by JWT callback tests."""
+
     def __init__(self, return_value: bool) -> None:
         self.return_value = return_value
         self.calls: list[tuple[str, str]] = []
@@ -21,6 +23,7 @@ class DummyChecker:
 async def test_check_if_token_in_blacklist_returns_false_when_jti_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure denylist callback skips checks when JTI is missing."""
     checker = DummyChecker(return_value=True)
 
     async def _check_token_revoked_runtime(*, token_type: str, jti: str) -> bool:
@@ -47,6 +50,7 @@ async def test_check_if_token_in_blacklist_returns_false_when_jti_missing(
 async def test_check_if_token_in_blacklist_normalizes_token_type_and_uses_checker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure denylist callback normalizes token type before checking."""
     checker = DummyChecker(return_value=True)
 
     async def _check_token_revoked_runtime(*, token_type: str, jti: str) -> bool:

@@ -11,6 +11,7 @@ from src.services.tokens import TokenService
 async def test_issue_tokens_uses_configured_ttls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure token service uses configured TTL values for token creation."""
     monkeypatch.setattr("src.services.tokens.settings.access_token_expires", 101)
     monkeypatch.setattr("src.services.tokens.settings.refresh_token_expires", 202)
 
@@ -36,6 +37,7 @@ async def test_issue_tokens_uses_configured_ttls(
 
 @pytest.mark.asyncio
 async def test_add_refresh_to_blacklist_is_idempotent() -> None:
+    """Ensure adding same refresh JTI twice remains safe and idempotent."""
     db = AsyncMock()
     auth = AsyncMock()
     redis_client = AsyncMock()

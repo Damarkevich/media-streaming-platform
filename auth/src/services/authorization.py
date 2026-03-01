@@ -27,6 +27,9 @@ async def get_authenticated_user_id(
 
     Returns:
         UUID of the authenticated user (JWT subject).
+
+    Raises:
+        Exception: Propagates JWT validation errors from `jwt_required`.
     """
     await auth.jwt_required()
     return UUID(str(await auth.get_jwt_subject()))
@@ -42,6 +45,9 @@ async def get_fresh_authenticated_user_id(
 
     Returns:
         UUID of the authenticated user (JWT subject).
+
+    Raises:
+        Exception: Propagates JWT validation errors from `fresh_jwt_required`.
     """
     await auth.fresh_jwt_required()
     return UUID(str(await auth.get_jwt_subject()))

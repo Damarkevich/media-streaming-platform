@@ -1,8 +1,8 @@
 from http import HTTPStatus
-from typing import Annotated
+from typing import Annotated, Mapping
 from uuid import UUID
 
-from async_fastapi_jwt_auth import AuthJWT
+from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.v1.responses import (
@@ -25,6 +25,13 @@ from src.services.users import UserAlreadyExistsError, UserService, get_user_ser
 router = APIRouter(redirect_slashes=False)
 
 
+def _extract_jti(payload: Mapping[str, object] | None) -> str:
+    """Extract token JTI from a raw JWT payload."""
+    if payload is None:
+        return ""
+    return str(payload.get("jti", ""))
+
+
 @router.post(
     "/signup",
     response_model=UserResponse,
@@ -35,6 +42,7 @@ async def create_user(
     user_create: UserCreate,
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> UserResponse:
+    """Register a new user account and return its public projection."""
     user_dto = user_create.model_dump()
     try:
         return await user_service.create_user(**user_dto)
@@ -51,6 +59,7 @@ async def login(
     user_service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
+    """Authenticate credentials and issue a new access/refresh token pair."""
     user_dto: dict[str, str] = user_login.model_dump()
     user = await user_service.authenticate_user(**user_dto)
     if not user:
@@ -73,6 +82,7 @@ async def refresh_token(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
+    """Rotate tokens using a valid refresh token and return a new pair."""
     await auth.jwt_refresh_token_required()
 
     user_id: UUID = UUID(str(await auth.get_jwt_subject()))
@@ -80,7 +90,7 @@ async def refresh_token(
         user_id, fresh=False
     )
 
-    old_refresh_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))
+    old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
     await token_service.add_refresh_to_blacklist(old_refresh_jti)
 
     return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token)
@@ -95,9 +105,10 @@ async def access_revoke(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> None:
+    """Revoke the current access token."""
     await auth.jwt_required()
 
-    old_access_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))
+    old_access_jti = _extract_jti(await auth.get_raw_jwt())
     await token_service.add_access_to_blacklist(old_access_jti)
 
 
@@ -110,7 +121,8 @@ async def refresh_revoke(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> None:
+    """Revoke the current refresh token."""
     await auth.jwt_refresh_token_required()
 
-    old_refresh_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))
+    old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
     await token_service.add_refresh_to_blacklist(old_refresh_jti)

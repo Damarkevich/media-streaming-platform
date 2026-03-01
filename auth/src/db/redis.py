@@ -4,6 +4,7 @@ redis: Redis | None = None
 
 
 async def get_redis() -> Redis:
+    """Return initialized Redis client instance from application state."""
     if redis is None:
         raise RuntimeError("Redis client is not initialized")
     return redis

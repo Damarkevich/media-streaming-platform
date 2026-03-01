@@ -6,6 +6,8 @@ from src.schemas.validators import validate_login, validate_strong_password
 
 
 class UserCreate(BaseModel):
+    """Request schema for user registration."""
+
     login: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
     first_name: str = Field(min_length=1, max_length=50)
@@ -23,6 +25,8 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
+    """Public user profile returned by API."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -31,11 +35,15 @@ class UserResponse(BaseModel):
 
 
 class UserLogin(BaseModel):
+    """Request schema for user login."""
+
     login: str
     password: str
 
 
 class UserLoginChangeRequest(BaseModel):
+    """Request schema for changing user login."""
+
     new_login: str = Field(min_length=3, max_length=255)
 
     @field_validator("new_login")
@@ -45,6 +53,8 @@ class UserLoginChangeRequest(BaseModel):
 
 
 class UserPasswordChangeRequest(BaseModel):
+    """Request schema for changing user password."""
+
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")
@@ -54,4 +64,6 @@ class UserPasswordChangeRequest(BaseModel):
 
 
 class UserPermissionCheckResponse(BaseModel):
+    """Response schema for permission-check endpoint."""
+
     has_permission: bool

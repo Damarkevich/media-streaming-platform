@@ -11,6 +11,8 @@ from src.services.roles import get_role_service
 
 
 class FakeRoleService:
+    """In-memory role service used by access-control endpoint tests."""
+
     def __init__(self, roles: list[SimpleNamespace]) -> None:
         self.roles = roles
 
@@ -51,6 +53,8 @@ class FakeRoleService:
 
 
 class FakePermissionService:
+    """In-memory permission service used by access-control endpoint tests."""
+
     def __init__(self, permissions: list[SimpleNamespace]) -> None:
         self.permissions = permissions
 
@@ -75,6 +79,8 @@ class FakePermissionService:
 
 
 class FakePermissionCheckService:
+    """Permission checker stub returning predefined decisions."""
+
     def __init__(self, allowed: bool) -> None:
         self.allowed = allowed
         self.calls: list[tuple[UUID, PermissionName]] = []
@@ -90,6 +96,7 @@ def _override_services(
     permission_service: FakePermissionService,
     permission_check_service: FakePermissionCheckService,
 ) -> None:
+    """Inject fake RBAC-related services into FastAPI dependency overrides."""
     from src.services.permissions import get_permission_service
 
     app.dependency_overrides[get_role_service] = lambda: role_service
@@ -103,6 +110,7 @@ def _override_services(
 async def test_get_roles_returns_403_when_roles_read_permission_missing(
     test_client: AsyncClient,
 ) -> None:
+    """Ensure roles endpoint returns 403 without `roles:read` permission."""
     fake_role_service = FakeRoleService(
         roles=[SimpleNamespace(id=uuid4(), name="admin")]
     )
@@ -130,6 +138,7 @@ async def test_get_roles_returns_403_when_roles_read_permission_missing(
 async def test_get_roles_returns_200_when_roles_read_permission_present(
     test_client: AsyncClient,
 ) -> None:
+    """Ensure roles endpoint returns data with `roles:read` permission."""
     role_id = uuid4()
     fake_role_service = FakeRoleService(
         roles=[SimpleNamespace(id=role_id, name="admin")]
@@ -217,6 +226,7 @@ async def test_roles_and_permissions_endpoints_return_403_without_permission(
     payload: dict[str, str] | None,
     expected_permission: PermissionName,
 ) -> None:
+    """Ensure protected RBAC endpoints return 403 when permission is missing."""
     role_id = uuid4()
     fake_role_service = FakeRoleService(
         roles=[SimpleNamespace(id=role_id, name="admin")]

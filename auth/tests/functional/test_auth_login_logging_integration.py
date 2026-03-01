@@ -12,6 +12,8 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 class FakeTokenService:
+    """Fake token issuer for login logging integration tests."""
+
     async def issue_tokens(
         self, user_id: uuid.UUID, fresh: bool = False
     ) -> tuple[str, str]:
@@ -19,15 +21,18 @@ class FakeTokenService:
 
 
 def _override_token_service() -> None:
+    """Override token service dependency with fake implementation."""
     app.dependency_overrides[get_token_service] = lambda: FakeTokenService()
 
 
 def _build_test_client() -> AsyncClient:
+    """Create ASGI test client bound to the FastAPI app."""
     transport = ASGITransport(app=app)
     return AsyncClient(transport=transport, base_url="http://test")
 
 
 async def _signup_user(client: AsyncClient, login: str, password: str) -> str:
+    """Create test user and return created user identifier."""
     signup_response = await client.post(
         "/api/v1/auth/signup",
         json={
@@ -42,6 +47,7 @@ async def _signup_user(client: AsyncClient, login: str, password: str) -> str:
 
 
 async def _count_login_logs(user_id: str) -> int:
+    """Count login audit records for the given user."""
     async with async_session() as session:
         result = await session.execute(
             text(
@@ -53,6 +59,7 @@ async def _count_login_logs(user_id: str) -> int:
 
 
 async def _latest_log_type(user_id: str) -> str | None:
+    """Return latest log type for the given user."""
     async with async_session() as session:
         result = await session.execute(
             text(
@@ -64,6 +71,7 @@ async def _latest_log_type(user_id: str) -> str | None:
 
 
 async def _cleanup_user_data(user_id: str) -> None:
+    """Remove user and related logs created during tests."""
     async with async_session() as session:
         await session.execute(
             text("DELETE FROM auth.logs WHERE user_id = :uid"),
@@ -77,6 +85,7 @@ async def _cleanup_user_data(user_id: str) -> None:
 
 
 async def test_login_writes_audit_log_to_db() -> None:
+    """Ensure successful login persists one login audit record."""
     login = f"logcheck{uuid.uuid4().hex[:10]}"
     password = "StrongPass1!"
 
@@ -107,6 +116,7 @@ async def test_login_writes_audit_log_to_db() -> None:
 
 
 async def test_login_with_invalid_password_does_not_write_audit_log() -> None:
+    """Ensure failed login does not create login audit record."""
     login = f"logcheck{uuid.uuid4().hex[:10]}"
     password = "StrongPass1!"
 

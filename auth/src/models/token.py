@@ -7,6 +7,8 @@ from src.db.postgres import Base
 
 
 class BlacklistedToken(Base):
+    """Persisted refresh-token denylist entry."""
+
     __tablename__ = "blacklisted_tokens"
     __table_args__ = {"schema": "auth"}
 

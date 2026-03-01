@@ -8,6 +8,8 @@ from src.services.redis import RedisClient
 
 
 class DummyRedisClient:
+    """Redis blacklist stub with configurable behavior."""
+
     def __init__(self, *, value: bool = False, error: Exception | None = None) -> None:
         self.value = value
         self.error = error
@@ -21,6 +23,8 @@ class DummyRedisClient:
 
 
 class DummyResult:
+    """Scalar SQLAlchemy-like result stub."""
+
     def __init__(self, scalar_value: object | None) -> None:
         self.scalar_value = scalar_value
 
@@ -29,6 +33,8 @@ class DummyResult:
 
 
 class DummySession:
+    """Database session stub with configurable execution outcome."""
+
     def __init__(
         self, result: DummyResult | None = None, error: Exception | None = None
     ) -> None:
@@ -44,6 +50,7 @@ class DummySession:
 
 @pytest.mark.asyncio
 async def test_is_token_revoked_returns_false_for_unknown_token_type() -> None:
+    """Ensure unknown token types are treated as not revoked."""
     checker = HybridBlacklistChecker(
         redis_client=cast(RedisClient, DummyRedisClient()),
         db=cast(AsyncSession, DummySession()),
@@ -56,6 +63,7 @@ async def test_is_token_revoked_returns_false_for_unknown_token_type() -> None:
 
 @pytest.mark.asyncio
 async def test_access_token_blacklisted_when_key_exists() -> None:
+    """Ensure access token is marked revoked when Redis key exists."""
     redis_client = DummyRedisClient(value=True)
 
     checker = HybridBlacklistChecker(
@@ -70,6 +78,7 @@ async def test_access_token_blacklisted_when_key_exists() -> None:
 
 @pytest.mark.asyncio
 async def test_access_token_not_blacklisted_when_key_missing() -> None:
+    """Ensure access token is not revoked when Redis key is absent."""
     redis_client = DummyRedisClient(value=False)
 
     checker = HybridBlacklistChecker(
@@ -83,6 +92,7 @@ async def test_access_token_not_blacklisted_when_key_missing() -> None:
 
 @pytest.mark.asyncio
 async def test_access_blacklist_check_fails_closed_on_redis_error() -> None:
+    """Ensure Redis failures are treated as revoked tokens."""
     redis_client = DummyRedisClient(error=RuntimeError("redis down"))
 
     checker = HybridBlacklistChecker(
@@ -96,6 +106,7 @@ async def test_access_blacklist_check_fails_closed_on_redis_error() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_token_blacklisted_when_row_exists() -> None:
+    """Ensure refresh token is revoked when DB record exists."""
     session = DummySession(result=DummyResult(scalar_value=object()))
     checker = HybridBlacklistChecker(
         redis_client=cast(RedisClient, DummyRedisClient()),
@@ -108,6 +119,7 @@ async def test_refresh_token_blacklisted_when_row_exists() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_token_not_blacklisted_when_row_missing() -> None:
+    """Ensure refresh token is not revoked when DB record is absent."""
     session = DummySession(result=DummyResult(scalar_value=None))
     checker = HybridBlacklistChecker(
         redis_client=cast(RedisClient, DummyRedisClient()),
@@ -120,6 +132,7 @@ async def test_refresh_token_not_blacklisted_when_row_missing() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_blacklist_check_fails_closed_on_db_error() -> None:
+    """Ensure DB failures are treated as revoked refresh tokens."""
     checker = HybridBlacklistChecker(
         redis_client=cast(RedisClient, DummyRedisClient()),
         db=cast(AsyncSession, DummySession(error=RuntimeError("db down"))),
@@ -130,6 +143,7 @@ async def test_refresh_blacklist_check_fails_closed_on_db_error() -> None:
 
 
 def test_checker_is_constructed_with_injected_dependencies() -> None:
+    """Ensure checker can be instantiated with injected dependencies."""
     checker = HybridBlacklistChecker(
         redis_client=cast(RedisClient, DummyRedisClient()),
         db=cast(AsyncSession, DummySession()),

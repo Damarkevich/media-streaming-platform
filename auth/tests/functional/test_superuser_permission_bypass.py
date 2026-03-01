@@ -18,6 +18,8 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 class _FakeAuth:
+    """Auth dependency stub returning predefined user subject."""
+
     def __init__(self, subject: str) -> None:
         self.subject = subject
 
@@ -29,6 +31,8 @@ class _FakeAuth:
 
 
 class _FakeRedisClient:
+    """In-memory Redis client stub for permission cache operations."""
+
     def __init__(self) -> None:
         self._storage: dict[str, set[str]] = {}
 
@@ -48,6 +52,7 @@ class _FakeRedisClient:
 
 
 async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
+    """Insert test user with configurable superuser flag."""
     async with async_session() as session:
         await session.execute(
             text(
@@ -86,6 +91,7 @@ async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
 
 
 async def _delete_user(user_id: str) -> None:
+    """Delete test user and related user-bound records."""
     async with async_session() as session:
         await session.execute(
             text("DELETE FROM auth.logs WHERE user_id = :uid"),
@@ -103,6 +109,7 @@ async def _delete_user(user_id: str) -> None:
 
 
 async def _delete_role_by_name(role_name: str) -> None:
+    """Delete role and dependent relation records by role name."""
     async with async_session() as session:
         await session.execute(
             text(
@@ -130,6 +137,7 @@ async def _delete_role_by_name(role_name: str) -> None:
 
 
 async def _create_role(role_name: str) -> str:
+    """Insert role row and return generated role identifier."""
     role_id = str(uuid.uuid4())
     async with async_session() as session:
         await session.execute(
@@ -150,6 +158,7 @@ async def _create_role(role_name: str) -> str:
 
 
 async def _create_permission(permission_name: str) -> str:
+    """Insert permission row and return generated permission identifier."""
     permission_id = str(uuid.uuid4())
     async with async_session() as session:
         await session.execute(
@@ -170,6 +179,7 @@ async def _create_permission(permission_name: str) -> str:
 
 
 async def _link_permission_to_role(role_id: str, permission_id: str) -> None:
+    """Create role-permission relation for test setup."""
     async with async_session() as session:
         await session.execute(
             text(
@@ -187,6 +197,7 @@ async def _link_permission_to_role(role_id: str, permission_id: str) -> None:
 
 
 async def _delete_permission_by_name(permission_name: str) -> None:
+    """Delete permission row by name."""
     async with async_session() as session:
         await session.execute(
             text("DELETE FROM auth.permissions WHERE name = :permission_name"),
@@ -197,6 +208,7 @@ async def _delete_permission_by_name(permission_name: str) -> None:
 
 @asynccontextmanager
 async def _overridden_client(subject: str) -> AsyncIterator[AsyncClient]:
+    """Provide test client with auth and redis dependency overrides."""
     app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=subject)
     app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
 
@@ -206,6 +218,7 @@ async def _overridden_client(subject: str) -> AsyncIterator[AsyncClient]:
 
 
 async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None:
+    """Ensure superuser can access roles listing without explicit permissions."""
     user_id = str(uuid.uuid4())
     login = f"super-{uuid.uuid4().hex[:10]}"
 
@@ -224,6 +237,7 @@ async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None
 
 
 async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -> None:
+    """Ensure superuser can create roles without explicit permissions."""
     user_id = str(uuid.uuid4())
     login = f"super-{uuid.uuid4().hex[:10]}"
     role_name = f"super-created-{uuid.uuid4().hex[:10]}"
@@ -247,6 +261,7 @@ async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -
 
 
 async def test_superuser_bypasses_permission_checks_for_assign_role_endpoint() -> None:
+    """Ensure superuser can assign roles to users without explicit permissions."""
     superuser_id = str(uuid.uuid4())
     superuser_login = f"super-{uuid.uuid4().hex[:10]}"
     target_user_id = str(uuid.uuid4())
@@ -279,6 +294,7 @@ async def test_superuser_bypasses_permission_checks_for_assign_role_endpoint() -
 async def test_superuser_bypasses_permission_checks_for_remove_permission_endpoint() -> (
     None
 ):
+    """Ensure superuser can remove permission-role link without explicit permissions."""
     superuser_id = str(uuid.uuid4())
     superuser_login = f"super-{uuid.uuid4().hex[:10]}"
     role_name = f"perm-role-{uuid.uuid4().hex[:10]}"

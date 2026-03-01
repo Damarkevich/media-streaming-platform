@@ -1,7 +1,5 @@
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
-from async_fastapi_jwt_auth.auth_jwt import (
-    AuthJWTBearer,  # type: ignore[import-untyped]
-)
+from async_fastapi_jwt_auth.auth_jwt import AuthJWTBearer  # type: ignore[import-untyped]
 
 from src.core.config import Settings, settings
 from src.services.blacklist import check_token_revoked_runtime
@@ -11,6 +9,7 @@ auth_dep = AuthJWTBearer()
 
 @AuthJWT.load_config  # type: ignore[arg-type]
 def get_config() -> Settings:
+    """Provide JWT library configuration from application settings."""
     return settings
 
 

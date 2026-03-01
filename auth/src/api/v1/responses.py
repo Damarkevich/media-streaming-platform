@@ -9,6 +9,7 @@ OpenAPIResponses = dict[int | str, dict[str, Any]]
 def _normalize_responses(
     responses: dict[HTTPStatus, dict[str, Any]],
 ) -> OpenAPIResponses:
+    """Convert HTTPStatus keys to OpenAPI-compatible integer keys."""
     return {int(status): spec for status, spec in responses.items()}
 
 

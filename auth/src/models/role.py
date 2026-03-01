@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class RolePermission(Base):
+    """Association table mapping roles to permissions."""
+
     __tablename__ = "role_permissions"
     __table_args__ = {"schema": "auth"}
 
@@ -34,6 +36,8 @@ class RolePermission(Base):
 
 
 class UserRole(Base):
+    """Association table mapping users to roles."""
+
     __tablename__ = "user_roles"
     __table_args__ = {"schema": "auth"}
 
@@ -54,6 +58,8 @@ class UserRole(Base):
 
 
 class Permission(Base):
+    """Permission entity that can be assigned to roles."""
+
     __tablename__ = "permissions"
     __table_args__ = {"schema": "auth"}
 
@@ -84,6 +90,8 @@ class Permission(Base):
 
 
 class Role(Base):
+    """Role entity grouping permissions and users."""
+
     __tablename__ = "roles"
     __table_args__ = {"schema": "auth"}
 

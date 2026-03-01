@@ -31,6 +31,9 @@ class UserService:
 
         Args:
             db: Request-scoped SQLAlchemy async session.
+
+        Returns:
+            None.
         """
         self.db = db
 
@@ -82,6 +85,9 @@ class UserService:
 
         Returns:
             True if a user row was updated, otherwise False.
+
+        Raises:
+            SQLAlchemyError: Propagates database errors.
         """
         stmt = (
             update(User)
@@ -134,6 +140,9 @@ class UserService:
 
         Returns:
             The authenticated User instance if credentials are valid, else None.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         result = await self.db.execute(select(User).where(User.login == login))
         user = result.scalars().one_or_none()
@@ -149,6 +158,9 @@ class UserService:
 
         Returns:
             The User instance if found, else None.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalars().one_or_none()
@@ -163,6 +175,9 @@ class UserService:
         Notes:
             This operation is best-effort and should not break the main request
             flow. Any database error is rolled back and logged.
+
+        Returns:
+            None.
         """
         log_entry = Log(user_id=user.id, log_type=log_type)
         self.db.add(log_entry)
@@ -189,6 +204,9 @@ class UserService:
 
         Returns:
             A list of Log instances associated with the user ordered by creation time descending.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         offset = page_number * page_size
         result = await self.db.execute(

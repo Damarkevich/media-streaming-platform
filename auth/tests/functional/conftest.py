@@ -19,22 +19,28 @@ from src.services.users import UserAlreadyExistsError, get_user_service
 
 @pytest_asyncio.fixture(autouse=True)
 async def clear_dependency_overrides() -> AsyncGenerator[None, None]:
+    """Reset dependency overrides after each functional test."""
     yield
     app.dependency_overrides.clear()
 
 
 @dataclass
 class FakeLogEntry:
+    """In-memory audit log entry used by fake services in tests."""
+
     log_type: LogType
     created_at: datetime
 
 
 def _default_log_entries() -> list[FakeLogEntry]:
+    """Return default empty log list for dataclass field factory."""
     return []
 
 
 @dataclass
 class FakeUserService:
+    """Fake user service implementation used by functional tests."""
+
     created_user_id: UUID = field(default_factory=uuid4)
     authenticated_user_id: UUID = field(default_factory=uuid4)
     existing_user: UserResponse | None = field(
@@ -117,6 +123,8 @@ class FakeUserService:
 
 @dataclass
 class FakeTokenService:
+    """Fake token service used by functional tests."""
+
     last_access_blacklisted_jti: str | None = None
     last_refresh_blacklisted_jti: str | None = None
 
@@ -131,6 +139,8 @@ class FakeTokenService:
 
 
 class FakeAuth:
+    """Fake AuthJWT adapter for authenticated test scenarios."""
+
     def __init__(
         self,
         *,
@@ -171,6 +181,7 @@ class FakeAuth:
 
 @pytest_asyncio.fixture
 async def test_client() -> AsyncGenerator[AsyncClient, None]:
+    """Build ASGI test client with default fake dependencies."""
     fake_user_service = FakeUserService()
     fake_token_service = FakeTokenService()
     existing_user = fake_user_service.existing_user

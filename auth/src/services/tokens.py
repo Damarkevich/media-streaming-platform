@@ -5,6 +5,7 @@ from uuid import UUID
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
 from fastapi import Depends
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -25,6 +26,9 @@ class TokenService:
         Args:
             db: Request-scoped SQLAlchemy async session.
             auth: Injected AuthJWT instance.
+
+        Returns:
+            None.
         """
         self.db = db
         self.auth = auth
@@ -43,6 +47,9 @@ class TokenService:
 
         Returns:
             A tuple of (access_token, refresh_token).
+
+        Raises:
+            Exception: Propagates token generation errors.
         """
         access_token_expires = timedelta(seconds=settings.access_token_expires)
         access_token = await self.auth.create_access_token(  # pyright: ignore[reportUnknownMemberType]
@@ -55,12 +62,34 @@ class TokenService:
         return access_token, refresh_token
 
     async def add_access_to_blacklist(self, jti: str) -> None:
+        """Blacklist access token by JTI in Redis.
+
+        Args:
+            jti: Access token identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            Exception: Propagates Redis I/O errors.
+        """
         await self.redis_client.add_access_token_to_blacklist(
             jti=jti,
             ttl_seconds=settings.access_token_expires,
         )
 
     async def add_refresh_to_blacklist(self, jti: str) -> None:
+        """Blacklist refresh token by JTI in PostgreSQL.
+
+        Args:
+            jti: Refresh token identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            SQLAlchemyError: Propagates database errors.
+        """
         stmt = (
             insert(BlacklistedToken)
             .values(jti=jti)

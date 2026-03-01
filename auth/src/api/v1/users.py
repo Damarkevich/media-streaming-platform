@@ -41,6 +41,7 @@ async def get_current_user(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> UserResponse:
+    """Return current authenticated user profile."""
     user = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(
@@ -60,6 +61,7 @@ async def change_login(
     user_id: Annotated[UUID, Depends(get_fresh_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
+    """Change login for the current user using a fresh token."""
     new_login: str = login_change_request.new_login
     try:
         is_updated: bool = await user_service.change_login(user_id, new_login)
@@ -85,6 +87,7 @@ async def change_password(
     user_id: Annotated[UUID, Depends(get_fresh_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
+    """Change password for the current user using a fresh token."""
     new_password: str = password_change_request.new_password
     is_updated: bool = await user_service.change_password(user_id, new_password)
     if not is_updated:
@@ -100,6 +103,7 @@ async def get_user_logs(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> list[LogResponse]:
+    """Return paginated activity logs for the current user."""
     logs = await user_service.get_user_logs(
         user_id, pagination.page_size, pagination.page_number
     )
@@ -117,6 +121,7 @@ async def get_user_roles(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> list[RoleResponse]:
+    """Return roles assigned to the current user."""
     roles = await role_service.get_roles_by_user_id(user_id)
     return [RoleResponse(id=role.id, name=role.name) for role in roles]
 
@@ -133,5 +138,6 @@ async def check_user_permission(
         PermissionCheckService, Depends(get_permission_check_service)
     ],
 ) -> UserPermissionCheckResponse:
+    """Check whether the current user has a specific permission."""
     has_perm = await permission_check_service.has_permission(user_id, permission_name)
     return UserPermissionCheckResponse(has_permission=has_perm)

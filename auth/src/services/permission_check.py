@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -29,6 +30,9 @@ class PermissionCheckService:
         Args:
             db: Request-scoped SQLAlchemy async session.
             redis_client: Injected Redis client wrapper.
+
+        Returns:
+            None.
         """
         self.db = db
         self.redis_client = redis_client
@@ -37,6 +41,17 @@ class PermissionCheckService:
         self,
         user_id: UUID,
     ) -> set[PermissionName] | None:
+        """Read cached effective permissions for a user.
+
+        Args:
+            user_id: User identifier.
+
+        Returns:
+            Set of permissions, or None when cache entry is absent.
+
+        Raises:
+            Exception: Propagates Redis/cache decode failures to caller.
+        """
         permission_values = await self.redis_client.get_cached_user_permissions(user_id)
         if permission_values is None:
             return None
@@ -47,6 +62,18 @@ class PermissionCheckService:
         user_id: UUID,
         permissions: set[PermissionName],
     ) -> None:
+        """Store effective permissions for a user in cache.
+
+        Args:
+            user_id: User identifier.
+            permissions: Effective permission set to cache.
+
+        Returns:
+            None.
+
+        Raises:
+            Exception: Propagates Redis write failures to caller.
+        """
         await self.redis_client.set_cached_user_permissions(
             user_id=user_id,
             permissions={permission.value for permission in permissions},
@@ -61,6 +88,9 @@ class PermissionCheckService:
 
         Returns:
             A set of effective permissions assigned through user roles.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         try:
             cached_permissions = await self._get_cached_permissions(user_id)
@@ -93,6 +123,17 @@ class PermissionCheckService:
         return permissions
 
     async def _is_superuser(self, user_id: UUID) -> bool:
+        """Check whether user has superuser flag enabled.
+
+        Args:
+            user_id: User identifier.
+
+        Returns:
+            True when user has `is_superuser=True`.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         stmt = select(User.is_superuser).where(User.id == user_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none() is True
@@ -106,6 +147,9 @@ class PermissionCheckService:
 
         Returns:
             True if the user has the permission, otherwise False.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         if await self._is_superuser(user_id):
             return True
@@ -137,7 +181,11 @@ async def invalidate_user_permissions_cache(
     """Invalidate cached effective permissions for a user.
 
     Args:
+        redis_client: Redis wrapper used for cache invalidation.
         user_id: The UUID of the user whose permission cache should be invalidated.
+
+    Returns:
+        None.
     """
     try:
         await redis_client.invalidate_user_permissions_cache(user_id)

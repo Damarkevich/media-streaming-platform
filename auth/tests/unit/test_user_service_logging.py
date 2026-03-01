@@ -9,6 +9,8 @@ from src.services.users import UserService
 
 
 class FakeSession:
+    """Session stub recording add/commit/rollback calls."""
+
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.fail_commit = fail_commit
         self.add_calls = 0
@@ -29,6 +31,7 @@ class FakeSession:
 
 @pytest.mark.asyncio
 async def test_log_user_action_commits_log_record() -> None:
+    """Ensure successful log write commits without rollback."""
     session = FakeSession(fail_commit=False)
     service = UserService(session)  # type: ignore[arg-type]
     user = SimpleNamespace(id=uuid4())
@@ -42,6 +45,7 @@ async def test_log_user_action_commits_log_record() -> None:
 
 @pytest.mark.asyncio
 async def test_log_user_action_swallows_db_error_and_rolls_back() -> None:
+    """Ensure logging DB errors are swallowed with rollback."""
     session = FakeSession(fail_commit=True)
     service = UserService(session)  # type: ignore[arg-type]
     user = SimpleNamespace(id=uuid4())

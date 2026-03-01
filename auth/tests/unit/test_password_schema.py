@@ -5,6 +5,7 @@ from src.schemas.users import UserCreate
 
 
 def _valid_payload(password: str) -> dict[str, str]:
+    """Build a valid base payload with customizable password value."""
     return {
         "login": "user01",
         "password": password,
@@ -14,6 +15,7 @@ def _valid_payload(password: str) -> dict[str, str]:
 
 
 def test_user_create_accepts_strong_password() -> None:
+    """Ensure schema accepts passwords that satisfy all complexity rules."""
     user = UserCreate(**_valid_payload("StrongPass1!"))
     assert user.password == "StrongPass1!"
 
@@ -30,6 +32,7 @@ def test_user_create_accepts_strong_password() -> None:
 def test_user_create_rejects_weak_password(
     password: str, expected_message: str
 ) -> None:
+    """Ensure schema rejects weak passwords with informative errors."""
     with pytest.raises(ValidationError) as exc_info:
         UserCreate(**_valid_payload(password))
 

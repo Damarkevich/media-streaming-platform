@@ -29,6 +29,7 @@ app.include_router(
 def authjwt_exception_handler(
     request: Request, exc: AuthJWTException
 ) -> ORJSONResponse:
+    """Translate AuthJWT exceptions into unified JSON HTTP responses."""
     return ORJSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message},

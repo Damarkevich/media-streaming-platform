@@ -42,6 +42,9 @@ class RoleService:
         Args:
             db: Request-scoped SQLAlchemy async session.
             redis_client: Injected Redis client wrapper.
+
+        Returns:
+            None.
         """
         self.db = db
         self.redis_client = redis_client
@@ -119,6 +122,9 @@ class RoleService:
 
         Returns:
             True if the role was deleted, False if no such role exists.
+
+        Raises:
+            SQLAlchemyError: If database operations fail.
         """
         user_ids_result = await self.db.execute(
             select(UserRole.user_id).where(UserRole.role_id == role_id)
@@ -143,6 +149,9 @@ class RoleService:
 
         Returns:
             A list of Role instances for the requested page.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
 
         offset = page_number * page_size
@@ -163,6 +172,9 @@ class RoleService:
 
         Returns:
             The Role instance if found, else None.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         result = await self.db.execute(select(Role).where(Role.id == role_id))
         return result.scalars().one_or_none()
@@ -178,6 +190,9 @@ class RoleService:
 
         Returns:
             A list of Role instances assigned to the user.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
         """
         stmt = (
             select(Role)
@@ -194,6 +209,14 @@ class RoleService:
         Args:
             user_id: The UUID of the user.
             role_id: The UUID of the role.
+
+        Returns:
+            None.
+
+        Raises:
+            RoleNotFoundError: If role does not exist.
+            UserNotFoundError: If user does not exist.
+            SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
             raise RoleNotFoundError("Role not found")
@@ -223,6 +246,14 @@ class RoleService:
         Args:
             user_id: The UUID of the user.
             role_id: The UUID of the role.
+
+        Returns:
+            None.
+
+        Raises:
+            RoleNotFoundError: If role does not exist.
+            UserNotFoundError: If user does not exist.
+            SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
             raise RoleNotFoundError("Role not found")
@@ -243,14 +274,48 @@ class RoleService:
             raise
 
     async def _role_exists(self, role_id: UUID) -> bool:
+        """Return whether role with given ID exists.
+
+        Args:
+            role_id: Role identifier.
+
+        Returns:
+            True when role exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(select(Role.id).where(Role.id == role_id))
         return result.scalar_one_or_none() is not None
 
     async def _user_exists(self, user_id: UUID) -> bool:
+        """Return whether user with given ID exists.
+
+        Args:
+            user_id: User identifier.
+
+        Returns:
+            True when user exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(select(User.id).where(User.id == user_id))
         return result.scalar_one_or_none() is not None
 
     async def _user_role_exists(self, user_id: UUID, role_id: UUID) -> bool:
+        """Return whether user-role relation already exists.
+
+        Args:
+            user_id: User identifier.
+            role_id: Role identifier.
+
+        Returns:
+            True when relation exists.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
         result = await self.db.execute(
             select(UserRole)
             .where(UserRole.user_id == user_id, UserRole.role_id == role_id)

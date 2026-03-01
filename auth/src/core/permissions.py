@@ -2,6 +2,8 @@ from enum import StrEnum
 
 
 class PermissionName(StrEnum):
+    """Canonical permission identifiers used by RBAC checks."""
+
     PERMISSIONS_READ = "permissions:read"
     PERMISSIONS_ASSIGN = "permissions:assign"
     ROLES_READ = "roles:read"

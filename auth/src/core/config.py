@@ -1,3 +1,4 @@
+import os
 from logging import config as logging_config
 
 from pydantic import field_validator
@@ -9,6 +10,8 @@ logging_config.dictConfig(LOGGING)
 
 
 class Settings(BaseSettings):
+    """Application settings loaded from environment variables and .env file."""
+
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
     project_name: str = "auth_service"
@@ -42,9 +45,10 @@ class Settings(BaseSettings):
     @field_validator("authjwt_secret_key")
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:
+        """Ensure that AUTHJWT_SECRET_KEY is set and not empty."""
         if not value.strip():
             raise ValueError("AUTHJWT_SECRET_KEY must not be empty")
         return value
 
 
-settings = Settings()
+settings = Settings()  # type: ignore

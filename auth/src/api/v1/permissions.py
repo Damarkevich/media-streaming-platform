@@ -33,6 +33,7 @@ async def get_permissions(
     pagination: Annotated[PaginationParams, Depends(PaginationParams)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> list[PermissionResponse]:
+    """Return paginated permissions list."""
     permissions = await permission_service.get_permissions(
         pagination.page_size, pagination.page_number
     )
@@ -55,6 +56,7 @@ async def assign_permission_to_role_by_path(
     role_id: Annotated[UUID4, Path(description="The ID of the role")],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> None:
+    """Assign a permission to a role."""
     try:
         await permission_service.assign_permission_to_role(role_id, permission_id)
     except (RoleNotFoundError, PermissionNotFoundError) as exc:
@@ -74,6 +76,7 @@ async def remove_permission_from_role_by_path(
     role_id: Annotated[UUID4, Path(description="The ID of the role")],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> None:
+    """Remove a permission from a role."""
     try:
         await permission_service.remove_permission_from_role(role_id, permission_id)
     except (RoleNotFoundError, PermissionNotFoundError) as exc:

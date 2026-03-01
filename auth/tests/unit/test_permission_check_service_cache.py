@@ -12,6 +12,8 @@ from src.services.permission_check import (
 
 
 class _DummyScalars:
+    """Scalars wrapper stub returning predefined permission values."""
+
     def __init__(self, values: Sequence[PermissionName]) -> None:
         self._values = values
 
@@ -20,6 +22,8 @@ class _DummyScalars:
 
 
 class _DummyResult:
+    """DB result stub exposing `.scalars()` API."""
+
     def __init__(self, values: Sequence[PermissionName]) -> None:
         self._values = values
 
@@ -28,6 +32,8 @@ class _DummyResult:
 
 
 class _DummyScalarResult:
+    """Scalar result stub exposing `.scalar_one_or_none()` API."""
+
     def __init__(self, value: bool | None) -> None:
         self._value = value
 
@@ -48,6 +54,7 @@ async def test_is_superuser_returns_expected_value(
     db_value: bool | None,
     expected: bool,
 ) -> None:
+    """Ensure superuser lookup maps nullable DB values correctly."""
     user_id = uuid4()
     db = AsyncMock()
     db.execute = AsyncMock(return_value=_DummyScalarResult(db_value))
@@ -60,6 +67,7 @@ async def test_is_superuser_returns_expected_value(
 
 @pytest.mark.asyncio
 async def test_get_user_permissions_returns_cached_value_without_db() -> None:
+    """Ensure cached permissions are returned without DB query."""
     user_id = uuid4()
     db = AsyncMock()
     redis_client = AsyncMock()
@@ -81,6 +89,7 @@ async def test_get_user_permissions_returns_cached_value_without_db() -> None:
 
 @pytest.mark.asyncio
 async def test_get_user_permissions_queries_db_and_sets_cache_on_miss() -> None:
+    """Ensure cache miss triggers DB query and cache write."""
     user_id = uuid4()
     db = AsyncMock()
     db.execute = AsyncMock(return_value=_DummyResult([PermissionName.ROLES_READ]))
@@ -100,6 +109,7 @@ async def test_get_user_permissions_queries_db_and_sets_cache_on_miss() -> None:
 async def test_get_user_permissions_falls_back_to_db_when_cache_payload_invalid() -> (
     None
 ):
+    """Ensure invalid cache payload falls back to DB permissions."""
     user_id = uuid4()
     db = AsyncMock()
     db.execute = AsyncMock(return_value=_DummyResult([PermissionName.PERMISSIONS_READ]))
@@ -118,6 +128,7 @@ async def test_get_user_permissions_falls_back_to_db_when_cache_payload_invalid(
 
 @pytest.mark.asyncio
 async def test_has_permission_uses_get_user_permissions_result() -> None:
+    """Ensure permission check relies on resolved permission set."""
     user_id = uuid4()
     db = AsyncMock()
     db.execute = AsyncMock(return_value=_DummyScalarResult(False))
@@ -133,6 +144,7 @@ async def test_has_permission_uses_get_user_permissions_result() -> None:
 
 @pytest.mark.asyncio
 async def test_has_permission_allows_superuser_without_permission_lookup() -> None:
+    """Ensure superuser bypasses explicit permission resolution."""
     user_id = uuid4()
     db = AsyncMock()
     db.execute = AsyncMock(return_value=_DummyScalarResult(True))
@@ -148,6 +160,7 @@ async def test_has_permission_allows_superuser_without_permission_lookup() -> No
 
 @pytest.mark.asyncio
 async def test_invalidate_user_permissions_cache_calls_redis_delete() -> None:
+    """Ensure cache invalidation delegates to Redis client call."""
     user_id = uuid4()
     redis_client = AsyncMock()
     redis_client.invalidate_user_permissions_cache = AsyncMock()

@@ -7,6 +7,8 @@ from src.api.health import health_check
 async def test_health_check_returns_healthy_when_all_services_up(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure health endpoint reports healthy when both backends are up."""
+
     async def _redis_ok() -> bool:
         return True
 
@@ -28,6 +30,8 @@ async def test_health_check_returns_healthy_when_all_services_up(
 async def test_health_check_returns_unhealthy_when_any_service_down(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure health endpoint reports unhealthy when any backend is down."""
+
     async def _redis_down() -> bool:
         return False
 
@@ -49,6 +53,8 @@ async def test_health_check_returns_unhealthy_when_any_service_down(
 async def test_health_check_returns_unhealthy_when_postgres_check_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure postgres probe exceptions map to unhealthy postgres status."""
+
     async def _redis_ok() -> bool:
         return True
 
@@ -70,6 +76,8 @@ async def test_health_check_returns_unhealthy_when_postgres_check_raises(
 async def test_health_check_returns_unhealthy_when_redis_check_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Ensure redis probe exceptions map to unhealthy redis status."""
+
     async def _redis_error() -> bool:
         raise RuntimeError("redis unreachable")
 

@@ -45,6 +45,7 @@ async def get_roles(
     pagination: Annotated[PaginationParams, Depends(PaginationParams)],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> list[RoleResponse]:
+    """Return paginated roles list."""
     roles = await role_service.get_roles(pagination.page_size, pagination.page_number)
     return [RoleResponse(id=role.id, name=role.name) for role in roles]
 
@@ -59,6 +60,7 @@ async def get_role_by_id(
     role_id: Annotated[UUID4, Path(description="The ID of the role to retrieve")],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> RoleResponse:
+    """Return role details by identifier."""
     role = await role_service.get_role_by_id(role_id)
     if not role:
         raise HTTPException(
@@ -79,6 +81,7 @@ async def create_role(
     role_create: RoleCreate,
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> RoleResponse:
+    """Create a new role."""
     try:
         role = await role_service.create_role(role_create.name)
     except RoleAlreadyExistsError as exc:
@@ -100,6 +103,7 @@ async def update_role(
     role_update: RoleUpdate,
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> None:
+    """Update role name by identifier."""
     try:
         is_updated: bool = await role_service.update_role(role_id, role_update.name)
     except RoleAlreadyExistsError as exc:
@@ -124,6 +128,7 @@ async def delete_role(
     role_id: Annotated[UUID4, Path(description="The ID of the role to delete")],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> None:
+    """Delete role by identifier."""
     is_deleted: bool = await role_service.delete_role(role_id)
     if not is_deleted:
         raise HTTPException(
@@ -144,6 +149,7 @@ async def get_permissions_by_role_id(
     ],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> list[PermissionResponse]:
+    """Return permissions assigned to a role."""
     permissions = await permission_service.get_permissions_by_role_id(role_id)
     return [
         PermissionResponse(id=permission.id, name=permission.name)
@@ -162,6 +168,7 @@ async def assign_role_to_user_by_path(
     user_id: Annotated[UUID4, Path(description="The ID of the user")],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> None:
+    """Assign a role to a user."""
     try:
         await role_service.assign_role_to_user(user_id, role_id)
     except (RoleNotFoundError, UserNotFoundError) as exc:
@@ -179,6 +186,7 @@ async def remove_role_from_user_by_path(
     user_id: Annotated[UUID4, Path(description="The ID of the user")],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> None:
+    """Remove a role from a user."""
     try:
         await role_service.remove_role_from_user(user_id, role_id)
     except (RoleNotFoundError, UserNotFoundError) as exc:

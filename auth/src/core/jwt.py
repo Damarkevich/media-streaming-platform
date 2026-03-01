@@ -1,18 +1,20 @@
-from async_fastapi_jwt_auth import AuthJWT
-from async_fastapi_jwt_auth.auth_jwt import AuthJWTBearer
+from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
+from async_fastapi_jwt_auth.auth_jwt import (
+    AuthJWTBearer,  # type: ignore[import-untyped]
+)
 
-from src.core.config import settings
+from src.core.config import Settings, settings
 from src.services.blacklist import check_token_revoked_runtime
 
 auth_dep = AuthJWTBearer()
 
 
-@AuthJWT.load_config
-def get_config():
+@AuthJWT.load_config  # type: ignore[arg-type]
+def get_config() -> Settings:
     return settings
 
 
-@AuthJWT.token_in_denylist_loader
+@AuthJWT.token_in_denylist_loader  # type: ignore[arg-type]
 async def check_if_token_in_blacklist(
     decrypted_token: dict[str, str | int | bool],
 ) -> bool:

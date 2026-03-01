@@ -47,7 +47,7 @@ class User(Base):
         first_name: str,
         last_name: str,
         is_superuser: bool = False,
-    ):
+    ) -> None:
         self.login = login
         self.set_password(password)
         self.first_name = first_name
@@ -64,5 +64,5 @@ class User(Base):
     def check_password(self, password: str) -> bool:
         return check_password_hash(str(self.password), password)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User {self.login}>"

@@ -12,7 +12,7 @@ class RedisClient:
     ACCESS_BLACKLIST_KEY_PREFIX = "blacklist:access:"
     PERMISSIONS_CACHE_KEY_PREFIX = "auth:user_permissions:"
 
-    def __init__(self, client: Redis):
+    def __init__(self, client: Redis) -> None:
         self.client = client
 
     async def set(self, key: str, value: str, expire: int = 3600) -> None:

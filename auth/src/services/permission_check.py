@@ -23,7 +23,7 @@ class PermissionCheckService:
     role-to-permission and user-to-role assignments.
     """
 
-    def __init__(self, db: AsyncSession, redis_client: RedisClient):
+    def __init__(self, db: AsyncSession, redis_client: RedisClient) -> None:
         """Initialize the service.
 
         Args:

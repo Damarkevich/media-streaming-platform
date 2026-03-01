@@ -79,7 +79,7 @@ class Permission(Base):
         back_populates="permissions",
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Permission {self.name}>"
 
 
@@ -111,5 +111,5 @@ class Role(Base):
         back_populates="roles",
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Role {self.name}>"

@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import Annotated
 from uuid import UUID
 
-from async_fastapi_jwt_auth import AuthJWT
+from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
 from fastapi import Depends
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +17,9 @@ from src.services.redis import RedisClient, get_redis_client
 class TokenService:
     """Token-related application service."""
 
-    def __init__(self, db: AsyncSession, auth: AuthJWT, redis_client: RedisClient):
+    def __init__(
+        self, db: AsyncSession, auth: AuthJWT, redis_client: RedisClient
+    ) -> None:
         """Initialize the service.
 
         Args:
@@ -43,22 +45,22 @@ class TokenService:
             A tuple of (access_token, refresh_token).
         """
         access_token_expires = timedelta(seconds=settings.access_token_expires)
-        access_token = await self.auth.create_access_token(
+        access_token = await self.auth.create_access_token(  # pyright: ignore[reportUnknownMemberType]
             subject=str(user_id), expires_time=access_token_expires, fresh=fresh
         )
         refresh_token_expires = timedelta(seconds=settings.refresh_token_expires)
-        refresh_token = await self.auth.create_refresh_token(
+        refresh_token = await self.auth.create_refresh_token(  # pyright: ignore[reportUnknownMemberType]
             subject=str(user_id), expires_time=refresh_token_expires
         )
         return access_token, refresh_token
 
-    async def add_access_to_blacklist(self, jti: str):
+    async def add_access_to_blacklist(self, jti: str) -> None:
         await self.redis_client.add_access_token_to_blacklist(
             jti=jti,
             ttl_seconds=settings.access_token_expires,
         )
 
-    async def add_refresh_to_blacklist(self, jti: str):
+    async def add_refresh_to_blacklist(self, jti: str) -> None:
         stmt = (
             insert(BlacklistedToken)
             .values(jti=jti)

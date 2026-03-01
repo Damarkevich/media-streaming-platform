@@ -36,7 +36,7 @@ class RoleService:
     exceptions into domain-level errors that API handlers can map to HTTP.
     """
 
-    def __init__(self, db: AsyncSession, redis_client: RedisClient):
+    def __init__(self, db: AsyncSession, redis_client: RedisClient) -> None:
         """Initialize the service.
 
         Args:

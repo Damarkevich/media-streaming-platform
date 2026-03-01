@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -46,7 +47,7 @@ async def get_fresh_authenticated_user_id(
     return UUID(str(await auth.get_jwt_subject()))
 
 
-def require_permission(permission: PermissionName):
+def require_permission(permission: PermissionName) -> Callable[..., Awaitable[None]]:
     """Build a FastAPI dependency that enforces a specific permission.
 
     Args:

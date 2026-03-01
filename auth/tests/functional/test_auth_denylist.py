@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -12,20 +12,22 @@ from src.services.users import get_user_service
 
 
 class FakeUserServiceForLogin:
-    async def authenticate_user(self, login: str, password: str):
+    async def authenticate_user(
+        self, login: str, password: str
+    ) -> SimpleNamespace | None:
         if login == "valid_user" and password == "ValidPass1!":
             return SimpleNamespace(id="8d2f1ca5-f48a-4eb3-a56e-5a6d5a5c0d42")
         return None
 
-    async def log_user_action(self, user, log_type) -> None:
+    async def log_user_action(self, user: Any, log_type: Any) -> None:
         return None
 
 
 class _FakeScalarResult:
-    def __init__(self, value):
+    def __init__(self, value: object | None) -> None:
         self.value = value
 
-    def scalar_one_or_none(self):
+    def scalar_one_or_none(self) -> object | None:
         return self.value
 
 
@@ -33,16 +35,16 @@ class InMemoryBlacklistSession:
     def __init__(self, storage: set[str]) -> None:
         self.storage = storage
 
-    def add(self, token) -> None:
+    def add(self, token: Any) -> None:
         self.storage.add(str(token.jti))
 
     async def commit(self) -> None:
         return None
 
-    async def refresh(self, token) -> None:
+    async def refresh(self, token: Any) -> None:
         return None
 
-    async def execute(self, stmt):
+    async def execute(self, stmt: Any) -> _FakeScalarResult:
         params = stmt.compile().params
         jti = str(next(iter(params.values()), ""))
         if jti and "jti" in params and jti not in self.storage:
@@ -74,7 +76,9 @@ async def _build_auth_client(
         yield InMemoryBlacklistSession(blacklisted_jtis)
 
     @asynccontextmanager
-    async def fake_async_session_ctx():
+    async def fake_async_session_ctx() -> AsyncGenerator[
+        InMemoryBlacklistSession, None
+    ]:
         yield InMemoryBlacklistSession(blacklisted_jtis)
 
     monkeypatch.setattr(
@@ -93,7 +97,7 @@ async def _build_auth_client(
 async def _auth_client_ctx(
     monkeypatch: pytest.MonkeyPatch,
     blacklisted_jtis: set[str],
-):
+) -> AsyncGenerator[AsyncClient, None]:
     client = await _build_auth_client(monkeypatch, blacklisted_jtis)
     try:
         async with client as open_client:

@@ -15,7 +15,7 @@ class _DummyScalars:
     def __init__(self, values: Sequence[PermissionName]) -> None:
         self._values = values
 
-    def all(self):
+    def all(self) -> Sequence[PermissionName]:
         return self._values
 
 
@@ -23,7 +23,7 @@ class _DummyResult:
     def __init__(self, values: Sequence[PermissionName]) -> None:
         self._values = values
 
-    def scalars(self):
+    def scalars(self) -> _DummyScalars:
         return _DummyScalars(self._values)
 
 
@@ -31,7 +31,7 @@ class _DummyScalarResult:
     def __init__(self, value: bool | None) -> None:
         self._value = value
 
-    def scalar_one_or_none(self):
+    def scalar_one_or_none(self) -> bool | None:
         return self._value
 
 

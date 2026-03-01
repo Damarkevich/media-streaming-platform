@@ -26,7 +26,7 @@ class UserService:
     exceptions into domain-level errors that API handlers can map to HTTP.
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         """Initialize the service.
 
         Args:

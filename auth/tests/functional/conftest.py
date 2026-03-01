@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from http import HTTPStatus
 from types import SimpleNamespace
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
 import pytest_asyncio
@@ -24,6 +24,16 @@ async def clear_dependency_overrides() -> AsyncGenerator[None, None]:
 
 
 @dataclass
+class FakeLogEntry:
+    log_type: LogType
+    created_at: datetime
+
+
+def _default_log_entries() -> list[FakeLogEntry]:
+    return []
+
+
+@dataclass
 class FakeUserService:
     created_user_id: UUID = field(default_factory=uuid4)
     authenticated_user_id: UUID = field(default_factory=uuid4)
@@ -36,16 +46,16 @@ class FakeUserService:
     changed_password: str | None = None
     last_logged_user_id: str | None = None
     last_logged_type: LogType | None = None
-    user_logs: list[SimpleNamespace] = field(default_factory=list)
+    user_logs: list[FakeLogEntry] = field(default_factory=_default_log_entries)
 
     def __post_init__(self) -> None:
         if not self.user_logs:
             self.user_logs = [
-                SimpleNamespace(
+                FakeLogEntry(
                     log_type=LogType.LOGIN,
                     created_at=datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc),
                 ),
-                SimpleNamespace(
+                FakeLogEntry(
                     log_type=LogType.LOGIN,
                     created_at=datetime(2026, 3, 1, 11, 0, 0, tzinfo=timezone.utc),
                 ),
@@ -66,12 +76,14 @@ class FakeUserService:
             last_name=last_name,
         )
 
-    async def authenticate_user(self, login: str, password: str):
+    async def authenticate_user(
+        self, login: str, password: str
+    ) -> SimpleNamespace | None:
         if login == "bad" or password == "bad":
             return None
         return SimpleNamespace(id=self.authenticated_user_id)
 
-    async def log_user_action(self, user, log_type) -> None:
+    async def log_user_action(self, user: Any, log_type: LogType) -> None:
         self.last_logged_user_id = str(user.id)
         self.last_logged_type = log_type
 
@@ -96,7 +108,7 @@ class FakeUserService:
 
     async def get_user_logs(
         self, user_id: UUID, page_size: int, page_number: int
-    ) -> list[SimpleNamespace]:
+    ) -> list[FakeLogEntry]:
         if not self.existing_user or self.existing_user.id != user_id:
             return []
         offset = page_number * page_size

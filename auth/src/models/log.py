@@ -39,9 +39,9 @@ class Log(Base):
         nullable=False,
     )
 
-    def __init__(self, user_id: uuid.UUID, log_type: LogType):
+    def __init__(self, user_id: uuid.UUID, log_type: LogType) -> None:
         self.user_id = user_id
         self.log_type = log_type
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Log {self.log_type} for user {self.user_id} at {self.created_at.isoformat()}>"

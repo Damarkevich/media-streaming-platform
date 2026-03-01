@@ -96,3 +96,13 @@ PASSWORD_CHANGE_RESPONSES: OpenAPIResponses = {
         "description": "User not found",
     },
 }
+
+GET_LOGS_RESPONSES: OpenAPIResponses = {
+    HTTPStatus.UNAUTHORIZED: {
+        "model": ApiError,
+        "description": "Authentication required, token invalid, or token revoked",
+    },
+    HTTPStatus.UNPROCESSABLE_ENTITY: {
+        "description": "Wrong token type or token validation error",
+    },
+}

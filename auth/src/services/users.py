@@ -199,6 +199,32 @@ class UserService:
                 f"Failed to persist user action log for user_id={user.id} and log_type={log_type}"
             )
 
+    async def get_list_of_user_logs(
+        self,
+        user_id: str,
+        page_size: int,
+        page_number: int,
+    ) -> list[Log]:
+        """Get a paginated list of logs for a given user.
+
+        Args:
+            user_id: The UUID of the user as a string.
+            page_size: The number of logs to return per page.
+            page_number: The page number to return.
+
+        Returns:
+            A list of Log instances associated with the user ordered by creation time descending.
+        """
+        offset = page_number * page_size
+        result = await self.db.execute(
+            select(Log)
+            .where(Log.user_id == user_id)
+            .offset(offset)
+            .limit(page_size)
+            .order_by(Log.created_at.desc())
+        )
+        return list(result.scalars().all())
+
 
 def get_user_service(db: Annotated[AsyncSession, Depends(get_session)]) -> UserService:
     """FastAPI dependency provider for UserService.

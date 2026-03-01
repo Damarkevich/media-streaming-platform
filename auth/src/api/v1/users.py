@@ -4,12 +4,17 @@ from typing import Annotated
 from async_fastapi_jwt_auth import AuthJWT
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.api.v1.paginators import PaginationParams
 from src.api.v1.responses import (
+    GET_LOGS_RESPONSES,
     GET_ME_RESPONSES,
     LOGIN_CHANGE_RESPONSES,
     PASSWORD_CHANGE_RESPONSES,
 )
 from src.core.jwt import auth_dep
+from src.models.log import Log
+from src.models.user import User
+from src.schemas.logs import LogResponse
 from src.schemas.users import (
     UserLoginChangeRequest,
     UserPasswordChangeRequest,
@@ -27,7 +32,7 @@ async def get_current_user(
 ) -> UserResponse:
     await auth.jwt_required()
     user_id: str = str(await auth.get_jwt_subject())
-    user = await user_service.get_user_by_id(user_id)
+    user: User | None = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -51,7 +56,7 @@ async def change_login(
     user_id: str = str(await auth.get_jwt_subject())
     new_login: str = login_change_request.new_login
     try:
-        is_updated = await user_service.change_login(user_id, new_login)
+        is_updated: bool = await user_service.change_login(user_id, new_login)
     except UserAlreadyExistsError as exc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
@@ -78,9 +83,26 @@ async def change_password(
 
     user_id: str = str(await auth.get_jwt_subject())
     new_password: str = password_change_request.new_password
-    is_updated = await user_service.change_password(user_id, new_password)
+    is_updated: bool = await user_service.change_password(user_id, new_password)
     if not is_updated:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="User not found",
         )
+
+
+@router.get("/me/logs", response_model=list[LogResponse], responses=GET_LOGS_RESPONSES)
+async def get_user_logs(
+    pagination: Annotated[PaginationParams, Depends(PaginationParams)],
+    auth: Annotated[AuthJWT, Depends(auth_dep)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> list[LogResponse]:
+    await auth.jwt_required()
+
+    user_id: str = str(await auth.get_jwt_subject())
+    logs: list[Log] = await user_service.get_list_of_user_logs(
+        user_id, pagination.page_size, pagination.page_number
+    )
+    return [
+        LogResponse(log_type=log.log_type, created_at=log.created_at) for log in logs
+    ]

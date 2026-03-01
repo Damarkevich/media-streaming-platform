@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from http import HTTPStatus
 from types import SimpleNamespace
 from typing import AsyncGenerator
@@ -29,6 +30,20 @@ class FakeUserService:
     changed_password: str | None = None
     last_logged_user_id: str | None = None
     last_logged_type: LogType | None = None
+    user_logs: list[SimpleNamespace] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.user_logs:
+            self.user_logs = [
+                SimpleNamespace(
+                    log_type=LogType.LOGIN,
+                    created_at=datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc),
+                ),
+                SimpleNamespace(
+                    log_type=LogType.LOGIN,
+                    created_at=datetime(2026, 3, 1, 11, 0, 0, tzinfo=timezone.utc),
+                ),
+            ]
 
     async def create_user(
         self,
@@ -73,6 +88,14 @@ class FakeUserService:
         self.changed_password = new_password
         return True
 
+    async def get_list_of_user_logs(
+        self, user_id: str, page_size: int, page_number: int
+    ) -> list[SimpleNamespace]:
+        if not self.existing_user or str(self.existing_user.id) != user_id:
+            return []
+        offset = page_number * page_size
+        return self.user_logs[offset : offset + page_size]
+
 
 @dataclass
 class FakeTokenService:
@@ -96,12 +119,19 @@ class FakeAuth:
         subject: str,
         jti: str = "refresh-jti",
         is_fresh: bool = True,
+        is_authorized: bool = True,
     ) -> None:
         self.subject = subject
         self.jti = jti
         self.is_fresh = is_fresh
+        self.is_authorized = is_authorized
 
     async def jwt_required(self) -> None:
+        if not self.is_authorized:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Authentication required",
+            )
         return None
 
     async def jwt_refresh_token_required(self) -> None:

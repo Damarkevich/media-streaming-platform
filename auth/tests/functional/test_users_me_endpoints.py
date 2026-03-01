@@ -102,3 +102,52 @@ async def test_users_me_change_password_non_fresh_token_returns_401(
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Fresh token required"
+
+
+@pytest.mark.asyncio
+async def test_users_me_logs_returns_paginated_logs(test_client) -> None:
+    response = await test_client.get(
+        "/api/v1/users/me/logs",
+        params={"page_size": 1, "page_number": 0},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["log_type"] == "login"
+    assert body[0]["created_at"].endswith("Z")
+
+
+@pytest.mark.asyncio
+async def test_users_me_logs_are_sorted_newest_first(test_client) -> None:
+    response = await test_client.get(
+        "/api/v1/users/me/logs",
+        params={"page_size": 10, "page_number": 0},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) >= 2
+    assert body[0]["created_at"] > body[1]["created_at"]
+
+
+@pytest.mark.asyncio
+async def test_users_me_logs_returns_empty_for_out_of_range_page(test_client) -> None:
+    response = await test_client.get(
+        "/api/v1/users/me/logs",
+        params={"page_size": 10, "page_number": 1},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_users_me_logs_unauthorized_returns_401(test_client) -> None:
+    test_client.fake_auth.is_authorized = False  # type: ignore[attr-defined]
+
+    response = await test_client.get("/api/v1/users/me/logs")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Authentication required"

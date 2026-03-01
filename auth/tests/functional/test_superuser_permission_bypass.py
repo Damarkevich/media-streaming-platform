@@ -1,4 +1,6 @@
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
@@ -45,7 +47,7 @@ class _FakeRedisClient:
         self._storage.pop(str(user_id), None)
 
 
-async def _create_superuser(user_id: str, login: str) -> None:
+async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
     async with async_session() as session:
         await session.execute(
             text(
@@ -74,48 +76,10 @@ async def _create_superuser(user_id: str, login: str) -> None:
                 "id": user_id,
                 "login": login,
                 "password": "test-password-hash",
-                "first_name": "Super",
+                "first_name": "Super" if is_superuser else "Regular",
                 "last_name": "User",
                 "created_at": datetime.now(timezone.utc),
-                "is_superuser": True,
-            },
-        )
-        await session.commit()
-
-
-async def _create_regular_user(user_id: str, login: str) -> None:
-    async with async_session() as session:
-        await session.execute(
-            text(
-                """
-                INSERT INTO auth.users (
-                    id,
-                    login,
-                    password,
-                    first_name,
-                    last_name,
-                    created_at,
-                    is_superuser
-                )
-                VALUES (
-                    :id,
-                    :login,
-                    :password,
-                    :first_name,
-                    :last_name,
-                    :created_at,
-                    :is_superuser
-                )
-                """
-            ),
-            {
-                "id": user_id,
-                "login": login,
-                "password": "test-password-hash",
-                "first_name": "Regular",
-                "last_name": "User",
-                "created_at": datetime.now(timezone.utc),
-                "is_superuser": False,
+                "is_superuser": is_superuser,
             },
         )
         await session.commit()
@@ -231,27 +195,31 @@ async def _delete_permission_by_name(permission_name: str) -> None:
         await session.commit()
 
 
+@asynccontextmanager
+async def _overridden_client(subject: str) -> AsyncIterator[AsyncClient]:
+    app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=subject)
+    app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+
 async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None:
     user_id = str(uuid.uuid4())
     login = f"super-{uuid.uuid4().hex[:10]}"
 
     await engine.dispose()
 
-    await _create_superuser(user_id=user_id, login=login)
-
-    app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=user_id)
-    app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
-
-    transport = ASGITransport(app=app)
+    await _create_user(user_id=user_id, login=login, is_superuser=True)
 
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with _overridden_client(subject=user_id) as client:
             response = await client.get("/api/v1/roles")
 
         assert response.status_code == HTTPStatus.OK
         assert response.json() is not None
     finally:
-        app.dependency_overrides.clear()
         await _delete_user(user_id)
 
 
@@ -262,15 +230,10 @@ async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -
 
     await engine.dispose()
 
-    await _create_superuser(user_id=user_id, login=login)
-
-    app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=user_id)
-    app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
-
-    transport = ASGITransport(app=app)
+    await _create_user(user_id=user_id, login=login, is_superuser=True)
 
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with _overridden_client(subject=user_id) as client:
             response = await client.post(
                 "/api/v1/roles",
                 json={"name": role_name},
@@ -279,7 +242,6 @@ async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -
         assert response.status_code == HTTPStatus.CREATED
         assert response.json()["name"] == role_name
     finally:
-        app.dependency_overrides.clear()
         await _delete_role_by_name(role_name)
         await _delete_user(user_id)
 
@@ -293,24 +255,22 @@ async def test_superuser_bypasses_permission_checks_for_assign_role_endpoint() -
 
     await engine.dispose()
 
-    await _create_superuser(user_id=superuser_id, login=superuser_login)
-    await _create_regular_user(user_id=target_user_id, login=target_user_login)
+    await _create_user(user_id=superuser_id, login=superuser_login, is_superuser=True)
+    await _create_user(
+        user_id=target_user_id,
+        login=target_user_login,
+        is_superuser=False,
+    )
     role_id = await _create_role(role_name)
 
-    app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=superuser_id)
-    app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
-
-    transport = ASGITransport(app=app)
-
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with _overridden_client(subject=superuser_id) as client:
             response = await client.put(
                 f"/api/v1/roles/{role_id}/users/{target_user_id}"
             )
 
         assert response.status_code == HTTPStatus.NO_CONTENT
     finally:
-        app.dependency_overrides.clear()
         await _delete_role_by_name(role_name)
         await _delete_user(target_user_id)
         await _delete_user(superuser_id)
@@ -326,25 +286,19 @@ async def test_superuser_bypasses_permission_checks_for_remove_permission_endpoi
 
     await engine.dispose()
 
-    await _create_superuser(user_id=superuser_id, login=superuser_login)
+    await _create_user(user_id=superuser_id, login=superuser_login, is_superuser=True)
     role_id = await _create_role(role_name)
     permission_id = await _create_permission(permission_name)
     await _link_permission_to_role(role_id, permission_id)
 
-    app.dependency_overrides[auth_dep] = lambda: _FakeAuth(subject=superuser_id)
-    app.dependency_overrides[get_redis_client] = lambda: _FakeRedisClient()
-
-    transport = ASGITransport(app=app)
-
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with _overridden_client(subject=superuser_id) as client:
             response = await client.delete(
                 f"/api/v1/permissions/{permission_id}/roles/{role_id}"
             )
 
         assert response.status_code == HTTPStatus.NO_CONTENT
     finally:
-        app.dependency_overrides.clear()
         await _delete_role_by_name(role_name)
         await _delete_permission_by_name(permission_name)
         await _delete_user(superuser_id)

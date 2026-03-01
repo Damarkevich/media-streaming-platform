@@ -7,8 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.permissions import PermissionName
 from src.db.postgres import get_session
-from src.models.role import Permission, PermissionName, RolePermission, UserRole
+from src.models.role import Permission, RolePermission, UserRole
 from src.models.user import User
 from src.services.redis import RedisClient, get_redis_client
 
@@ -145,4 +146,3 @@ async def invalidate_user_permissions_cache(
             f"Failed to invalidate permission cache for user_id={user_id}",
             exc_info=True,
         )
-

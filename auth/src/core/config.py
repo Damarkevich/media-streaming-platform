@@ -1,5 +1,6 @@
 from logging import config as logging_config
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.logger import LOGGING
@@ -15,7 +16,7 @@ class Settings(BaseSettings):
         "Authentication service for the Movies Streaming Platform"
     )
 
-    authjwt_secret_key: str = "your_secret_key_more_than_32_characters_long"
+    authjwt_secret_key: str
     authjwt_token_location: set[str] = {"headers"}
     authjwt_header_name: str = "Authorization"
     authjwt_header_type: str = "Bearer"
@@ -37,6 +38,13 @@ class Settings(BaseSettings):
     sql_port: int = 6543
     sql_options: str = "-c search_path=auth,public"
     sql_echo: bool = False
+
+    @field_validator("authjwt_secret_key")
+    @classmethod
+    def validate_authjwt_secret_key(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("AUTHJWT_SECRET_KEY must not be empty")
+        return value
 
 
 settings = Settings()

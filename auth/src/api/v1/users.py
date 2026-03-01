@@ -13,9 +13,7 @@ from src.api.v1.responses import (
     LOGIN_CHANGE_RESPONSES,
     PASSWORD_CHANGE_RESPONSES,
 )
-from src.models.log import Log
-from src.models.role import PermissionName, Role
-from src.models.user import User
+from src.core.permissions import PermissionName
 from src.schemas.logs import LogResponse
 from src.schemas.roles import RoleResponse
 from src.schemas.users import (
@@ -43,7 +41,7 @@ async def get_current_user(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> UserResponse:
-    user: User | None = await user_service.get_user_by_id(user_id)
+    user = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -102,7 +100,7 @@ async def get_user_logs(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> list[LogResponse]:
-    logs: list[Log] = await user_service.get_user_logs(
+    logs = await user_service.get_user_logs(
         user_id, pagination.page_size, pagination.page_number
     )
     return [
@@ -119,7 +117,7 @@ async def get_user_roles(
     user_id: Annotated[UUID, Depends(get_authenticated_user_id)],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> list[RoleResponse]:
-    roles: list[Role] = await role_service.get_roles_by_user_id(user_id)
+    roles = await role_service.get_roles_by_user_id(user_id)
     return [RoleResponse(id=role.id, name=role.name) for role in roles]
 
 

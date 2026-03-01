@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.models.role import PermissionName
+from src.core.permissions import PermissionName
 from src.services.permission_check import (
     PermissionCheckService,
     invalidate_user_permissions_cache,

@@ -4,8 +4,8 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import AsyncClient
 
+from src.core.permissions import PermissionName
 from src.main import app
-from src.models.role import PermissionName
 from src.services.permission_check import get_permission_check_service
 from src.services.roles import get_role_service
 

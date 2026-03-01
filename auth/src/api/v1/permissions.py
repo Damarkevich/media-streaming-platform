@@ -10,9 +10,9 @@ from src.api.v1.responses import (
     GET_PERMISSIONS_RESPONSES,
     REMOVE_PERMISSION_FROM_ROLE_RESPONSES,
 )
-from src.models.role import Permission, PermissionName
+from src.core.permissions import PermissionName
 from src.schemas.permissions import PermissionResponse
-from src.services.permission_check import require_permission
+from src.services.authorization import require_permission
 from src.services.permissions import (
     PermissionNotFoundError,
     PermissionService,
@@ -33,7 +33,7 @@ async def get_permissions(
     pagination: Annotated[PaginationParams, Depends(PaginationParams)],
     permission_service: Annotated[PermissionService, Depends(get_permission_service)],
 ) -> list[PermissionResponse]:
-    permissions: list[Permission] = await permission_service.get_permissions(
+    permissions = await permission_service.get_permissions(
         pagination.page_size, pagination.page_number
     )
     return [

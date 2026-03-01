@@ -41,4 +41,4 @@ async def check_postgres() -> bool:
             return result.scalar() == 1
     except Exception as e:
         logger.error(f"Error connecting to PostgreSQL: {e}")
-        raise
+        return False

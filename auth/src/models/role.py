@@ -1,26 +1,16 @@
 import uuid
 from datetime import datetime, timezone
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.permissions import PermissionName
 from src.db.postgres import Base
 
 if TYPE_CHECKING:
     from src.models.user import User
-
-
-class PermissionName(StrEnum):
-    PERMISSIONS_READ = "permissions:read"
-    PERMISSIONS_ASSIGN = "permissions:assign"
-    ROLES_READ = "roles:read"
-    ROLES_CREATE = "roles:create"
-    ROLES_UPDATE = "roles:update"
-    ROLES_DELETE = "roles:delete"
-    ROLES_ASSIGN = "roles:assign"
 
 
 class RolePermission(Base):

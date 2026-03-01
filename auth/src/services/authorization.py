@@ -7,7 +7,7 @@ from async_fastapi_jwt_auth import AuthJWT
 from fastapi import Depends, HTTPException
 
 from src.core.jwt import auth_dep
-from src.models.role import PermissionName
+from src.core.permissions import PermissionName
 from src.services.permission_check import (
     PermissionCheckService,
     get_permission_check_service,

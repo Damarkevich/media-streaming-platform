@@ -15,14 +15,14 @@ from src.api.v1.responses import (
     REMOVE_ROLE_FROM_USER_RESPONSES,
     UPDATE_ROLE_RESPONSES,
 )
-from src.models.role import PermissionName, Role
+from src.core.permissions import PermissionName
 from src.schemas.permissions import PermissionResponse
 from src.schemas.roles import (
     RoleCreate,
     RoleResponse,
     RoleUpdate,
 )
-from src.services.permission_check import require_permission
+from src.services.authorization import require_permission
 from src.services.permissions import PermissionService, get_permission_service
 from src.services.roles import (
     RoleAlreadyExistsError,
@@ -45,9 +45,7 @@ async def get_roles(
     pagination: Annotated[PaginationParams, Depends(PaginationParams)],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> list[RoleResponse]:
-    roles: list[Role] = await role_service.get_roles(
-        pagination.page_size, pagination.page_number
-    )
+    roles = await role_service.get_roles(pagination.page_size, pagination.page_number)
     return [RoleResponse(id=role.id, name=role.name) for role in roles]
 
 
@@ -61,7 +59,7 @@ async def get_role_by_id(
     role_id: Annotated[UUID4, Path(description="The ID of the role to retrieve")],
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> RoleResponse:
-    role: Role | None = await role_service.get_role_by_id(role_id)
+    role = await role_service.get_role_by_id(role_id)
     if not role:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -82,7 +80,7 @@ async def create_role(
     role_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> RoleResponse:
     try:
-        role: Role = await role_service.create_role(role_create.name)
+        role = await role_service.create_role(role_create.name)
     except RoleAlreadyExistsError as exc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,

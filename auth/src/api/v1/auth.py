@@ -13,7 +13,6 @@ from src.api.v1.responses import (
 )
 from src.core.jwt import auth_dep
 from src.models.log import LogType
-from src.models.user import User
 from src.schemas.tokens import TokenResponse
 from src.schemas.users import (
     UserCreate,
@@ -53,7 +52,7 @@ async def login(
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
     user_dto: dict[str, str] = user_login.model_dump()
-    user: User | None = await user_service.authenticate_user(**user_dto)
+    user = await user_service.authenticate_user(**user_dto)
     if not user:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,

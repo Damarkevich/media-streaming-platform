@@ -17,6 +17,12 @@ from src.services.tokens import get_token_service
 from src.services.users import UserAlreadyExistsError, get_user_service
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def clear_dependency_overrides() -> AsyncGenerator[None, None]:
+    yield
+    app.dependency_overrides.clear()
+
+
 @dataclass
 class FakeUserService:
     created_user_id: UUID = field(default_factory=uuid4)
@@ -169,5 +175,3 @@ async def test_client() -> AsyncGenerator[AsyncClient, None]:
         client.fake_token_service = fake_token_service  # type: ignore[attr-defined]
         client.fake_auth = fake_auth  # type: ignore[attr-defined]
         yield client
-
-    app.dependency_overrides.clear()

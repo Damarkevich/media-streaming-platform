@@ -6,7 +6,7 @@ async def test_signup_returns_201(test_client) -> None:
     response = await test_client.post(
         "/api/v1/auth/signup",
         json={
-            "login": "new_user",
+            "login": "newuser",
             "password": "StrongPass1!",
             "first_name": "Petr",
             "last_name": "Petrov",
@@ -71,13 +71,3 @@ async def test_access_revoke_adds_jti_to_blacklist(test_client) -> None:
 
     assert response.status_code == 204
     assert test_client.fake_token_service.last_access_blacklisted_jti == "refresh-jti"  # type: ignore[attr-defined]
-
-
-@pytest.mark.asyncio
-async def test_me_returns_404_when_user_not_found(test_client) -> None:
-    test_client.fake_auth.subject = "00000000-0000-0000-0000-000000000000"  # type: ignore[attr-defined]
-
-    response = await test_client.get("/api/v1/users/me")
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"

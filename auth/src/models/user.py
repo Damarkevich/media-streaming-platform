@@ -31,9 +31,16 @@ class User(Base):
 
     def __init__(self, login: str, password: str, first_name: str, last_name: str):
         self.login = login
-        self.password = generate_password_hash(password)
+        self.set_password(password)
         self.first_name = first_name
         self.last_name = last_name
+
+    @staticmethod
+    def hash_password(password: str) -> str:
+        return generate_password_hash(password)
+
+    def set_password(self, password: str) -> None:
+        self.password = self.hash_password(password)
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(str(self.password), password)

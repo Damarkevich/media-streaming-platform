@@ -1,12 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from src.schemas.entity import UserCreate
+from src.schemas.users import UserCreate
 
 
 def _valid_payload(password: str) -> dict[str, str]:
     return {
-        "login": "user_01",
+        "login": "user01",
         "password": password,
         "first_name": "Ivan",
         "last_name": "Ivanov",

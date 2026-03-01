@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.core.jwt import auth_dep
 from src.main import app
-from src.schemas.entity import UserResponse
+from src.schemas.users import UserResponse
 from src.services.tokens import get_token_service
 from src.services.users import UserAlreadyExistsError, get_user_service
 
@@ -22,6 +22,8 @@ class FakeUserService:
             id=uuid4(), first_name="Ivan", last_name="Ivanov"
         )
     )
+    changed_login: str | None = None
+    changed_password: str | None = None
 
     async def create_user(
         self,
@@ -47,6 +49,20 @@ class FakeUserService:
         if self.existing_user and str(self.existing_user.id) == user_id:
             return self.existing_user
         return None
+
+    async def change_login(self, user_id: str, new_login: str) -> bool:
+        if not self.existing_user or str(self.existing_user.id) != user_id:
+            return False
+        if new_login == "duplicate":
+            raise UserAlreadyExistsError()
+        self.changed_login = new_login
+        return True
+
+    async def change_password(self, user_id: str, new_password: str) -> bool:
+        if not self.existing_user or str(self.existing_user.id) != user_id:
+            return False
+        self.changed_password = new_password
+        return True
 
 
 @dataclass

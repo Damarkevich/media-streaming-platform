@@ -54,6 +54,8 @@ The application follows a layered architecture:
 #### Users (`/api/v1/users`)
 
 - `GET /me` — return current user profile
+- `PATCH /me/login` — change current user login
+- `PATCH /me/password` — change current user password
 
 #### Health (`/api`)
 
@@ -68,6 +70,21 @@ The application follows a layered architecture:
 5. `DELETE /refresh-revoke` writes refresh token `jti` to PostgreSQL blacklist.
 6. Blacklisted access tokens are rejected on access-protected endpoints.
 7. Blacklisted refresh tokens are rejected on `/refresh`.
+
+### Error Responses by Endpoint
+
+The table below lists application-level and auth-related error codes returned by each endpoint.
+
+| Endpoint | Error codes |
+|---|---|
+| `POST /api/v1/auth/signup` | `409` (login already exists), `422` (validation error) |
+| `POST /api/v1/auth/login` | `401` (invalid credentials), `422` (validation error) |
+| `POST /api/v1/auth/refresh` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
+| `DELETE /api/v1/auth/access-revoke` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
+| `DELETE /api/v1/auth/refresh-revoke` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
+| `GET /api/v1/users/me` | `401` (token invalid/missing), `404` (user not found), `422` (wrong token type/validation error) |
+| `PATCH /api/v1/users/me/login` | `401` (token invalid/missing), `404` (user not found), `409` (login already exists), `422` (validation error or wrong token type) |
+| `PATCH /api/v1/users/me/password` | `401` (token invalid/missing), `404` (user not found), `422` (validation error or wrong token type) |
 
 ## 🛠 Tech Stack
 

@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,6 +94,58 @@ class UserService:
             raise
         await self.db.refresh(user)
         return user
+
+    async def change_password(self, user_id: str, new_password: str) -> bool:
+        """Change a user's password.
+
+        Args:
+            user_id: The UUID of the user as a string.
+            new_password: The new raw password to set.
+
+        Returns:
+            True if a user row was updated, otherwise False.
+        """
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(password=User.hash_password(new_password))
+            .returning(User)
+        )
+        result = await self.db.execute(stmt)
+        user = result.scalars().one_or_none()
+        await self.db.commit()
+        return user is not None
+
+    async def change_login(self, user_id: str, new_login: str) -> bool:
+        """Change a user's login.
+
+        Args:
+            user_id: The UUID of the user as a string.
+            new_login: The new login to set.
+
+        Returns:
+            True if a user row was updated, otherwise False.
+
+        Raises:
+            UserAlreadyExistsError: If another user with the new login already exists.
+            IntegrityError: For other database integrity errors.
+        """
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(login=new_login)
+            .returning(User)
+        )
+        try:
+            result = await self.db.execute(stmt)
+            user = result.scalars().one_or_none()
+            await self.db.commit()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            if _is_login_unique_violation(exc):
+                raise UserAlreadyExistsError from exc
+            raise
+        return user is not None
 
     async def authenticate_user(self, login: str, password: str) -> User | None:
         """Authenticate a user by login and password.

@@ -34,7 +34,7 @@ LOGIN_RESPONSES: OpenAPIResponses = {
 JWT_ACCESS_REQUIRED_RESPONSES: OpenAPIResponses = {
     HTTPStatus.UNAUTHORIZED: {
         "model": ApiError,
-        "description": "Authentication required or token invalid",
+        "description": "Authentication required, token invalid, or token revoked",
     },
     HTTPStatus.UNPROCESSABLE_ENTITY: {
         "description": "Wrong token type or token validation error",
@@ -44,7 +44,7 @@ JWT_ACCESS_REQUIRED_RESPONSES: OpenAPIResponses = {
 JWT_REFRESH_REQUIRED_RESPONSES: OpenAPIResponses = {
     HTTPStatus.UNAUTHORIZED: {
         "model": ApiError,
-        "description": "Authentication required or token invalid",
+        "description": "Authentication required, token invalid, or token revoked",
     },
     HTTPStatus.UNPROCESSABLE_ENTITY: {
         "description": "Wrong token type or token validation error",
@@ -54,7 +54,7 @@ JWT_REFRESH_REQUIRED_RESPONSES: OpenAPIResponses = {
 GET_ME_RESPONSES: OpenAPIResponses = {
     HTTPStatus.UNAUTHORIZED: {
         "model": ApiError,
-        "description": "Authentication required or token invalid",
+        "description": "Authentication required, token invalid, or token revoked",
     },
     HTTPStatus.UNPROCESSABLE_ENTITY: {
         "description": "Wrong token type or token validation error",
@@ -68,10 +68,10 @@ GET_ME_RESPONSES: OpenAPIResponses = {
 LOGIN_CHANGE_RESPONSES: OpenAPIResponses = {
     HTTPStatus.UNAUTHORIZED: {
         "model": ApiError,
-        "description": "Authentication required or token invalid",
+        "description": "Authentication required, token invalid, token revoked, or fresh access token required",
     },
     HTTPStatus.UNPROCESSABLE_ENTITY: {
-        "description": "Validation error or wrong token type",
+        "description": "Request validation error, wrong token type, or token validation error",
     },
     HTTPStatus.CONFLICT: {
         "model": ApiError,
@@ -86,10 +86,10 @@ LOGIN_CHANGE_RESPONSES: OpenAPIResponses = {
 PASSWORD_CHANGE_RESPONSES: OpenAPIResponses = {
     HTTPStatus.UNAUTHORIZED: {
         "model": ApiError,
-        "description": "Authentication required or token invalid",
+        "description": "Authentication required, token invalid, token revoked, or fresh access token required",
     },
     HTTPStatus.UNPROCESSABLE_ENTITY: {
-        "description": "Validation error or wrong token type",
+        "description": "Request validation error, wrong token type, or token validation error",
     },
     HTTPStatus.NOT_FOUND: {
         "model": ApiError,

@@ -28,16 +28,23 @@ class TokenService:
         self.auth = auth
         self.redis = redis
 
-    async def issue_tokens(self, user_id: str) -> tuple[str, str]:
+    async def issue_tokens(self, user_id: str, fresh: bool = False) -> tuple[str, str]:
         """Issue new tokens for a user.
 
         This method can be extended to include additional logic, such as
         recording issued tokens in the database or enforcing limits on active
         tokens per user.
+
+        Args:
+            user_id: ID of the user for whom to issue tokens.
+            fresh: Whether the access token should be marked as "fresh".
+
+        Returns:
+            A tuple of (access_token, refresh_token).
         """
         access_token_expires = timedelta(seconds=settings.access_token_expires)
         access_token = await self.auth.create_access_token(
-            subject=user_id, expires_time=access_token_expires
+            subject=user_id, expires_time=access_token_expires, fresh=fresh
         )
         refresh_token_expires = timedelta(seconds=settings.refresh_token_expires)
         refresh_token = await self.auth.create_refresh_token(

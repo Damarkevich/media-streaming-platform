@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
+from http import HTTPStatus
 from types import SimpleNamespace
 from typing import AsyncGenerator
 from uuid import UUID, uuid4
 
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from src.core.jwt import auth_dep
@@ -70,7 +72,7 @@ class FakeTokenService:
     last_access_blacklisted_jti: str | None = None
     last_refresh_blacklisted_jti: str | None = None
 
-    async def issue_tokens(self, user_id: str) -> tuple[str, str]:
+    async def issue_tokens(self, user_id: str, fresh: bool = False) -> tuple[str, str]:
         return (f"access-{user_id}", f"refresh-{user_id}")
 
     async def add_access_to_blacklist(self, jti: str) -> None:
@@ -81,15 +83,29 @@ class FakeTokenService:
 
 
 class FakeAuth:
-    def __init__(self, *, subject: str, jti: str = "refresh-jti") -> None:
+    def __init__(
+        self,
+        *,
+        subject: str,
+        jti: str = "refresh-jti",
+        is_fresh: bool = True,
+    ) -> None:
         self.subject = subject
         self.jti = jti
+        self.is_fresh = is_fresh
 
     async def jwt_required(self) -> None:
         return None
 
     async def jwt_refresh_token_required(self) -> None:
         return None
+
+    async def fresh_jwt_required(self) -> None:
+        if not self.is_fresh:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Fresh token required",
+            )
 
     async def get_jwt_subject(self) -> str:
         return self.subject

@@ -46,7 +46,7 @@ async def change_login(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
-    await auth.jwt_required()
+    await auth.fresh_jwt_required()
 
     user_id: str = str(await auth.get_jwt_subject())
     new_login: str = login_change_request.new_login
@@ -74,7 +74,7 @@ async def change_password(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
-    await auth.jwt_required()
+    await auth.fresh_jwt_required()
 
     user_id: str = str(await auth.get_jwt_subject())
     new_password: str = password_change_request.new_password

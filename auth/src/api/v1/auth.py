@@ -11,6 +11,7 @@ from src.api.v1.responses import (
     SIGNUP_RESPONSES,
 )
 from src.core.jwt import auth_dep
+from src.models.user import User
 from src.schemas.tokens import TokenResponse
 from src.schemas.users import (
     UserCreate,
@@ -49,14 +50,16 @@ async def login(
     user_service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
-    user_dto = user_login.model_dump()
-    user = await user_service.authenticate_user(**user_dto)
+    user_dto: dict[str, str] = user_login.model_dump()
+    user: User | None = await user_service.authenticate_user(**user_dto)
     if not user:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail="Invalid login or password",
         )
-    access_token, refresh_token = await token_service.issue_tokens(str(user.id))
+    access_token, refresh_token = await token_service.issue_tokens(
+        str(user.id), fresh=True
+    )
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -71,10 +74,12 @@ async def refresh_token(
 ) -> TokenResponse:
     await auth.jwt_refresh_token_required()
 
-    user_id = await auth.get_jwt_subject()
-    new_access_token, new_refresh_token = await token_service.issue_tokens(str(user_id))
+    user_id: str | int | None = await auth.get_jwt_subject()
+    new_access_token, new_refresh_token = await token_service.issue_tokens(
+        str(user_id), fresh=False
+    )
 
-    old_refresh_jti = str((await auth.get_raw_jwt()).get("jti", ""))
+    old_refresh_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))
     await token_service.add_refresh_to_blacklist(old_refresh_jti)
 
     return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token)
@@ -91,7 +96,7 @@ async def access_revoke(
 ) -> None:
     await auth.jwt_required()
 
-    old_access_jti = str((await auth.get_raw_jwt()).get("jti", ""))
+    old_access_jti: str = str((await auth.get_raw_jwt()).get("jti", ""))
     await token_service.add_access_to_blacklist(old_access_jti)
 
 

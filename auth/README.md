@@ -70,6 +70,8 @@ The application follows a layered architecture:
 5. `DELETE /refresh-revoke` writes refresh token `jti` to PostgreSQL blacklist.
 6. Blacklisted access tokens are rejected on access-protected endpoints.
 7. Blacklisted refresh tokens are rejected on `/refresh`.
+8. `PATCH /users/me/login` and `PATCH /users/me/password` require a **fresh** access token.
+9. Access token issued by `/refresh` is non-fresh, so these endpoints return `401` until user re-authenticates via `/login`.
 
 ### Error Responses by Endpoint
 
@@ -79,12 +81,12 @@ The table below lists application-level and auth-related error codes returned by
 |---|---|
 | `POST /api/v1/auth/signup` | `409` (login already exists), `422` (validation error) |
 | `POST /api/v1/auth/login` | `401` (invalid credentials), `422` (validation error) |
-| `POST /api/v1/auth/refresh` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
-| `DELETE /api/v1/auth/access-revoke` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
-| `DELETE /api/v1/auth/refresh-revoke` | `401` (token revoked/invalid/expired), `422` (wrong token type/validation error) |
-| `GET /api/v1/users/me` | `401` (token invalid/missing), `404` (user not found), `422` (wrong token type/validation error) |
-| `PATCH /api/v1/users/me/login` | `401` (token invalid/missing), `404` (user not found), `409` (login already exists), `422` (validation error or wrong token type) |
-| `PATCH /api/v1/users/me/password` | `401` (token invalid/missing), `404` (user not found), `422` (validation error or wrong token type) |
+| `POST /api/v1/auth/refresh` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
+| `DELETE /api/v1/auth/access-revoke` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
+| `DELETE /api/v1/auth/refresh-revoke` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
+| `GET /api/v1/users/me` | `401` (authentication required, token invalid, or token revoked), `404` (user not found), `422` (wrong token type or token validation error) |
+| `PATCH /api/v1/users/me/login` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `409` (login already exists), `422` (request validation error, wrong token type, or token validation error) |
+| `PATCH /api/v1/users/me/password` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `422` (request validation error, wrong token type, or token validation error) |
 
 ## 🛠 Tech Stack
 

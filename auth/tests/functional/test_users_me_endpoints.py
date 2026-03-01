@@ -49,6 +49,21 @@ async def test_users_me_change_login_returns_404_when_user_not_found(
 
 
 @pytest.mark.asyncio
+async def test_users_me_change_login_non_fresh_token_returns_401(
+    test_client,
+) -> None:
+    test_client.fake_auth.is_fresh = False  # type: ignore[attr-defined]
+
+    response = await test_client.patch(
+        "/api/v1/users/me/login",
+        json={"new_login": "updatedlogin"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Fresh token required"
+
+
+@pytest.mark.asyncio
 async def test_users_me_change_password_returns_204(test_client) -> None:
     response = await test_client.patch(
         "/api/v1/users/me/password",
@@ -72,3 +87,18 @@ async def test_users_me_change_password_returns_404_when_user_not_found(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+
+
+@pytest.mark.asyncio
+async def test_users_me_change_password_non_fresh_token_returns_401(
+    test_client,
+) -> None:
+    test_client.fake_auth.is_fresh = False  # type: ignore[attr-defined]
+
+    response = await test_client.patch(
+        "/api/v1/users/me/password",
+        json={"new_password": "StrongPass1!"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Fresh token required"

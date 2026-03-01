@@ -25,7 +25,7 @@ async def test_issue_tokens_uses_configured_ttls(
     assert access_token == "access-token"
     assert refresh_token == "refresh-token"
     auth.create_access_token.assert_awaited_once_with(
-        subject="user-id", expires_time=timedelta(seconds=101)
+        subject="user-id", expires_time=timedelta(seconds=101), fresh=False
     )
     auth.create_refresh_token.assert_awaited_once_with(
         subject="user-id", expires_time=timedelta(seconds=202)

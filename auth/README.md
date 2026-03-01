@@ -63,6 +63,7 @@ The application follows a layered architecture:
 - `PATCH /me/password` — change current user password
 - `GET /me/logs` — return logs of current user
 - `GET /me/roles` — return roles of current user
+- `GET /me/has_permission/{permission_name}` — check if current user has a permission
 
 #### Roles (`/api/v1/roles`)
 
@@ -117,32 +118,6 @@ The application follows a layered architecture:
 8. `PATCH /users/me/login` and `PATCH /users/me/password` require a **fresh** access token.
 9. Access token issued by `/refresh` is non-fresh, so these endpoints return `401` until user re-authenticates via `/login`.
 
-### Error Responses by Endpoint
-
-The table below lists application-level and auth-related error codes returned by each endpoint.
-
-| Endpoint | Error codes |
-|---|---|
-| `POST /api/v1/auth/signup` | `409` (login already exists), `422` (validation error) |
-| `POST /api/v1/auth/login` | `401` (invalid credentials), `422` (validation error) |
-| `POST /api/v1/auth/refresh` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
-| `DELETE /api/v1/auth/access-revoke` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
-| `DELETE /api/v1/auth/refresh-revoke` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
-| `GET /api/v1/users/me` | `401` (authentication required, token invalid, or token revoked), `404` (user not found), `422` (wrong token type or token validation error) |
-| `PATCH /api/v1/users/me/login` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `409` (login already exists), `422` (request validation error, wrong token type, or token validation error) |
-| `PATCH /api/v1/users/me/password` | `401` (authentication required, token invalid, token revoked, or fresh token required), `404` (user not found), `422` (request validation error, wrong token type, or token validation error) |
-| `GET /api/v1/users/me/roles` | `401` (authentication required, token invalid, or token revoked), `422` (wrong token type or token validation error) |
-| `GET /api/v1/roles` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
-| `GET /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `422` (wrong token type or token validation error) |
-| `POST /api/v1/roles` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `409` (role name already exists), `422` (validation error) |
-| `PATCH /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `409` (role name already exists), `422` (request validation error, wrong token type, or token validation error) |
-| `DELETE /api/v1/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role not found), `422` (wrong token type or token validation error) |
-| `GET /api/v1/roles/{role_id}/permissions` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
-| `PUT /api/v1/roles/{role_id}/users/{user_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or user not found), `422` (request validation error, wrong token type, or token validation error) |
-| `DELETE /api/v1/roles/{role_id}/users/{user_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or user not found), `422` (request validation error, wrong token type, or token validation error) |
-| `GET /api/v1/permissions` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `422` (wrong token type or token validation error) |
-| `PUT /api/v1/permissions/{permission_id}/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or permission not found), `422` (request validation error, wrong token type, or token validation error) |
-| `DELETE /api/v1/permissions/{permission_id}/roles/{role_id}` | `401` (authentication required, token invalid, or token revoked), `403` (permission required), `404` (role or permission not found), `422` (request validation error, wrong token type, or token validation error) |
 
 ## 🛠 Tech Stack
 
@@ -246,14 +221,14 @@ auth/
 
 Main settings are loaded from environment variables (or `.env`):
 
-- `APP_ENV` (`dev` | `test` | `prod`, default: `dev`)
 - `AUTHJWT_SECRET_KEY`
 - `ACCESS_TOKEN_EXPIRES`
 - `REFRESH_TOKEN_EXPIRES`
-- `SQL_ECHO` (enabled only when `APP_ENV=dev`)
+- `SQL_ECHO`
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - `POSTGRES_DB_SCHEMA`
 - `SQL_HOST`, `SQL_PORT`
+- `SQL_OPTIONS`
 - `REDIS_HOST`, `REDIS_PORT`
 - `PERMISSIONS_CACHE_TTL`
 

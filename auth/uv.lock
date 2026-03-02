@@ -88,7 +88,7 @@ wheels = [
 [[package]]
 name = "auth"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "async-fastapi-jwt-auth" },

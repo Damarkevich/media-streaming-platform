@@ -195,6 +195,24 @@ Production-like:
 uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 ```
 
+### Create Superuser
+
+Create a superuser (always allowed to perform any action):
+
+```bash
+uv run auth-cli create-superuser --login admin
+```
+
+You can also pass all fields explicitly:
+
+```bash
+uv run auth-cli create-superuser \
+	--login admin \
+	--password 'StrongPass1!' \
+	--first-name Super \
+	--last-name Admin
+```
+
 API endpoints:
 
 - API base: `http://localhost:8000/api/v1`

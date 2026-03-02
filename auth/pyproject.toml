@@ -17,6 +17,16 @@ dependencies = [
     "werkzeug>=3.1.6",
 ]
 
+[project.scripts]
+auth-cli = "src.cli:main"
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]
+
 [dependency-groups]
 dev = [
     "fastapi[standard]>=0.129.1",

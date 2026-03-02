@@ -43,6 +43,7 @@ class UserService:
         password: str,
         first_name: str,
         last_name: str,
+        is_superuser: bool = False,
     ) -> User:
         """Create a new user.
 
@@ -51,6 +52,7 @@ class UserService:
             password: Raw password. It is hashed by the User model.
             first_name: User first name.
             last_name: User last name.
+            is_superuser: Whether the user should bypass permission checks.
 
         Returns:
             The persisted User ORM instance.
@@ -64,6 +66,7 @@ class UserService:
             password=password,
             first_name=first_name,
             last_name=last_name,
+            is_superuser=is_superuser,
         )
         self.db.add(user)
         try:

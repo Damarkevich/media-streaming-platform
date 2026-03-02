@@ -35,3 +35,8 @@ htmlcov/
 # macOS metadata files
 .DS_Store
 **/.DS_Store
+
+# Distribution and packaging
+dist/
+build/
+*.egg-info/

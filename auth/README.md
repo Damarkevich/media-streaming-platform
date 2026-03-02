@@ -146,9 +146,31 @@ The application follows a layered architecture:
 
 ### Installation
 
+Choose dependency groups depending on your task:
+
+- Runtime only (default dependencies):
+
 ```bash
 cd auth
+uv sync
+```
+
+- Development tools (`dev` group):
+
+```bash
+uv sync --group dev
+```
+
+- Test tools (`test` group):
+
+```bash
 uv sync --group test
+```
+
+- Full local setup (`dev` + `test`):
+
+```bash
+uv sync --group dev --group test
 ```
 
 ### Run Database Migrations
@@ -164,6 +186,8 @@ Development:
 ```bash
 uv run fastapi dev src/main.py
 ```
+
+> Requires `dev` dependency group.
 
 Production-like:
 
@@ -190,6 +214,8 @@ Run all tests:
 cd auth
 uv run pytest tests -q
 ```
+
+> Requires `test` dependency group.
 
 For detailed test notes, see `tests/README.md`.
 

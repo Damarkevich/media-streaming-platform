@@ -6,8 +6,16 @@ Minimal commands to run test suites for the `auth` service.
 
 From the `auth` directory:
 
+Install dependencies for tests only:
+
 ```bash
 uv sync --group test
+```
+
+If you also need development tooling, install both groups:
+
+```bash
+uv sync --group dev --group test
 ```
 
 Run all tests:

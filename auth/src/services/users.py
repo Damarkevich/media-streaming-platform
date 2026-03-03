@@ -61,9 +61,10 @@ class UserService:
             UserAlreadyExistsError: If a user with the same login already exists.
             IntegrityError: For other database integrity errors.
         """
+        password_hash = await User.hash_password(password)
         user = User(
             login=login,
-            password=password,
+            password_hash=password_hash,
             first_name=first_name,
             last_name=last_name,
             is_superuser=is_superuser,
@@ -92,10 +93,11 @@ class UserService:
         Raises:
             SQLAlchemyError: Propagates database errors.
         """
+        password_hash = await User.hash_password(new_password)
         stmt = (
             update(User)
             .where(User.id == user_id)
-            .values(password=User.hash_password(new_password))
+            .values(password=password_hash)
             .returning(User)
         )
         result = await self.db.execute(stmt)
@@ -149,7 +151,7 @@ class UserService:
         """
         result = await self.db.execute(select(User).where(User.login == login))
         user = result.scalars().one_or_none()
-        if user and user.check_password(password):
+        if user and await user.check_password(password):
             return user
         return None
 

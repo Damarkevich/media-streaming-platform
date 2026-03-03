@@ -277,7 +277,7 @@ Main settings are loaded from environment variables (or `.env`):
 - `PERMISSIONS_CACHE_TTL`
 - `CORS_ORIGINS` (JSON array of allowed origins, example: `CORS_ORIGINS='["http://localhost:3000"]'`)
 
-> Note: `AUTHJWT_SECRET_KEY` is mandatory and must be non-empty.
+> Note: `AUTHJWT_SECRET_KEY` is mandatory and must be at least 32 characters long.
 >
 > CORS notes:
 > - Use `CORS_ORIGINS='["http://localhost:3000"]'` for explicit allowed origins.

@@ -71,7 +71,9 @@ class RoleService:
         except IntegrityError as exc:
             await self.db.rollback()
             if is_field_unique_violation(exc, "name"):
-                raise RoleAlreadyExistsError(f"Role with name '{name}' already exists.")
+                raise RoleAlreadyExistsError(
+                    f"Role with name '{name}' already exists."
+                ) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()
@@ -108,7 +110,7 @@ class RoleService:
             if is_field_unique_violation(exc, "name"):
                 raise RoleAlreadyExistsError(
                     f"Role with name '{new_name}' already exists."
-                )
+                ) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()
@@ -145,7 +147,7 @@ class RoleService:
 
         Args:
             page_size: The number of roles to return per page.
-            page_number: The page number to return (1-based).
+            page_number: The page number to return (0-based).
 
         Returns:
             A list of Role instances for the requested page.
@@ -168,7 +170,7 @@ class RoleService:
         """Retrieve a role by its unique ID.
 
         Args:
-            role_id: The UUID of the role as a string.
+            role_id: The UUID of the role.
 
         Returns:
             The Role instance if found, else None.

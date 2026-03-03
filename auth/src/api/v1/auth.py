@@ -3,7 +3,7 @@ from typing import Annotated, Mapping
 from uuid import UUID
 
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.api.v1.responses import (
     JWT_ACCESS_REQUIRED_RESPONSES,
@@ -12,6 +12,7 @@ from src.api.v1.responses import (
     SIGNUP_RESPONSES,
 )
 from src.core.jwt import auth_dep
+from src.core.limiter import limiter
 from src.models.log import LogType
 from src.schemas.tokens import TokenResponse
 from src.schemas.users import (
@@ -38,26 +39,31 @@ def _extract_jti(payload: Mapping[str, object] | None) -> str:
     status_code=HTTPStatus.CREATED,
     responses=SIGNUP_RESPONSES,
 )
+@limiter.limit("5/minute")
 async def create_user(
     user_create: UserCreate,
     user_service: Annotated[UserService, Depends(get_user_service)],
+    request: Request,
 ) -> UserResponse:
     """Register a new user account and return its public projection."""
     user_dto = user_create.model_dump()
     try:
-        return await user_service.create_user(**user_dto)
+        user = await user_service.create_user(**user_dto)
     except UserAlreadyExistsError as exc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail="User with this login already exists",
         ) from exc
+    return UserResponse.model_validate(user)
 
 
 @router.post("/login", response_model=TokenResponse, responses=LOGIN_RESPONSES)
+@limiter.limit("5/minute")
 async def login(
     user_login: UserLogin,
     user_service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
+    request: Request,
 ) -> TokenResponse:
     """Authenticate credentials and issue a new access/refresh token pair."""
     user_dto: dict[str, str] = user_login.model_dump()

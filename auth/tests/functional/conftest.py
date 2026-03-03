@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from src.core.jwt import auth_dep
+from src.core.limiter import limiter
 from src.main import app
 from src.models.log import LogType
 from src.schemas.users import UserResponse
@@ -20,7 +21,9 @@ from src.services.users import UserAlreadyExistsError, get_user_service
 @pytest_asyncio.fixture(autouse=True)
 async def clear_dependency_overrides() -> AsyncGenerator[None, None]:
     """Reset dependency overrides after each functional test."""
+    limiter.reset()
     yield
+    limiter.reset()
     app.dependency_overrides.clear()
 
 

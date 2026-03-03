@@ -126,9 +126,10 @@ async def test_change_login_maps_unique_violation_to_domain_error(
 @pytest.mark.asyncio
 async def test_authenticate_user_returns_none_for_wrong_password() -> None:
     """Ensure authentication fails for invalid password."""
+    password_hash = await User.hash_password("StrongPass1!")
     user = User(
         login="auth_user",
-        password="StrongPass1!",
+        password_hash=password_hash,
         first_name="Ivan",
         last_name="Ivanov",
     )

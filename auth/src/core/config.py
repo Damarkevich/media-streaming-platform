@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         "Authentication service for the Movies Streaming Platform"
     )
 
+    cors_origins: list[str] = ["http://localhost:3000"]
+
     authjwt_secret_key: str
     authjwt_token_location: set[str] = {"headers"}
     authjwt_header_name: str = "Authorization"
@@ -34,7 +36,7 @@ class Settings(BaseSettings):
 
     postgres_db: str = "auth_database"
     postgres_user: str = "app"
-    postgres_password: str = "password"
+    postgres_password: str
     postgres_db_schema: str = "auth"
 
     sql_host: str = "localhost"
@@ -45,9 +47,11 @@ class Settings(BaseSettings):
     @field_validator("authjwt_secret_key")
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:
-        """Ensure that AUTHJWT_SECRET_KEY is set and not empty."""
-        if not value.strip():
-            raise ValueError("AUTHJWT_SECRET_KEY must not be empty")
+        """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
+        if len(value.strip()) < 32:
+            raise ValueError(
+                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            )
         return value
 
 

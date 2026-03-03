@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -45,26 +46,32 @@ class User(Base):
     def __init__(
         self,
         login: str,
-        password: str,
+        password_hash: str,
         first_name: str,
         last_name: str,
         is_superuser: bool = False,
     ) -> None:
+        if not self._is_werkzeug_password_hash(password_hash):
+            raise ValueError("password_hash must be a Werkzeug password hash")
         self.login = login
-        self.set_password(password)
+        self.password = password_hash
         self.first_name = first_name
         self.last_name = last_name
         self.is_superuser = is_superuser
 
     @staticmethod
-    def hash_password(password: str) -> str:
-        return generate_password_hash(password)
+    def _is_werkzeug_password_hash(value: str) -> bool:
+        return value.startswith(("scrypt:", "pbkdf2:"))
 
-    def set_password(self, password: str) -> None:
-        self.password = self.hash_password(password)
+    @staticmethod
+    async def hash_password(password: str) -> str:
+        return await asyncio.to_thread(generate_password_hash, password)
 
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(str(self.password), password)
+    async def set_password(self, password: str) -> None:
+        self.password = await self.hash_password(password)
+
+    async def check_password(self, password: str) -> bool:
+        return await asyncio.to_thread(check_password_hash, self.password, password)
 
     def __repr__(self) -> str:
         return f"<User {self.login}>"

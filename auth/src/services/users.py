@@ -49,7 +49,7 @@ class UserService:
 
         Args:
             login: Unique login identifier.
-            password: Raw password. It is hashed by the User model.
+            password: Raw password. It will be hashed before storage.
             first_name: User first name.
             last_name: User last name.
             is_superuser: Whether the user should bypass permission checks.

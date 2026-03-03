@@ -71,7 +71,9 @@ class RoleService:
         except IntegrityError as exc:
             await self.db.rollback()
             if is_field_unique_violation(exc, "name"):
-                raise RoleAlreadyExistsError(f"Role with name '{name}' already exists.")
+                raise RoleAlreadyExistsError(
+                    f"Role with name '{name}' already exists."
+                ) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()
@@ -108,7 +110,7 @@ class RoleService:
             if is_field_unique_violation(exc, "name"):
                 raise RoleAlreadyExistsError(
                     f"Role with name '{new_name}' already exists."
-                )
+                ) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()

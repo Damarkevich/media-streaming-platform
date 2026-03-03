@@ -71,6 +71,34 @@ async def test_login_success_returns_tokens_and_logs_action(test_client) -> None
 
 
 @pytest.mark.asyncio
+async def test_login_rate_limit_returns_429_after_five_requests(test_client) -> None:
+    """Ensure login endpoint enforces configured per-minute request limit."""
+    statuses: list[int] = []
+
+    for _ in range(6):
+        response = await test_client.post(
+            "/api/v1/auth/login",
+            json={"login": "valid", "password": "ValidPass1!"},
+        )
+        statuses.append(response.status_code)
+
+    assert statuses[:5] == [200, 200, 200, 200, 200]
+    assert statuses[5] == 429
+
+
+@pytest.mark.asyncio
+async def test_refresh_is_not_rate_limited_without_decorator(test_client) -> None:
+    """Ensure endpoints without limiter decorator are not throttled by middleware."""
+    statuses: list[int] = []
+
+    for _ in range(6):
+        response = await test_client.post("/api/v1/auth/refresh")
+        statuses.append(response.status_code)
+
+    assert statuses == [200, 200, 200, 200, 200, 200]
+
+
+@pytest.mark.asyncio
 async def test_refresh_returns_new_tokens(test_client) -> None:
     """Ensure refresh endpoint returns new access and refresh tokens."""
     response = await test_client.post("/api/v1/auth/refresh")

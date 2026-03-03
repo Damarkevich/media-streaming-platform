@@ -1,11 +1,14 @@
 from async_fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi import FastAPI, Request
 from fastapi.responses import ORJSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from src.api import health
 from src.api.v1 import auth, permissions, roles, users
 from src.core.config import settings
 from src.core.lifespan import lifespan
+from src.core.limiter import limiter
 
 app = FastAPI(
     title=settings.project_name,
@@ -15,6 +18,8 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
@@ -33,4 +38,15 @@ def authjwt_exception_handler(
     return ORJSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message},
+    )
+
+
+@app.exception_handler(RateLimitExceeded)
+def rate_limit_exception_handler(
+    request: Request, exc: RateLimitExceeded
+) -> ORJSONResponse:
+    """Handle rate limit breaches with a unified JSON HTTP response."""
+    return ORJSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please try again later."},
     )

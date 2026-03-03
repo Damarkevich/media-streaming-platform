@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     postgres_db: str = "auth_database"
     postgres_user: str = "app"
-    postgres_password: str = "password"
+    postgres_password: str
     postgres_db_schema: str = "auth"
 
     sql_host: str = "localhost"
@@ -46,8 +46,10 @@ class Settings(BaseSettings):
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:
         """Ensure that AUTHJWT_SECRET_KEY is set and not empty."""
-        if not value.strip():
-            raise ValueError("AUTHJWT_SECRET_KEY must not be empty")
+        if len(value.strip()) < 32:
+            raise ValueError(
+                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            )
         return value
 
 

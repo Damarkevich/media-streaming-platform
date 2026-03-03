@@ -1,5 +1,6 @@
 import pytest
 
+from src.core.config import settings
 from src.models.log import LogType
 
 
@@ -125,3 +126,51 @@ async def test_access_revoke_adds_jti_to_blacklist(test_client) -> None:
 
     assert response.status_code == 204
     assert test_client.fake_token_service.last_access_blacklisted_jti == "refresh-jti"  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_allows_configured_origin(test_client) -> None:
+    """Ensure CORS preflight succeeds for configured origins."""
+    allowed_origin = settings.cors_origins[0]
+
+    response = await test_client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": allowed_origin,
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") in {
+        allowed_origin,
+        "*",
+    }
+    if "*" in settings.cors_origins:
+        assert "access-control-allow-credentials" not in response.headers
+    else:
+        assert response.headers.get("access-control-allow-credentials") == "true"
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_rejects_unconfigured_origin_when_not_wildcard(
+    test_client,
+) -> None:
+    """Ensure disallowed origins are rejected when CORS is not wildcard-based."""
+    if "*" in settings.cors_origins:
+        pytest.skip("Wildcard CORS configured; any origin is allowed.")
+
+    disallowed_origin = "http://evil.example.com"
+    if disallowed_origin in settings.cors_origins:
+        disallowed_origin = "http://another-evil.example.com"
+
+    response = await test_client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": disallowed_origin,
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers

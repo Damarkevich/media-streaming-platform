@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         "Authentication service for the Movies Streaming Platform"
     )
 
+    cors_origins: list[str] = ["http://localhost:3000"]
+
     authjwt_secret_key: str
     authjwt_token_location: set[str] = {"headers"}
     authjwt_header_name: str = "Authorization"

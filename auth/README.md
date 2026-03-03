@@ -275,8 +275,13 @@ Main settings are loaded from environment variables (or `.env`):
 - `SQL_OPTIONS`
 - `REDIS_HOST`, `REDIS_PORT`
 - `PERMISSIONS_CACHE_TTL`
+- `CORS_ORIGINS` (JSON array of allowed origins, example: `CORS_ORIGINS='["http://localhost:3000"]'`)
 
 > Note: `AUTHJWT_SECRET_KEY` is mandatory and must be non-empty.
+>
+> CORS notes:
+> - Use `CORS_ORIGINS='["http://localhost:3000"]'` for explicit allowed origins.
+> - Use `CORS_ORIGINS='["*"]'` to allow all origins (credentials are disabled in this mode).
 
 ## 📄 Notes
 

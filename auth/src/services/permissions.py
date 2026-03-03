@@ -50,7 +50,7 @@ class PermissionService:
 
         Args:
             page_size: The number of permissions to return per page.
-            page_number: The page number to return (1-based).
+            page_number: The page number to return (0-based).
 
         Returns:
             A list of Permission instances for the requested page.

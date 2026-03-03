@@ -147,7 +147,7 @@ class RoleService:
 
         Args:
             page_size: The number of roles to return per page.
-            page_number: The page number to return (1-based).
+            page_number: The page number to return (0-based).
 
         Returns:
             A list of Role instances for the requested page.
@@ -170,7 +170,7 @@ class RoleService:
         """Retrieve a role by its unique ID.
 
         Args:
-            role_id: The UUID of the role as a string.
+            role_id: The UUID of the role.
 
         Returns:
             The Role instance if found, else None.

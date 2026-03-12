@@ -94,14 +94,30 @@ services:
         condition: service_healthy
       movies-redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     env_file:
       - .env
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f -H 'X-Request-Id: healthcheck' http://localhost:8000/api/health || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  jaeger:
+    container_name: movies-jaeger
+    image: jaegertracing/all-in-one:1.76.0
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+      - "4317:4317"
+      - "4318:4318"
 
   nginx:
     container_name: movies-nginx

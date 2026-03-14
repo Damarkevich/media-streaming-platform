@@ -73,24 +73,22 @@ services:
     env_file:
       - .env
 
-  movies-admin:
-    container_name: movies-admin
-    build: ./movies_admin
+  jaeger:
+    container_name: movies-jaeger
+    image: jaegertracing/all-in-one:1.76.0
     restart: unless-stopped
-    volumes:
-      - movies_admin_static:/opt/movies_admin/static
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+      - "4317:4317"
+      - "4318:4318"
+
+  movies-auth:
+    container_name: movies-auth
+    build: ./auth
+    restart: unless-stopped
     depends_on:
       movies-db:
-        condition: service_healthy
-    env_file:
-      - .env
-
-  movies-async-api:
-    container_name: movies-async-api
-    build: ./async_api
-    restart: unless-stopped
-    depends_on:
-      movies-elasticsearch:
         condition: service_healthy
       movies-redis:
         condition: service_healthy
@@ -109,15 +107,47 @@ services:
       retries: 5
       start_period: 20s
 
-  jaeger:
-    container_name: movies-jaeger
-    image: jaegertracing/all-in-one:1.76.0
+  movies-admin:
+    container_name: movies-admin
+    build: ./movies_admin
     restart: unless-stopped
-    ports:
-      - "16686:16686"
-      - "6831:6831/udp"
-      - "4317:4317"
-      - "4318:4318"
+    volumes:
+      - movies_admin_static:/opt/movies_admin/static
+    depends_on:
+      movies-db:
+        condition: service_healthy
+      movies-auth:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  movies-async-api:
+    container_name: movies-async-api
+    build: ./async_api
+    restart: unless-stopped
+    depends_on:
+      movies-elasticsearch:
+        condition: service_healthy
+      movies-redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      movies-auth:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f -H 'X-Request-Id: healthcheck' http://localhost:8000/api/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+
 
   nginx:
     container_name: movies-nginx
@@ -127,6 +157,8 @@ services:
       - ./configs:/etc/nginx/conf.d:ro
       - movies_admin_static:/opt/movies_admin/static
     depends_on:
+      movies-auth:
+        condition: service_healthy
       movies-admin:
         condition: service_started
       movies-async-api:

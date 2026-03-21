@@ -90,6 +90,16 @@ async def test_films(
 
 
 @pytest.mark.asyncio
+async def test_films_requires_authorization(
+    make_get_request: Callable[[str, dict[str, Any] | None, bool], Any],
+):
+    """Test films endpoint rejects requests without an access token."""
+    response = await make_get_request(FILMS_ENDPOINT, include_auth=False)
+
+    assert response["status"] == 403
+
+
+@pytest.mark.asyncio
 async def test_films_cache(
     es_clear_data: Callable[[str], Any],
     redis_clear_data: Callable[[], Any],

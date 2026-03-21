@@ -46,6 +46,11 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      AUTHJWT_SECRET_KEY: ${AUTHJWT_SECRET_KEY:-test-authjwt-secret-key-more-than-32}
+      AUTHJWT_ALGORITHM: ${AUTHJWT_ALGORITHM:-HS256}
+      SUBSCRIBER_ROLE_NAME: ${SUBSCRIBER_ROLE_NAME:-subscriber}
+      ADMIN_ROLE_NAME: ${ADMIN_ROLE_NAME:-admin}
     volumes:
       - coverage_data:/coverage
       - ./.coveragerc:/app/.coveragerc
@@ -57,7 +62,11 @@ services:
         condition: service_healthy
     command: ["sh", "/app/tests/functional/scripts/run_test_fastapi.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS -H 'X-Request-Id: healthcheck' http://localhost:8000/api/health >/dev/null || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -75,6 +84,11 @@ services:
     working_dir: /tests/functional
     env_file:
       - .env
+    environment:
+      AUTHJWT_SECRET_KEY: ${AUTHJWT_SECRET_KEY:-test-authjwt-secret-key-more-than-32}
+      AUTHJWT_ALGORITHM: ${AUTHJWT_ALGORITHM:-HS256}
+      SUBSCRIBER_ROLE_NAME: ${SUBSCRIBER_ROLE_NAME:-subscriber}
+      ADMIN_ROLE_NAME: ${ADMIN_ROLE_NAME:-admin}
     depends_on:
       test-elasticsearch:
         condition: service_healthy

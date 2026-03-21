@@ -16,6 +16,10 @@ class TestSettings(BaseSettings):
     redis_port: int = 6379
 
     service_url: str = "http://test-fastapi:8000"
+    authjwt_secret_key: str = "test-authjwt-secret-key-more-than-32"
+    authjwt_algorithm: str = "HS256"
+    subscriber_role_name: str = "subscriber"
+    admin_role_name: str = "admin"
 
     @property
     def es_url(self) -> str:

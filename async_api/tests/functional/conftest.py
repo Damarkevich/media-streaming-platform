@@ -1,3 +1,4 @@
+import time
 import uuid
 from typing import Any, AsyncGenerator, Callable
 
@@ -6,6 +7,7 @@ import pytest
 import pytest_asyncio
 from elasticsearch import AsyncElasticsearch
 from elasticsearch.helpers import async_bulk
+from jose import jwt
 from redis.asyncio import Redis
 
 from tests.functional.settings import test_settings
@@ -32,6 +34,33 @@ async def aio_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Fixture to create an aiohttp client session for making HTTP requests."""
     async with aiohttp.ClientSession() as session:
         yield session
+
+
+@pytest.fixture
+def auth_headers() -> dict[str, str]:
+    """Build Authorization headers with a valid access token for protected endpoints."""
+    now = int(time.time())
+    token = jwt.encode(
+        {
+            "sub": str(uuid.uuid4()),
+            "jti": str(uuid.uuid4()),
+            "iat": now,
+            "exp": now + 3600,
+            "nbf": now,
+            "type": "access",
+            "fresh": True,
+            "roles": [test_settings.subscriber_role_name],
+        },
+        test_settings.authjwt_secret_key,
+        algorithm=test_settings.authjwt_algorithm,
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def request_id_headers() -> dict[str, str]:
+    """Build request id header required by the application middleware."""
+    return {"X-Request-Id": str(uuid.uuid4())}
 
 
 @pytest_asyncio.fixture
@@ -84,14 +113,23 @@ async def redis_clear_data(redis_client: Redis) -> Callable[[], Any]:
 
 
 @pytest_asyncio.fixture
-async def make_get_request(aio_client: aiohttp.ClientSession):
+async def make_get_request(
+    aio_client: aiohttp.ClientSession,
+    auth_headers: dict[str, str],
+    request_id_headers: dict[str, str],
+):
     """Fixture to make GET requests to the FastAPI service."""
 
     async def inner(
-        endpoint: str, params: dict[str, Any] | None = None
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        include_auth: bool = True,
     ) -> dict[str, Any]:
         url = test_settings.service_url + endpoint
-        async with aio_client.get(url, params=params) as response:
+        headers = dict(request_id_headers)
+        if include_auth and endpoint != "/api/health":
+            headers.update(auth_headers)
+        async with aio_client.get(url, params=params, headers=headers) as response:
             body: Any = await response.json()
             return {
                 "body": body,

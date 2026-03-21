@@ -1,5 +1,6 @@
 from logging import config as logging_config
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core.logger import LOGGING
@@ -21,6 +22,22 @@ class Settings(BaseSettings):
     es_port: int = 9200
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
+
+    authjwt_secret_key: str
+    authjwt_algorithm: str = "HS256"
+
+    subscriber_role_name: str = "subscriber"
+    admin_role_name: str = "admin"
+
+    @field_validator("authjwt_secret_key")
+    @classmethod
+    def validate_authjwt_secret_key(cls, value: str) -> str:
+        """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
+        if len(value.strip()) < 32:
+            raise ValueError(
+                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            )
+        return value
 
 
 settings = Settings()

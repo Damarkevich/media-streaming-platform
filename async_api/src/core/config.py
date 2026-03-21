@@ -10,6 +10,8 @@ logging_config.dictConfig(LOGGING)
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
+    development_mode: bool = False
+
     project_name: str = "movies"
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379

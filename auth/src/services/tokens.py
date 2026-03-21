@@ -34,7 +34,9 @@ class TokenService:
         self.auth = auth
         self.redis_client = redis_client
 
-    async def issue_tokens(self, user_id: UUID, fresh: bool = False) -> tuple[str, str]:
+    async def issue_tokens(
+        self, user_id: UUID, roles_names: list[str], fresh: bool = False
+    ) -> tuple[str, str]:
         """Issue new tokens for a user.
 
         This method can be extended to include additional logic, such as
@@ -43,6 +45,7 @@ class TokenService:
 
         Args:
             user_id: ID of the user for whom to issue tokens.
+            roles_names: List of role names associated with the user.
             fresh: Whether the access token should be marked as "fresh".
 
         Returns:
@@ -51,11 +54,19 @@ class TokenService:
         Raises:
             Exception: Propagates token generation errors.
         """
-        access_token_expires = timedelta(seconds=settings.access_token_expires)
-        access_token = await self.auth.create_access_token(  # pyright: ignore[reportUnknownMemberType]
-            subject=str(user_id), expires_time=access_token_expires, fresh=fresh
+        access_token_expires: timedelta = timedelta(
+            seconds=settings.access_token_expires
         )
-        refresh_token_expires = timedelta(seconds=settings.refresh_token_expires)
+        user_claims: dict[str, list[str]] = {"roles": roles_names}
+        access_token = await self.auth.create_access_token(  # pyright: ignore[reportUnknownMemberType]
+            subject=str(user_id),
+            expires_time=access_token_expires,
+            fresh=fresh,
+            user_claims=user_claims,
+        )
+        refresh_token_expires: timedelta = timedelta(
+            seconds=settings.refresh_token_expires
+        )
         refresh_token = await self.auth.create_refresh_token(  # pyright: ignore[reportUnknownMemberType]
             subject=str(user_id), expires_time=refresh_token_expires
         )

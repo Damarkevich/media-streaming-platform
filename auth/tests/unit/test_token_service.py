@@ -23,12 +23,16 @@ async def test_issue_tokens_uses_configured_ttls(
 
     service = TokenService(db=db, auth=auth, redis_client=redis_client)
     user_id = uuid4()
-    access_token, refresh_token = await service.issue_tokens(user_id)
+    roles_names = ["subscriber"]
+    access_token, refresh_token = await service.issue_tokens(user_id, roles_names)
 
     assert access_token == "access-token"
     assert refresh_token == "refresh-token"
     auth.create_access_token.assert_awaited_once_with(
-        subject=str(user_id), expires_time=timedelta(seconds=101), fresh=False
+        subject=str(user_id),
+        expires_time=timedelta(seconds=101),
+        fresh=False,
+        user_claims={"roles": roles_names},
     )
     auth.create_refresh_token.assert_awaited_once_with(
         subject=str(user_id), expires_time=timedelta(seconds=202)

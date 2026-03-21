@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 from src.db import redis as redis_module
 from src.db.postgres import get_session
 from src.main import app
+from src.services.roles import get_role_service
 from src.services.users import get_user_service
 
 
@@ -23,6 +24,13 @@ class FakeUserServiceForLogin:
 
     async def log_user_action(self, user: Any, log_type: Any) -> None:
         return None
+
+
+class FakeRoleServiceForLogin:
+    """Role service stub for login flow in denylist tests."""
+
+    async def get_roles_by_user_id(self, user_id: Any) -> list[Any]:
+        return []
 
 
 class _FakeScalarResult:
@@ -96,6 +104,7 @@ async def _build_auth_client(
     )
 
     app.dependency_overrides[get_user_service] = lambda: FakeUserServiceForLogin()
+    app.dependency_overrides[get_role_service] = lambda: FakeRoleServiceForLogin()
     app.dependency_overrides[get_session] = override_get_session
 
     transport = ASGITransport(app=app)

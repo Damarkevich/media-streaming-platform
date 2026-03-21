@@ -1,4 +1,3 @@
-import os
 from logging import config as logging_config
 
 from pydantic import field_validator

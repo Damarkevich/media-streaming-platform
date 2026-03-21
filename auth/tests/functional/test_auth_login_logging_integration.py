@@ -1,28 +1,50 @@
 import uuid
+from typing import AsyncGenerator
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-from src.db.postgres import async_session
+from src.db.postgres import async_session, engine
 from src.main import app
+from src.services.roles import get_role_service
 from src.services.tokens import get_token_service
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_db_pool() -> AsyncGenerator[None, None]:
+    """Avoid cross-test asyncpg loop/pool conflicts by resetting pool."""
+    await engine.dispose()
+    yield
+    await engine.dispose()
 
 
 class FakeTokenService:
     """Fake token issuer for login logging integration tests."""
 
     async def issue_tokens(
-        self, user_id: uuid.UUID, fresh: bool = False
+        self,
+        user_id: uuid.UUID,
+        roles_names: list[str] | None = None,
+        fresh: bool = False,
     ) -> tuple[str, str]:
         return (f"access-{user_id}", f"refresh-{user_id}")
 
 
+class FakeRoleService:
+    """Fake role provider for login integration tests."""
+
+    async def get_roles_by_user_id(self, user_id: uuid.UUID) -> list[object]:
+        return []
+
+
 def _override_token_service() -> None:
-    """Override token service dependency with fake implementation."""
+    """Override token and role service dependencies with fakes."""
     app.dependency_overrides[get_token_service] = lambda: FakeTokenService()
+    app.dependency_overrides[get_role_service] = lambda: FakeRoleService()
 
 
 def _build_test_client() -> AsyncClient:

@@ -14,6 +14,7 @@ from src.core.limiter import limiter
 from src.main import app
 from src.models.log import LogType
 from src.schemas.users import UserResponse
+from src.services.roles import get_role_service
 from src.services.tokens import get_token_service
 from src.services.users import UserAlreadyExistsError, get_user_service
 
@@ -131,7 +132,12 @@ class FakeTokenService:
     last_access_blacklisted_jti: str | None = None
     last_refresh_blacklisted_jti: str | None = None
 
-    async def issue_tokens(self, user_id: UUID, fresh: bool = False) -> tuple[str, str]:
+    async def issue_tokens(
+        self,
+        user_id: UUID,
+        roles_names: list[str] | None = None,
+        fresh: bool = False,
+    ) -> tuple[str, str]:
         return (f"access-{user_id}", f"refresh-{user_id}")
 
     async def add_access_to_blacklist(self, jti: str) -> None:
@@ -182,6 +188,13 @@ class FakeAuth:
         return {"jti": self.jti}
 
 
+class FakeRoleService:
+    """Fake role service used by functional tests."""
+
+    async def get_roles_by_user_id(self, user_id: UUID) -> list[object]:
+        return []
+
+
 @pytest_asyncio.fixture
 async def test_client() -> AsyncGenerator[AsyncClient, None]:
     """Build ASGI test client with default fake dependencies."""
@@ -193,6 +206,7 @@ async def test_client() -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_user_service] = lambda: fake_user_service
     app.dependency_overrides[get_token_service] = lambda: fake_token_service
+    app.dependency_overrides[get_role_service] = lambda: FakeRoleService()
     app.dependency_overrides[auth_dep] = lambda: fake_auth
 
     transport = ASGITransport(app=app)

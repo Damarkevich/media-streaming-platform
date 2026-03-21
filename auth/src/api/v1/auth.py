@@ -5,6 +5,7 @@ from uuid import UUID
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from src.services.roles import RoleService, get_role_service
 from src.api.v1.responses import (
     JWT_ACCESS_REQUIRED_RESPONSES,
     JWT_REFRESH_REQUIRED_RESPONSES,
@@ -63,6 +64,7 @@ async def login(
     user_login: UserLogin,
     user_service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
+    roles_service: Annotated[RoleService, Depends(get_role_service)],
     request: Request,
 ) -> TokenResponse:
     """Authenticate credentials and issue a new access/refresh token pair."""
@@ -73,7 +75,11 @@ async def login(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail="Invalid login or password",
         )
-    access_token, refresh_token = await token_service.issue_tokens(user.id, fresh=True)
+    roles = await roles_service.get_roles_by_user_id(user.id)
+    roles_names: list[str] = [role.name for role in roles]
+    access_token, refresh_token = await token_service.issue_tokens(
+        user.id, roles_names, fresh=True
+    )
     await user_service.log_user_action(user, LogType.LOGIN)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
@@ -87,13 +93,16 @@ async def login(
 async def refresh_token(
     auth: Annotated[AuthJWT, Depends(auth_dep)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
+    roles_service: Annotated[RoleService, Depends(get_role_service)],
 ) -> TokenResponse:
     """Rotate tokens using a valid refresh token and return a new pair."""
     await auth.jwt_refresh_token_required()
 
     user_id: UUID = UUID(str(await auth.get_jwt_subject()))
+    roles = await roles_service.get_roles_by_user_id(user_id)
+    roles_names: list[str] = [role.name for role in roles]
     new_access_token, new_refresh_token = await token_service.issue_tokens(
-        user_id, fresh=False
+        user_id, roles_names, fresh=False
     )
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())

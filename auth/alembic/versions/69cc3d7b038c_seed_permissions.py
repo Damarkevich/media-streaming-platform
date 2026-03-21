@@ -28,6 +28,10 @@ PERMISSIONS_TO_ADD: tuple[str, ...] = (
     "roles:update",
     "roles:delete",
     "roles:assign",
+    "content:read",
+    "content:create",
+    "content:update",
+    "content:delete",
 )
 
 

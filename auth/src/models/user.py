@@ -41,6 +41,7 @@ class User(Base):
         "Role",
         secondary=UserRole.__table__,
         back_populates="users",
+        lazy="selectin",
     )
     is_superuser: Mapped[bool] = mapped_column(default=False, nullable=False)
 

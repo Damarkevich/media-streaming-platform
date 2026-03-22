@@ -49,7 +49,11 @@ class FakeUserService:
     authenticated_user_id: UUID = field(default_factory=uuid4)
     existing_user: UserResponse | None = field(
         default_factory=lambda: UserResponse(
-            id=uuid4(), first_name="Ivan", last_name="Ivanov"
+            id=uuid4(),
+            email="ivan@example.com",
+            first_name="Ivan",
+            last_name="Ivanov",
+            roles=[],
         )
     )
     changed_email: str | None = None
@@ -82,8 +86,10 @@ class FakeUserService:
             raise UserAlreadyExistsError()
         return UserResponse(
             id=self.created_user_id,
+            email=email,
             first_name=first_name,
             last_name=last_name,
+            roles=[],
         )
 
     async def authenticate_user(

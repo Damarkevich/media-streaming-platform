@@ -1,10 +1,12 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RoleResponse(BaseModel):
     """Response schema for role projection."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     name: str

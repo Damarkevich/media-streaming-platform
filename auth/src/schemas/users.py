@@ -2,6 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from src.schemas.roles import RoleResponse
 from src.schemas.validators import validate_strong_password
 
 
@@ -25,8 +26,10 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    email: EmailStr
     first_name: str
     last_name: str
+    roles: list[RoleResponse]
 
 
 class UserLogin(BaseModel):

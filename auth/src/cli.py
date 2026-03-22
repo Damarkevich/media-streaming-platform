@@ -1,12 +1,21 @@
 import asyncio
 from typing import Annotated
 
+from sqlalchemy import select
 import typer
 
 from src.db.postgres import async_session
+from src.models.role import Role, UserRole
 from src.models.user import User
 from src.schemas.validators import validate_strong_password
 from src.services.users import UserAlreadyExistsError, UserService
+
+AdminRoleName = "admin"
+
+
+class AdminRoleNotFoundError(Exception):
+    """Raised when the required admin role is not found in the system."""
+
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -53,15 +62,25 @@ def create_superuser(
     """Create a superuser account with unrestricted permissions."""
 
     async def _run() -> None:
-        async with async_session() as session:
-            user_service = UserService(session)
-            await user_service.create_user(
+        async with async_session() as db:
+            user_service = UserService(db)
+            user: User = await user_service.create_user(
                 email=email,
                 password=password,
                 first_name=first_name,
                 last_name=last_name,
                 is_superuser=True,
             )
+
+            result = await db.execute(select(Role).where(Role.name == AdminRoleName))
+            role: Role | None = result.scalars().one_or_none()
+            if not role:
+                raise AdminRoleNotFoundError(
+                    f"Required role '{AdminRoleName}' not found in the system."
+                )
+
+            db.add(UserRole(user_id=user.id, role_id=role.id))
+            await db.commit()
 
     try:
         email = User.normalize_email(email)
@@ -79,7 +98,13 @@ def create_superuser(
             err=True,
         )
         raise typer.Exit(code=1) from None
-
+    except AdminRoleNotFoundError:
+        typer.secho(
+            f"Required role '{AdminRoleName}' not found in the system.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
     typer.secho(
         f"Superuser '{email}' created successfully.",
         fg=typer.colors.GREEN,

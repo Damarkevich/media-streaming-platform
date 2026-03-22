@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import uuid4
 
 from _pytest.monkeypatch import MonkeyPatch
 from typer.testing import CliRunner
@@ -9,10 +10,38 @@ import src.cli as cli
 class _FakeSessionContext:
     """Minimal async context manager used to stub DB session factory."""
 
-    async def __aenter__(self) -> object:
-        return object()
+    def __init__(self, db: Any) -> None:
+        self._db = db
+
+    async def __aenter__(self) -> Any:
+        return self._db
 
     async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        return None
+
+
+class _FakeExecuteResult:
+    def __init__(self, role: Any) -> None:
+        self._role = role
+
+    def scalars(self) -> "_FakeExecuteResult":
+        return self
+
+    def one_or_none(self) -> Any:
+        return self._role
+
+
+class _FakeSession:
+    def __init__(self, role: Any) -> None:
+        self._role = role
+
+    async def execute(self, _stmt: Any) -> _FakeExecuteResult:
+        return _FakeExecuteResult(self._role)
+
+    def add(self, _obj: Any) -> None:
+        return None
+
+    async def commit(self) -> None:
         return None
 
 
@@ -25,10 +54,16 @@ def test_create_superuser_cli_success(monkeypatch: MonkeyPatch) -> None:
         def __init__(self, db: Any) -> None:
             self.db = db
 
-        async def create_user(self, **kwargs: Any) -> None:
+        async def create_user(self, **kwargs: Any) -> Any:
             create_user_payload.update(kwargs)
+            return type("FakeUser", (), {"id": uuid4()})()
 
-    monkeypatch.setattr(cli, "async_session", lambda: _FakeSessionContext())
+    fake_role = type("FakeRole", (), {"id": uuid4()})()
+    monkeypatch.setattr(
+        cli,
+        "async_session",
+        lambda: _FakeSessionContext(_FakeSession(role=fake_role)),
+    )
     monkeypatch.setattr(cli, "UserService", FakeUserService)
 
     runner = CliRunner()
@@ -64,7 +99,12 @@ def test_create_superuser_cli_duplicate_email(monkeypatch: MonkeyPatch) -> None:
         async def create_user(self, **kwargs: Any) -> None:
             raise cli.UserAlreadyExistsError()
 
-    monkeypatch.setattr(cli, "async_session", lambda: _FakeSessionContext())
+    fake_role = type("FakeRole", (), {"id": uuid4()})()
+    monkeypatch.setattr(
+        cli,
+        "async_session",
+        lambda: _FakeSessionContext(_FakeSession(role=fake_role)),
+    )
     monkeypatch.setattr(cli, "UserService", FakeUserService)
 
     runner = CliRunner()
@@ -94,7 +134,12 @@ def test_create_superuser_cli_invalid_email(monkeypatch: MonkeyPatch) -> None:
             is_user_service_initialized = True
 
     monkeypatch.setattr(cli, "UserService", GuardUserService)
-    monkeypatch.setattr(cli, "async_session", lambda: _FakeSessionContext())
+    fake_role = type("FakeRole", (), {"id": uuid4()})()
+    monkeypatch.setattr(
+        cli,
+        "async_session",
+        lambda: _FakeSessionContext(_FakeSession(role=fake_role)),
+    )
 
     runner = CliRunner()
     result = runner.invoke(
@@ -124,7 +169,12 @@ def test_create_superuser_cli_invalid_password(monkeypatch: MonkeyPatch) -> None
             is_user_service_initialized = True
 
     monkeypatch.setattr(cli, "UserService", GuardUserService)
-    monkeypatch.setattr(cli, "async_session", lambda: _FakeSessionContext())
+    fake_role = type("FakeRole", (), {"id": uuid4()})()
+    monkeypatch.setattr(
+        cli,
+        "async_session",
+        lambda: _FakeSessionContext(_FakeSession(role=fake_role)),
+    )
 
     runner = CliRunner()
     result = runner.invoke(

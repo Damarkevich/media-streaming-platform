@@ -4,7 +4,6 @@ from uuid import UUID
 
 from fastapi import Depends
 from redis.asyncio import Redis
-from redis.exceptions import RedisError
 
 from src.db.redis import get_redis
 

@@ -15,7 +15,7 @@ RUN  mkdir -p /var/www/static/ \
 
 COPY . .
 
-RUN uv run manage.py collectstatic --noinput
+
 
 CMD ["sh", "entrypoint.sh"]
 

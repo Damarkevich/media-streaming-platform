@@ -28,20 +28,29 @@ To run this project using Docker Compose:
 
 1. Navigate to the root directory.
 
-2. Start the services using Docker Compose:
+2. To start only the local infrastructure needed for development:
+    ```bash
+    make dev-infra-up
+    ```
+
+   This starts PostgreSQL, Elasticsearch, Redis, and Jaeger only.
+    PostgreSQL is exposed on `127.0.0.1:5432`.
+
+3. Start the services using Docker Compose:
     ```bash
     docker-compose up
     ```
 
-3. To run in detached mode (background):
+4. To run in detached mode (background):
     ```bash
     docker-compose up -d
     ```
 
-4. To stop the services:
+5. To stop the services:
     ```bash
     docker-compose down
     ```
+
 
 **Prerequisites:**
 - Docker must be installed on your system

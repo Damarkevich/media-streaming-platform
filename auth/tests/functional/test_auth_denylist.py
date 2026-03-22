@@ -16,9 +16,9 @@ class FakeUserServiceForLogin:
     """Minimal user service for login flow in denylist tests."""
 
     async def authenticate_user(
-        self, login: str, password: str
+        self, email: str, password: str
     ) -> SimpleNamespace | None:
-        if login == "valid_user" and password == "ValidPass1!":
+        if email == "valid_user@example.com" and password == "ValidPass1!":
             return SimpleNamespace(id="8d2f1ca5-f48a-4eb3-a56e-5a6d5a5c0d42")
         return None
 
@@ -129,7 +129,7 @@ async def _login_and_get_tokens(client: AsyncClient) -> tuple[str, str]:
     """Authenticate test user and return issued access/refresh tokens."""
     login_response = await client.post(
         "/api/v1/auth/login",
-        json={"login": "valid_user", "password": "ValidPass1!"},
+        json={"email": "valid_user@example.com", "password": "ValidPass1!"},
     )
     assert login_response.status_code == 200
     body = login_response.json()

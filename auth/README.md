@@ -1,7 +1,7 @@
 # Auth Service for Movies Platform
 
 Authentication and authorization service for the media streaming platform.
-The service is built with FastAPI and provides user registration, login,
+The service is built with FastAPI and provides user registration, email-based sign-in,
 JWT refresh/revoke flows, and current-user lookup.
 
 ## 🎯 Overview
@@ -59,7 +59,7 @@ The application follows a layered architecture:
 #### Users (`/api/v1/users`)
 
 - `GET /me` — return current user profile
-- `PATCH /me/login` — change current user login
+- `PATCH /me/email` — change current user email
 - `PATCH /me/password` — change current user password
 - `GET /me/logs` — return logs of current user
 - `GET /me/roles` — return roles of current user
@@ -108,14 +108,14 @@ The application follows a layered architecture:
 
 ### Authentication Flow
 
-1. User logs in with `login/password`.
+1. User signs in with `email/password`.
 2. Service returns access + refresh tokens.
 3. Protected endpoints use `Authorization: Bearer <token>`.
 4. `DELETE /access-revoke` writes access token `jti` to Redis blacklist.
 5. `DELETE /refresh-revoke` writes refresh token `jti` to PostgreSQL blacklist.
 6. Blacklisted access tokens are rejected on access-protected endpoints.
 7. Blacklisted refresh tokens are rejected on `/refresh`.
-8. `PATCH /users/me/login` and `PATCH /users/me/password` require a **fresh** access token.
+8. `PATCH /users/me/email` and `PATCH /users/me/password` require a **fresh** access token.
 9. Access token issued by `/refresh` is non-fresh, so these endpoints return `401` until user re-authenticates via `/login`.
 
 
@@ -200,14 +200,14 @@ uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 Create a superuser (always allowed to perform any action):
 
 ```bash
-uv run auth-cli create-superuser --login admin
+uv run auth-cli create-superuser --email admin@example.com
 ```
 
 You can also pass all fields explicitly:
 
 ```bash
 uv run auth-cli create-superuser \
-	--login admin \
+	--email admin@example.com \
 	--password 'StrongPass1!' \
 	--first-name Super \
 	--last-name Admin

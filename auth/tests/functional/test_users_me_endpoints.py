@@ -31,39 +31,39 @@ async def test_me_returns_404_when_user_not_found(test_client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_users_me_change_login_returns_204(test_client) -> None:
-    """Ensure current user login can be changed successfully."""
+async def test_users_me_change_email_returns_204(test_client) -> None:
+    """Ensure current user email can be changed successfully."""
     response = await test_client.patch(
-        "/api/v1/users/me/login",
-        json={"new_login": "updatedlogin"},
+        "/api/v1/users/me/email",
+        json={"new_email": "updated@example.com"},
     )
 
     assert response.status_code == 204
-    assert test_client.fake_user_service.changed_login == "updatedlogin"  # type: ignore[attr-defined]
+    assert test_client.fake_user_service.changed_email == "updated@example.com"  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
-async def test_users_me_change_login_duplicate_returns_409(test_client) -> None:
-    """Ensure duplicate login update returns conflict."""
+async def test_users_me_change_email_duplicate_returns_409(test_client) -> None:
+    """Ensure duplicate email update returns conflict."""
     response = await test_client.patch(
-        "/api/v1/users/me/login",
-        json={"new_login": "duplicate"},
+        "/api/v1/users/me/email",
+        json={"new_email": "duplicate@example.com"},
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "User with this login already exists"
+    assert response.json()["detail"] == "User with this email already exists"
 
 
 @pytest.mark.asyncio
-async def test_users_me_change_login_returns_404_when_user_not_found(
+async def test_users_me_change_email_returns_404_when_user_not_found(
     test_client,
 ) -> None:
-    """Ensure login update returns 404 for unknown user."""
+    """Ensure email update returns 404 for unknown user."""
     test_client.fake_auth.subject = "00000000-0000-0000-0000-000000000000"  # type: ignore[attr-defined]
 
     response = await test_client.patch(
-        "/api/v1/users/me/login",
-        json={"new_login": "updatedlogin"},
+        "/api/v1/users/me/email",
+        json={"new_email": "updated@example.com"},
     )
 
     assert response.status_code == 404
@@ -71,15 +71,15 @@ async def test_users_me_change_login_returns_404_when_user_not_found(
 
 
 @pytest.mark.asyncio
-async def test_users_me_change_login_non_fresh_token_returns_401(
+async def test_users_me_change_email_non_fresh_token_returns_401(
     test_client,
 ) -> None:
-    """Ensure login update requires fresh access token."""
+    """Ensure email update requires fresh access token."""
     test_client.fake_auth.is_fresh = False  # type: ignore[attr-defined]
 
     response = await test_client.patch(
-        "/api/v1/users/me/login",
-        json={"new_login": "updatedlogin"},
+        "/api/v1/users/me/email",
+        json={"new_email": "updated@example.com"},
     )
 
     assert response.status_code == 401

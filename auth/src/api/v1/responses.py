@@ -17,7 +17,7 @@ SIGNUP_RESPONSES: OpenAPIResponses = _normalize_responses(
     {
         HTTPStatus.CONFLICT: {
             "model": ApiError,
-            "description": "User with this login already exists",
+            "description": "User with this email already exists",
         },
         HTTPStatus.UNPROCESSABLE_ENTITY: {
             "description": "Validation error",
@@ -29,7 +29,7 @@ LOGIN_RESPONSES: OpenAPIResponses = _normalize_responses(
     {
         HTTPStatus.UNAUTHORIZED: {
             "model": ApiError,
-            "description": "Invalid login or password",
+            "description": "Invalid email or password",
         },
         HTTPStatus.UNPROCESSABLE_ENTITY: {
             "description": "Validation error",
@@ -77,7 +77,7 @@ GET_ME_RESPONSES: OpenAPIResponses = _normalize_responses(
     }
 )
 
-LOGIN_CHANGE_RESPONSES: OpenAPIResponses = _normalize_responses(
+EMAIL_CHANGE_RESPONSES: OpenAPIResponses = _normalize_responses(
     {
         HTTPStatus.UNAUTHORIZED: {
             "model": ApiError,
@@ -88,7 +88,7 @@ LOGIN_CHANGE_RESPONSES: OpenAPIResponses = _normalize_responses(
         },
         HTTPStatus.CONFLICT: {
             "model": ApiError,
-            "description": "User with this login already exists",
+            "description": "User with this email already exists",
         },
         HTTPStatus.NOT_FOUND: {
             "model": ApiError,

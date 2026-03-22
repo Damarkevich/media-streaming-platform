@@ -19,20 +19,3 @@ def validate_strong_password(value: str) -> str:
     if not any(not ch.isalnum() for ch in value):
         raise ValueError("password must contain at least one special character")
     return value
-
-
-def validate_login(value: str) -> str:
-    """Validate login format.
-
-    Args:
-        value: Candidate login.
-
-    Returns:
-        Original login value when valid.
-
-    Raises:
-        ValueError: If login contains non-alphanumeric symbols.
-    """
-    if not value.isalnum():
-        raise ValueError("login must be alphanumeric")
-    return value

@@ -52,7 +52,7 @@ class FakeUserService:
             id=uuid4(), first_name="Ivan", last_name="Ivanov"
         )
     )
-    changed_login: str | None = None
+    changed_email: str | None = None
     changed_password: str | None = None
     last_logged_user_id: str | None = None
     last_logged_type: LogType | None = None
@@ -73,12 +73,12 @@ class FakeUserService:
 
     async def create_user(
         self,
-        login: str,
+        email: str,
         password: str,
         first_name: str,
         last_name: str,
     ) -> UserResponse:
-        if login == "duplicate":
+        if email == "duplicate@example.com":
             raise UserAlreadyExistsError()
         return UserResponse(
             id=self.created_user_id,
@@ -87,9 +87,9 @@ class FakeUserService:
         )
 
     async def authenticate_user(
-        self, login: str, password: str
+        self, email: str, password: str
     ) -> SimpleNamespace | None:
-        if login == "bad" or password == "bad":
+        if email == "bad@example.com" or password == "bad":
             return None
         return SimpleNamespace(id=self.authenticated_user_id)
 
@@ -102,12 +102,12 @@ class FakeUserService:
             return self.existing_user
         return None
 
-    async def change_login(self, user_id: UUID, new_login: str) -> bool:
+    async def change_email(self, user_id: UUID, new_email: str) -> bool:
         if not self.existing_user or self.existing_user.id != user_id:
             return False
-        if new_login == "duplicate":
+        if new_email == "duplicate@example.com":
             raise UserAlreadyExistsError()
-        self.changed_login = new_login
+        self.changed_email = new_email
         return True
 
     async def change_password(self, user_id: UUID, new_password: str) -> bool:

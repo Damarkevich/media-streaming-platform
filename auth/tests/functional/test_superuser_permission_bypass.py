@@ -51,7 +51,7 @@ class _FakeRedisClient:
         self._storage.pop(str(user_id), None)
 
 
-async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
+async def _create_user(user_id: str, email: str, *, is_superuser: bool) -> None:
     """Insert test user with configurable superuser flag."""
     async with async_session() as session:
         await session.execute(
@@ -59,7 +59,7 @@ async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
                 """
                 INSERT INTO auth.users (
                     id,
-                    login,
+                    email,
                     password,
                     first_name,
                     last_name,
@@ -68,7 +68,7 @@ async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
                 )
                 VALUES (
                     :id,
-                    :login,
+                    :email,
                     :password,
                     :first_name,
                     :last_name,
@@ -79,7 +79,7 @@ async def _create_user(user_id: str, login: str, *, is_superuser: bool) -> None:
             ),
             {
                 "id": user_id,
-                "login": login,
+                "email": email,
                 "password": "test-password-hash",
                 "first_name": "Super" if is_superuser else "Regular",
                 "last_name": "User",
@@ -220,11 +220,11 @@ async def _overridden_client(subject: str) -> AsyncIterator[AsyncClient]:
 async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None:
     """Ensure superuser can access roles listing without explicit permissions."""
     user_id = str(uuid.uuid4())
-    login = f"super-{uuid.uuid4().hex[:10]}"
+    email = f"super-{uuid.uuid4().hex[:10]}@example.com"
 
     await engine.dispose()
 
-    await _create_user(user_id=user_id, login=login, is_superuser=True)
+    await _create_user(user_id=user_id, email=email, is_superuser=True)
 
     try:
         async with _overridden_client(subject=user_id) as client:
@@ -239,12 +239,12 @@ async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None
 async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -> None:
     """Ensure superuser can create roles without explicit permissions."""
     user_id = str(uuid.uuid4())
-    login = f"super-{uuid.uuid4().hex[:10]}"
+    email = f"super-{uuid.uuid4().hex[:10]}@example.com"
     role_name = f"super-created-{uuid.uuid4().hex[:10]}"
 
     await engine.dispose()
 
-    await _create_user(user_id=user_id, login=login, is_superuser=True)
+    await _create_user(user_id=user_id, email=email, is_superuser=True)
 
     try:
         async with _overridden_client(subject=user_id) as client:
@@ -263,17 +263,17 @@ async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -
 async def test_superuser_bypasses_permission_checks_for_assign_role_endpoint() -> None:
     """Ensure superuser can assign roles to users without explicit permissions."""
     superuser_id = str(uuid.uuid4())
-    superuser_login = f"super-{uuid.uuid4().hex[:10]}"
+    superuser_email = f"super-{uuid.uuid4().hex[:10]}@example.com"
     target_user_id = str(uuid.uuid4())
-    target_user_login = f"regular-{uuid.uuid4().hex[:10]}"
+    target_user_email = f"regular-{uuid.uuid4().hex[:10]}@example.com"
     role_name = f"assignable-{uuid.uuid4().hex[:10]}"
 
     await engine.dispose()
 
-    await _create_user(user_id=superuser_id, login=superuser_login, is_superuser=True)
+    await _create_user(user_id=superuser_id, email=superuser_email, is_superuser=True)
     await _create_user(
         user_id=target_user_id,
-        login=target_user_login,
+        email=target_user_email,
         is_superuser=False,
     )
     role_id = await _create_role(role_name)
@@ -296,13 +296,13 @@ async def test_superuser_bypasses_permission_checks_for_remove_permission_endpoi
 ):
     """Ensure superuser can remove permission-role link without explicit permissions."""
     superuser_id = str(uuid.uuid4())
-    superuser_login = f"super-{uuid.uuid4().hex[:10]}"
+    superuser_email = f"super-{uuid.uuid4().hex[:10]}@example.com"
     role_name = f"perm-role-{uuid.uuid4().hex[:10]}"
     permission_name = f"perm-assign-{uuid.uuid4().hex[:10]}"
 
     await engine.dispose()
 
-    await _create_user(user_id=superuser_id, login=superuser_login, is_superuser=True)
+    await _create_user(user_id=superuser_id, email=superuser_email, is_superuser=True)
     role_id = await _create_role(role_name)
     permission_id = await _create_permission(permission_name)
     await _link_permission_to_role(role_id, permission_id)

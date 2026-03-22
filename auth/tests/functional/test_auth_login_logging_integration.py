@@ -53,12 +53,12 @@ def _build_test_client() -> AsyncClient:
     return AsyncClient(transport=transport, base_url="http://test")
 
 
-async def _signup_user(client: AsyncClient, login: str, password: str) -> str:
+async def _signup_user(client: AsyncClient, email: str, password: str) -> str:
     """Create test user and return created user identifier."""
     signup_response = await client.post(
         "/api/v1/auth/signup",
         json={
-            "login": login,
+            "email": email,
             "password": password,
             "first_name": "Log",
             "last_name": "Check",
@@ -108,7 +108,7 @@ async def _cleanup_user_data(user_id: str) -> None:
 
 async def test_login_writes_audit_log_to_db() -> None:
     """Ensure successful login persists one login audit record."""
-    login = f"logcheck{uuid.uuid4().hex[:10]}"
+    email = f"logcheck{uuid.uuid4().hex[:10]}@example.com"
     password = "StrongPass1!"
 
     _override_token_service()
@@ -116,12 +116,12 @@ async def test_login_writes_audit_log_to_db() -> None:
 
     try:
         async with _build_test_client() as client:
-            user_id = await _signup_user(client, login, password)
+            user_id = await _signup_user(client, email, password)
             before_count = await _count_login_logs(user_id)
 
             login_response = await client.post(
                 "/api/v1/auth/login",
-                json={"login": login, "password": password},
+                json={"email": email, "password": password},
             )
             assert login_response.status_code == 200
 
@@ -139,7 +139,7 @@ async def test_login_writes_audit_log_to_db() -> None:
 
 async def test_login_with_invalid_password_does_not_write_audit_log() -> None:
     """Ensure failed login does not create login audit record."""
-    login = f"logcheck{uuid.uuid4().hex[:10]}"
+    email = f"logcheck{uuid.uuid4().hex[:10]}@example.com"
     password = "StrongPass1!"
 
     _override_token_service()
@@ -147,12 +147,12 @@ async def test_login_with_invalid_password_does_not_write_audit_log() -> None:
 
     try:
         async with _build_test_client() as client:
-            user_id = await _signup_user(client, login, password)
+            user_id = await _signup_user(client, email, password)
             before_count = await _count_login_logs(user_id)
 
             login_response = await client.post(
                 "/api/v1/auth/login",
-                json={"login": login, "password": "WrongPass1!"},
+                json={"email": email, "password": "WrongPass1!"},
             )
             assert login_response.status_code == 401
 

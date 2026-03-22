@@ -8,7 +8,7 @@ async def test_user_set_password_hashes_password_and_keeps_check_working() -> No
     """Ensure setting password stores hash and preserves password verification."""
     password_hash = await User.hash_password("InitialPass1!")
     user = User(
-        login="hash_user",
+        email="hash_user@example.com",
         password_hash=password_hash,
         first_name="Ivan",
         last_name="Ivanov",
@@ -28,7 +28,7 @@ def test_user_constructor_rejects_raw_password_in_password_hash_field() -> None:
         ValueError, match="password_hash must be a Werkzeug password hash"
     ):
         User(
-            login="raw_user",
+            email="raw_user@example.com",
             password_hash="PlainTextPass1!",
             first_name="Ivan",
             last_name="Ivanov",

@@ -6,18 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.v1.paginators import PaginationParams
 from src.api.v1.responses import (
+    EMAIL_CHANGE_RESPONSES,
     GET_HAS_PERMISSION_RESPONSES,
     GET_LOGS_RESPONSES,
     GET_ME_RESPONSES,
     GET_USER_ROLES_RESPONSES,
-    LOGIN_CHANGE_RESPONSES,
     PASSWORD_CHANGE_RESPONSES,
 )
 from src.core.permissions import PermissionName
 from src.schemas.logs import LogResponse
 from src.schemas.roles import RoleResponse
 from src.schemas.users import (
-    UserLoginChangeRequest,
+    UserEmailChangeRequest,
     UserPasswordChangeRequest,
     UserPermissionCheckResponse,
     UserResponse,
@@ -52,23 +52,23 @@ async def get_current_user(
 
 
 @router.patch(
-    "/me/login",
+    "/me/email",
     status_code=HTTPStatus.NO_CONTENT,
-    responses=LOGIN_CHANGE_RESPONSES,
+    responses=EMAIL_CHANGE_RESPONSES,
 )
-async def change_login(
-    login_change_request: UserLoginChangeRequest,
+async def change_email(
+    email_change_request: UserEmailChangeRequest,
     user_id: Annotated[UUID, Depends(get_fresh_authenticated_user_id)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> None:
-    """Change login for the current user using a fresh token."""
-    new_login: str = login_change_request.new_login
+    """Change email for the current user using a fresh token."""
+    new_email: str = email_change_request.new_email
     try:
-        is_updated: bool = await user_service.change_login(user_id, new_login)
+        is_updated: bool = await user_service.change_email(user_id, new_email)
     except UserAlreadyExistsError as exc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail="User with this login already exists",
+            detail="User with this email already exists",
         ) from exc
     if not is_updated:
         raise HTTPException(

@@ -3,9 +3,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from src.db.postgres import Base
@@ -27,7 +28,7 @@ class User(Base):
         default=uuid.uuid4,
         nullable=False,
     )
-    login: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     first_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -45,7 +46,7 @@ class User(Base):
 
     def __init__(
         self,
-        login: str,
+        email: str,
         password_hash: str,
         first_name: str,
         last_name: str,
@@ -53,7 +54,7 @@ class User(Base):
     ) -> None:
         if not self._is_werkzeug_password_hash(password_hash):
             raise ValueError("password_hash must be a Werkzeug password hash")
-        self.login = login
+        self.email = email
         self.password = password_hash
         self.first_name = first_name
         self.last_name = last_name
@@ -62,6 +63,23 @@ class User(Base):
     @staticmethod
     def _is_werkzeug_password_hash(value: str) -> bool:
         return value.startswith(("scrypt:", "pbkdf2:"))
+
+    @staticmethod
+    def _normalize_and_validate_email(email: str) -> str:
+        try:
+            validated = validate_email(email, check_deliverability=False)
+        except EmailNotValidError as exc:
+            raise ValueError("Invalid email format") from exc
+        return validated.normalized
+
+    @classmethod
+    def normalize_email(cls, email: str) -> str:
+        """Normalize and validate email for all write/read paths."""
+        return cls._normalize_and_validate_email(email)
+
+    @validates("email")
+    def _validate_email_assignment(self, key: str, value: str) -> str:
+        return self._normalize_and_validate_email(value)
 
     @staticmethod
     async def hash_password(password: str) -> str:
@@ -74,4 +92,4 @@ class User(Base):
         return await asyncio.to_thread(check_password_hash, self.password, password)
 
     def __repr__(self) -> str:
-        return f"<User {self.login}>"
+        return f"<User {self.email}>"

@@ -46,14 +46,14 @@ async def test_create_user_success_refreshes_and_returns_user() -> None:
     service = UserService(db=db)
 
     created = await service.create_user(
-        login="new_user",
+        email="new_user@example.com",
         password="StrongPass1!",
         first_name="Ivan",
         last_name="Ivanov",
     )
 
     assert isinstance(created, User)
-    assert created.login == "new_user"
+    assert created.email == "new_user@example.com"
     db.add.assert_called_once()
     db.commit.assert_awaited_once()
     db.refresh.assert_awaited_once_with(created)
@@ -89,25 +89,25 @@ async def test_change_password_returns_false_when_user_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_change_login_returns_false_when_user_missing() -> None:
-    """Ensure login change returns False when no user row is updated."""
+async def test_change_email_returns_false_when_user_missing() -> None:
+    """Ensure email change returns False when no user row is updated."""
     db = AsyncMock()
     db.add = MagicMock()
     db.execute = AsyncMock(return_value=_Result(None))
     db.commit = AsyncMock()
     service = UserService(db=db)
 
-    result = await service.change_login(uuid4(), "new_login")
+    result = await service.change_email(uuid4(), "new_login@example.com")
 
     assert result is False
     db.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_change_login_maps_unique_violation_to_domain_error(
+async def test_change_email_maps_unique_violation_to_domain_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure duplicate login change maps DB integrity error to domain error."""
+    """Ensure duplicate email change maps DB integrity error to domain error."""
     db = AsyncMock()
     db.add = MagicMock()
     db.execute = AsyncMock(side_effect=_integrity_error())
@@ -118,9 +118,39 @@ async def test_change_login_maps_unique_violation_to_domain_error(
     )
 
     with pytest.raises(UserAlreadyExistsError):
-        await service.change_login(uuid4(), "duplicate")
+        await service.change_email(uuid4(), "duplicate@example.com")
 
     db.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_email_uses_normalized_value_in_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure change_email writes normalized email returned by model helper."""
+    captured_stmt = None
+
+    async def _capture_execute(stmt):
+        nonlocal captured_stmt
+        captured_stmt = stmt
+        return _Result(MagicMock())
+
+    db = AsyncMock()
+    db.add = MagicMock()
+    db.execute = AsyncMock(side_effect=_capture_execute)
+    db.commit = AsyncMock()
+    service = UserService(db=db)
+
+    monkeypatch.setattr(
+        User, "normalize_email", classmethod(lambda cls, v: "normalized@example.com")
+    )
+
+    result = await service.change_email(uuid4(), "  MIXED@Example.COM  ")
+
+    assert result is True
+    assert captured_stmt is not None
+    params = captured_stmt.compile().params
+    assert "normalized@example.com" in params.values()
 
 
 @pytest.mark.asyncio
@@ -128,7 +158,7 @@ async def test_authenticate_user_returns_none_for_wrong_password() -> None:
     """Ensure authentication fails for invalid password."""
     password_hash = await User.hash_password("StrongPass1!")
     user = User(
-        login="auth_user",
+        email="auth_user@example.com",
         password_hash=password_hash,
         first_name="Ivan",
         last_name="Ivanov",
@@ -138,7 +168,7 @@ async def test_authenticate_user_returns_none_for_wrong_password() -> None:
     db.execute = AsyncMock(return_value=_Result(user))
     service = UserService(db=db)
 
-    result = await service.authenticate_user("auth_user", "WrongPass1!")
+    result = await service.authenticate_user("auth_user@example.com", "WrongPass1!")
 
     assert result is None
 
@@ -174,7 +204,7 @@ async def test_get_user_logs_returns_scalar_list_payload() -> None:
 async def test_create_user_reraises_non_unique_integrity_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure create_user re-raises integrity errors unrelated to login uniqueness."""
+    """Ensure create_user re-raises integrity errors unrelated to email uniqueness."""
     db = AsyncMock()
     db.add = MagicMock()
     db.commit = AsyncMock(side_effect=_integrity_error())
@@ -186,7 +216,7 @@ async def test_create_user_reraises_non_unique_integrity_error(
 
     with pytest.raises(IntegrityError):
         await service.create_user(
-            login="duplicate_user",
+            email="duplicate_user@example.com",
             password="StrongPass1!",
             first_name="Ivan",
             last_name="Ivanov",
@@ -196,10 +226,10 @@ async def test_create_user_reraises_non_unique_integrity_error(
 
 
 @pytest.mark.asyncio
-async def test_change_login_reraises_non_unique_integrity_error(
+async def test_change_email_reraises_non_unique_integrity_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure change_login re-raises integrity errors not tied to login uniqueness."""
+    """Ensure change_email re-raises integrity errors not tied to email uniqueness."""
     db = AsyncMock()
     db.add = MagicMock()
     db.execute = AsyncMock(side_effect=_integrity_error())
@@ -210,6 +240,6 @@ async def test_change_login_reraises_non_unique_integrity_error(
     )
 
     with pytest.raises(IntegrityError):
-        await service.change_login(uuid4(), "duplicate")
+        await service.change_email(uuid4(), "duplicate@example.com")
 
     db.rollback.assert_awaited_once()

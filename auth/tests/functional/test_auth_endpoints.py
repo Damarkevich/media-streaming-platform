@@ -10,7 +10,7 @@ async def test_signup_returns_201(test_client) -> None:
     response = await test_client.post(
         "/api/v1/auth/signup",
         json={
-            "login": "newuser",
+            "email": "newuser@example.com",
             "password": "StrongPass1!",
             "first_name": "Petr",
             "last_name": "Petrov",
@@ -30,7 +30,7 @@ async def test_signup_duplicate_returns_409(test_client) -> None:
     response = await test_client.post(
         "/api/v1/auth/signup",
         json={
-            "login": "duplicate",
+            "email": "duplicate@example.com",
             "password": "StrongPass1!",
             "first_name": "Petr",
             "last_name": "Petrov",
@@ -38,7 +38,7 @@ async def test_signup_duplicate_returns_409(test_client) -> None:
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "User with this login already exists"
+    assert response.json()["detail"] == "User with this email already exists"
 
 
 @pytest.mark.asyncio
@@ -46,11 +46,11 @@ async def test_login_invalid_credentials_returns_401(test_client) -> None:
     """Ensure login with invalid credentials is rejected."""
     response = await test_client.post(
         "/api/v1/auth/login",
-        json={"login": "bad", "password": "bad"},
+        json={"email": "bad@example.com", "password": "bad"},
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid login or password"
+    assert response.json()["detail"] == "Invalid email or password"
 
 
 @pytest.mark.asyncio
@@ -58,7 +58,7 @@ async def test_login_success_returns_tokens_and_logs_action(test_client) -> None
     """Ensure successful login returns token pair and writes login log."""
     response = await test_client.post(
         "/api/v1/auth/login",
-        json={"login": "valid", "password": "ValidPass1!"},
+        json={"email": "valid@example.com", "password": "ValidPass1!"},
     )
 
     assert response.status_code == 200
@@ -79,7 +79,7 @@ async def test_login_rate_limit_returns_429_after_five_requests(test_client) -> 
     for _ in range(6):
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={"login": "valid", "password": "ValidPass1!"},
+            json={"email": "valid@example.com", "password": "ValidPass1!"},
         )
         statuses.append(response.status_code)
 

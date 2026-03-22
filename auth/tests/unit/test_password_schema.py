@@ -7,7 +7,7 @@ from src.schemas.users import UserCreate
 def _valid_payload(password: str) -> dict[str, str]:
     """Build a valid base payload with customizable password value."""
     return {
-        "login": "user01",
+        "email": "user01@example.com",
         "password": password,
         "first_name": "Ivan",
         "last_name": "Ivanov",

@@ -4,7 +4,8 @@ from typing import Annotated
 import typer
 
 from src.db.postgres import async_session
-from src.schemas.validators import validate_login, validate_strong_password
+from src.models.user import User
+from src.schemas.validators import validate_strong_password
 from src.services.users import UserAlreadyExistsError, UserService
 
 app = typer.Typer(
@@ -20,13 +21,13 @@ def cli() -> None:
 
 @app.command("create-superuser")
 def create_superuser(
-    login: Annotated[
+    email: Annotated[
         str,
         typer.Option(
-            "--login",
-            "-l",
+            "--email",
+            "-e",
             prompt=True,
-            help="Superuser login.",
+            help="Superuser email.",
         ),
     ],
     password: Annotated[
@@ -55,7 +56,7 @@ def create_superuser(
         async with async_session() as session:
             user_service = UserService(session)
             await user_service.create_user(
-                login=login,
+                email=email,
                 password=password,
                 first_name=first_name,
                 last_name=last_name,
@@ -63,7 +64,7 @@ def create_superuser(
             )
 
     try:
-        login = validate_login(login)
+        email = User.normalize_email(email)
         password = validate_strong_password(password)
     except ValueError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
@@ -73,14 +74,14 @@ def create_superuser(
         asyncio.run(_run())
     except UserAlreadyExistsError:
         typer.secho(
-            f"User with login '{login}' already exists.",
+            f"User with email '{email}' already exists.",
             fg=typer.colors.RED,
             err=True,
         )
         raise typer.Exit(code=1) from None
 
     typer.secho(
-        f"Superuser '{login}' created successfully.",
+        f"Superuser '{email}' created successfully.",
         fg=typer.colors.GREEN,
     )
 

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserAlreadyExistsError(Exception):
-    """Raised when a user cannot be created because the login is already taken."""
+    """Raised when a user cannot be created because the email is already taken."""
 
 
 class UserService:
@@ -39,7 +39,7 @@ class UserService:
 
     async def create_user(
         self,
-        login: str,
+        email: str,
         password: str,
         first_name: str,
         last_name: str,
@@ -48,7 +48,7 @@ class UserService:
         """Create a new user.
 
         Args:
-            login: Unique login identifier.
+            email: Unique email identifier.
             password: Raw password. It will be hashed before storage.
             first_name: User first name.
             last_name: User last name.
@@ -58,12 +58,13 @@ class UserService:
             The persisted User ORM instance.
 
         Raises:
-            UserAlreadyExistsError: If a user with the same login already exists.
+            UserAlreadyExistsError: If a user with the same email already exists.
             IntegrityError: For other database integrity errors.
         """
         password_hash = await User.hash_password(password)
+        normalized_email = User.normalize_email(email)
         user = User(
-            login=login,
+            email=normalized_email,
             password_hash=password_hash,
             first_name=first_name,
             last_name=last_name,
@@ -74,7 +75,7 @@ class UserService:
             await self.db.commit()
         except IntegrityError as exc:
             await self.db.rollback()
-            if is_field_unique_violation(exc, "login"):
+            if is_field_unique_violation(exc, "email"):
                 raise UserAlreadyExistsError from exc
             raise
         await self.db.refresh(user)
@@ -105,24 +106,25 @@ class UserService:
         await self.db.commit()
         return user is not None
 
-    async def change_login(self, user_id: UUID, new_login: str) -> bool:
-        """Change a user's login.
+    async def change_email(self, user_id: UUID, new_email: str) -> bool:
+        """Change a user's email.
 
         Args:
             user_id: The UUID of the user.
-            new_login: The new login to set.
+            new_email: The new email to set.
 
         Returns:
             True if a user row was updated, otherwise False.
 
         Raises:
-            UserAlreadyExistsError: If another user with the new login already exists.
+            UserAlreadyExistsError: If another user with the new email already exists.
             IntegrityError: For other database integrity errors.
         """
+        normalized_email = User.normalize_email(new_email)
         stmt = (
             update(User)
             .where(User.id == user_id)
-            .values(login=new_login)
+            .values(email=normalized_email)
             .returning(User)
         )
         try:
@@ -131,16 +133,16 @@ class UserService:
             await self.db.commit()
         except IntegrityError as exc:
             await self.db.rollback()
-            if is_field_unique_violation(exc, "login"):
+            if is_field_unique_violation(exc, "email"):
                 raise UserAlreadyExistsError from exc
             raise
         return user is not None
 
-    async def authenticate_user(self, login: str, password: str) -> User | None:
-        """Authenticate a user by login and password.
+    async def authenticate_user(self, email: str, password: str) -> User | None:
+        """Authenticate a user by email and password.
 
         Args:
-            login: User login.
+            email: User email.
             password: Raw password to verify.
 
         Returns:
@@ -149,7 +151,10 @@ class UserService:
         Raises:
             SQLAlchemyError: Propagates database query errors.
         """
-        result = await self.db.execute(select(User).where(User.login == login))
+        normalized_email = User.normalize_email(email)
+        result = await self.db.execute(
+            select(User).where(User.email == normalized_email)
+        )
         user = result.scalars().one_or_none()
         if user and await user.check_password(password):
             return user

@@ -1,22 +1,17 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from src.schemas.validators import validate_login, validate_strong_password
+from src.schemas.validators import validate_strong_password
 
 
 class UserCreate(BaseModel):
     """Request schema for user registration."""
 
-    login: str = Field(min_length=3, max_length=255)
+    email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     first_name: str = Field(min_length=1, max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
-
-    @field_validator("login")
-    @classmethod
-    def validate_login(cls, value: str) -> str:
-        return validate_login(value)
 
     @field_validator("password")
     @classmethod
@@ -37,19 +32,14 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     """Request schema for user login."""
 
-    login: str
+    email: EmailStr
     password: str
 
 
-class UserLoginChangeRequest(BaseModel):
-    """Request schema for changing user login."""
+class UserEmailChangeRequest(BaseModel):
+    """Request schema for changing user email."""
 
-    new_login: str = Field(min_length=3, max_length=255)
-
-    @field_validator("new_login")
-    @classmethod
-    def validate_new_login(cls, value: str) -> str:
-        return validate_login(value)
+    new_email: EmailStr
 
 
 class UserPasswordChangeRequest(BaseModel):

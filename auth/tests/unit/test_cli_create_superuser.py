@@ -36,17 +36,17 @@ def test_create_superuser_cli_success(monkeypatch: MonkeyPatch) -> None:
         cli.app,
         [
             "create-superuser",
-            "--login",
-            "admin",
+            "--email",
+            "admin@example.com",
             "--password",
             "StrongPass1!",
         ],
     )
 
     assert result.exit_code == 0
-    assert "Superuser 'admin' created successfully." in result.stdout
+    assert "Superuser 'admin@example.com' created successfully." in result.stdout
     assert create_user_payload == {
-        "login": "admin",
+        "email": "admin@example.com",
         "password": "StrongPass1!",
         "first_name": "Super",
         "last_name": "Admin",
@@ -54,8 +54,8 @@ def test_create_superuser_cli_success(monkeypatch: MonkeyPatch) -> None:
     }
 
 
-def test_create_superuser_cli_duplicate_login(monkeypatch: MonkeyPatch) -> None:
-    """Ensure CLI returns code 1 with readable message on duplicate login."""
+def test_create_superuser_cli_duplicate_email(monkeypatch: MonkeyPatch) -> None:
+    """Ensure CLI returns code 1 with readable message on duplicate email."""
 
     class FakeUserService:
         def __init__(self, db: Any) -> None:
@@ -72,19 +72,19 @@ def test_create_superuser_cli_duplicate_login(monkeypatch: MonkeyPatch) -> None:
         cli.app,
         [
             "create-superuser",
-            "--login",
-            "admin",
+            "--email",
+            "admin@example.com",
             "--password",
             "StrongPass1!",
         ],
     )
 
     assert result.exit_code == 1
-    assert "User with login 'admin' already exists." in result.output
+    assert "User with email 'admin@example.com' already exists." in result.output
 
 
-def test_create_superuser_cli_invalid_login(monkeypatch: MonkeyPatch) -> None:
-    """Ensure CLI fails before DB call when login format is invalid."""
+def test_create_superuser_cli_invalid_email(monkeypatch: MonkeyPatch) -> None:
+    """Ensure CLI fails before DB call when email format is invalid."""
 
     is_user_service_initialized = False
 
@@ -101,15 +101,15 @@ def test_create_superuser_cli_invalid_login(monkeypatch: MonkeyPatch) -> None:
         cli.app,
         [
             "create-superuser",
-            "--login",
-            "bad_login!",
+            "--email",
+            "bad_email",
             "--password",
             "StrongPass1!",
         ],
     )
 
     assert result.exit_code == 1
-    assert "login must be alphanumeric" in result.output
+    assert "Invalid email format" in result.output
     assert is_user_service_initialized is False
 
 
@@ -131,8 +131,8 @@ def test_create_superuser_cli_invalid_password(monkeypatch: MonkeyPatch) -> None
         cli.app,
         [
             "create-superuser",
-            "--login",
-            "admin",
+            "--email",
+            "admin@example.com",
             "--password",
             "weakpass",
         ],

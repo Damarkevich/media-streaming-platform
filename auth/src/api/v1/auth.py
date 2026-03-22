@@ -5,7 +5,6 @@ from uuid import UUID
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from src.services.roles import RoleService, get_role_service
 from src.api.v1.responses import (
     JWT_ACCESS_REQUIRED_RESPONSES,
     JWT_REFRESH_REQUIRED_RESPONSES,
@@ -21,6 +20,7 @@ from src.schemas.users import (
     UserLogin,
     UserResponse,
 )
+from src.services.roles import RoleService, get_role_service
 from src.services.tokens import TokenService, get_token_service
 from src.services.users import UserAlreadyExistsError, UserService, get_user_service
 
@@ -53,7 +53,7 @@ async def create_user(
     except UserAlreadyExistsError as exc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail="User with this login already exists",
+            detail="User with this email already exists",
         ) from exc
     return UserResponse.model_validate(user)
 
@@ -73,7 +73,7 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
-            detail="Invalid login or password",
+            detail="Invalid email or password",
         )
     roles = await roles_service.get_roles_by_user_id(user.id)
     roles_names: list[str] = [role.name for role in roles]

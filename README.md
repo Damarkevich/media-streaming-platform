@@ -55,3 +55,17 @@ To run this project using Docker Compose:
 **Prerequisites:**
 - Docker must be installed on your system
 - Docker Compose must be installed on your system
+
+## 5. API Documentation Endpoints
+
+After starting the project, you can access the interactive API documentation (Swagger UI) for each service at the following URLs:
+
+- **Async API (content service):**
+  - Swagger UI: http://localhost/api/content/docs
+  - OpenAPI JSON: http://localhost/api/content/openapi.json
+
+- **Auth service:**
+  - Swagger UI: http://localhost/api/auth/docs
+  - OpenAPI JSON: http://localhost/api/auth/openapi.json
+
+These endpoints are proxied through nginx and available when the corresponding containers are running.

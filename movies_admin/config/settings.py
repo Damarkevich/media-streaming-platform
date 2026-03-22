@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "drf_standardized_errors",
     "movies.apps.MoviesConfig",
+    "accounts.apps.AccountsConfig",
 ]
 
 MIDDLEWARE = [
@@ -94,6 +95,17 @@ STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "accounts.User"
+
+AUTH_API_LOGIN_URL = os.environ.get("AUTH_API_LOGIN_URL", "")
+
+if not AUTH_API_LOGIN_URL:
+    raise ValueError("AUTH_API_LOGIN_URL environment variable is not set")
+
+AUTHENTICATION_BACKENDS = [
+    "accounts.authentication.MoviesAuthBackend",
+]
 
 LOCALE_PATHS = ["movies/locale"]
 

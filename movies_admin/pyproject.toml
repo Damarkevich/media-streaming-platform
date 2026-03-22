@@ -12,6 +12,7 @@ dependencies = [
     "drf-spectacular>=0.29.0",
     "drf-standardized-errors>=0.15.0",
     "gunicorn>=23.0.0",
+    "httpx>=0.28.1",
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
 ]

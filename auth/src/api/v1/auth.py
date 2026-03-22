@@ -141,3 +141,22 @@ async def refresh_revoke(
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
     await token_service.add_refresh_to_blacklist(old_refresh_jti)
+
+
+@router.post("/api-login", response_model=UserResponse, responses=LOGIN_RESPONSES)
+@limiter.limit("5/minute")
+async def api_login(
+    user_login: UserLogin,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    request: Request,
+) -> UserResponse:
+    """Authenticate credentials and issue a new access/refresh token pair."""
+    user_dto: dict[str, str] = user_login.model_dump()
+    user = await user_service.authenticate_user(**user_dto)
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+    await user_service.log_user_action(user, LogType.API_LOGIN)
+    return user

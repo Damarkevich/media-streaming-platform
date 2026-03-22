@@ -13,6 +13,7 @@ class LogType(StrEnum):
     """Supported audit log event types."""
 
     LOGIN = "login"
+    API_LOGIN = "api_login"
 
 
 class Log(Base):

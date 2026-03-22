@@ -1,4 +1,4 @@
-import http
+import logging
 from enum import StrEnum, auto
 
 import httpx
@@ -6,56 +6,96 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import BaseBackend
 
+logger = logging.getLogger(__name__)
+
 User = get_user_model()
 
 
-class Roles(StrEnum):
+class RoleName(StrEnum):
     ADMIN = auto()
-    SUBSCRIBER = auto()
 
 
-def has_role(roles: list[Roles], required_role: Roles) -> bool:
-    return required_role in roles
+def has_role(roles: list[dict[str, str]] | None, required_role: RoleName) -> bool:
+    """Return True if the required role is present in the roles payload.
+
+    Role names are compared case-insensitively. Missing or empty role data
+    returns False.
+    """
+    if not roles:
+        return False
+
+    required_value = required_role.value.casefold()
+    return any((role.get("name") or "").casefold() == required_value for role in roles)
 
 
 class MoviesAuthBackend(BaseBackend):
     """
-    Custom Django authentication backend that validates credentials against an external API.
+    Authenticate against the external auth service and sync a local Django user.
 
-    This backend:
-    - Authenticates users by sending credentials to a remote authentication service
-    - Creates or updates local User objects based on API response data
-    - Syncs user metadata (name, email, roles, status) with the local database
-    - Supports role-based access control (admin/superuser assignment)
+    On successful external authentication, the backend updates local user fields
+    and stores a Django password hash so the default ModelBackend can be used as
+    a fallback authentication path when needed.
     """
 
     def authenticate(
         self, request, username: str | None = None, password: str | None = None
     ):
+        """Authenticate a user via external API and upsert the local user record.
+
+        Returns:
+            User: Authenticated local user object.
+            None: If remote authentication fails or local sync raises an error.
+        """
         url = settings.AUTH_API_LOGIN_URL
         payload = {"email": username, "password": password}
-        response = httpx.post(url, json=payload)
 
-        if response.status_code != http.HTTPStatus.OK:
+        try:
+            response = httpx.post(url, json=payload, timeout=5.0)
+            response.raise_for_status()
+            logger.info(
+                f"[MoviesAuthBackend] API request successful for user {username}"
+            )
+        except httpx.RequestError:
+            logger.warning(
+                f"[MoviesAuthBackend] API request failed for user {username}"
+            )
+            return None
+        except httpx.HTTPStatusError:
+            logger.warning(
+                f"[MoviesAuthBackend] API request returned an error for user {username}"
+            )
             return None
 
         data = response.json()
 
         try:
-            user, _ = User.objects.get_or_create(id=data["id"])
-            user.email = data.get("email")
-            user.first_name = data.get("first_name")
-            user.last_name = data.get("last_name")
-            user.is_staff = has_role(data.get("roles"), Roles.ADMIN)
-            user.is_superuser = has_role(data.get("roles"), Roles.ADMIN)
-            user.is_active = data.get("is_active")
-            user.save()
-        except Exception:
-            return None
+            user, _ = User.objects.update_or_create(
+                id=data["id"],
+                defaults={
+                    "email": data.get("email"),
+                    "first_name": data.get("first_name", ""),
+                    "last_name": data.get("last_name", ""),
+                    "is_staff": has_role(data.get("roles", []), RoleName.ADMIN),
+                    "is_active": data.get("is_active", True),
+                },
+            )
 
+            # Save hashed password to use Django's authentication system as fallback
+            user.set_password(password)
+            user.save(update_fields=["password"])
+
+        except Exception:
+            logger.exception(
+                f"[MoviesAuthBackend] Error creating/updating user {username}"
+            )
+            return None
+        logger.info(
+            f"[MoviesAuthBackend] User {username} authenticated successfully with ID {user.id}"
+        )
         return user
 
     def get_user(self, user_id: str | None = None):
+        """Return a local user by primary key or None if the user does not exist."""
         try:
             return User.objects.get(pk=user_id)
         except User.DoesNotExist:

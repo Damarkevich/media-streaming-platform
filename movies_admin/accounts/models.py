@@ -40,7 +40,7 @@ class User(AbstractBaseUser):
         return f"{self.email} {self.id}"
 
     def has_perm(self, perm, obj=None):
-        return self.is_superuser
+        return self.is_superuser or self.is_staff
 
     def has_module_perms(self, app_label):
-        return self.is_superuser
+        return self.is_superuser or self.is_staff

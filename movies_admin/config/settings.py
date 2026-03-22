@@ -105,6 +105,7 @@ if not AUTH_API_LOGIN_URL:
 
 AUTHENTICATION_BACKENDS = [
     "accounts.authentication.MoviesAuthBackend",
+    "django.contrib.auth.backends.ModelBackend",  # Allow fallback to default backend for admin access
 ]
 
 LOCALE_PATHS = ["movies/locale"]

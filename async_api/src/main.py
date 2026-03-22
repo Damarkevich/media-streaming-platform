@@ -12,8 +12,8 @@ from src.services.exceptions import ServiceUnavailableError
 
 app = FastAPI(
     title=settings.project_name,
-    docs_url="/api/openapi",
-    openapi_url="/api/openapi.json",
+    docs_url="/api/content/docs",
+    openapi_url="/api/content/openapi.json",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )

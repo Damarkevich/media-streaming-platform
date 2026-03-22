@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     es_schema: str = "http://"
     es_host: str = "localhost"
     es_port: int = 9200
+
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
 

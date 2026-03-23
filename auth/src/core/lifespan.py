@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 
 from src.core.config import settings
+from src.core.tracer import configure_tracer, shutdown_tracer
 from src.db import postgres, redis
 
 logger = logging.getLogger(__name__)
@@ -15,21 +16,24 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
-    Manage the lifespan of the FastAPI application.
-    This async context manager handles the startup and shutdown events for the application.
-    On startup, it initializes connections to Redis and PostgreSQL services.
-    On shutdown, it ensures that all connections are properly closed.
+    FastAPI lifespan context manager.
+
+    Handles startup and shutdown events:
+    - Configures tracing
+    - Initializes global Redis and PostgreSQL connections
+    - Closes all connections on shutdown
 
     Args:
-        app: The FastAPI application instance.
+        app (FastAPI): The FastAPI application instance.
 
     Yields:
-        None: Control is yielded back to the application during its runtime.
+        None
 
-    Note:
-        This function uses the global redis.redis and postgres.engine objects to store
-        the connection instances, making them accessible throughout the application.
+    Notes:
+        Uses global redis.redis and postgres.engine for connection sharing.
     """
+    configure_tracer()
+
     redis.redis = Redis(
         host=settings.redis_host,
         port=settings.redis_port,
@@ -51,3 +55,5 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await redis.redis.close()
     if postgres.engine:
         await postgres.engine.dispose()
+
+    shutdown_tracer()

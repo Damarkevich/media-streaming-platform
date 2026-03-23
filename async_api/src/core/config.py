@@ -13,7 +13,9 @@ class Settings(BaseSettings):
 
     development_mode: bool = False
 
-    project_name: str = "movies"
+    service_name: str = "content_service"
+    service_description: str = "Content service for the Movies Streaming Platform"
+
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
     cache_expire_in_seconds: int = 300

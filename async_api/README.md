@@ -263,7 +263,6 @@ All configuration is managed through environment variables or `.env` file:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PROJECT_NAME` | movies | Project name for API documentation |
 | `REDIS_HOST` | 127.0.0.1 | Redis server hostname |
 | `REDIS_PORT` | 6379 | Redis server port |
 | `CACHE_EXPIRE_IN_SECONDS` | 300 | Cache TTL in seconds |

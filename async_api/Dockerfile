@@ -13,7 +13,7 @@ COPY . /app
 
 # Install the application dependencies.
 WORKDIR /app
-RUN uv sync --frozen --no-cache
+RUN uv sync --frozen
 
 # Run the application.
 CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

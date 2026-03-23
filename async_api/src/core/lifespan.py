@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from redis.asyncio import Redis
 
 from src.core.config import settings
@@ -17,12 +16,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Startup actions:
         - Configure OpenTelemetry tracer provider.
-        - Instrument FastAPI application for request spans.
         - Initialize Redis and Elasticsearch clients.
 
     Shutdown actions:
         - Close Redis and Elasticsearch clients.
-        - Remove FastAPI instrumentation.
         - Shutdown tracer provider and flush pending spans.
 
     Args:
@@ -32,8 +29,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         None: Control is yielded to the running application.
     """
     configure_tracer()
-
-    FastAPIInstrumentor.instrument_app(app)
 
     redis.redis = Redis(
         host=settings.redis_host,
@@ -52,7 +47,5 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     if elastic.es:
         await elastic.es.close()
-
-    FastAPIInstrumentor.uninstrument_app(app)
 
     shutdown_tracer()

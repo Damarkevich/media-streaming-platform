@@ -13,7 +13,7 @@ COPY . /app
 
 # Install the application dependencies.
 WORKDIR /app
-RUN uv sync --frozen --no-cache
+RUN uv sync --frozen
 
 # Run DB migrations and then start the application.
 CMD ["sh", "/app/entrypoint.sh"]

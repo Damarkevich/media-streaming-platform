@@ -2,6 +2,7 @@ from async_fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -10,15 +11,19 @@ from src.api.v1 import auth, permissions, roles, users
 from src.core.config import settings
 from src.core.lifespan import lifespan
 from src.core.limiter import limiter
+from src.core.middleware import request_id_middleware
 
 app = FastAPI(
-    title=settings.project_name,
-    description=settings.project_description,
-    docs_url="/api/openapi",
-    openapi_url="/api/openapi.json",
+    title=settings.service_name,
+    description=settings.service_description,
+    docs_url="/api/auth/docs",
+    openapi_url="/api/auth/openapi.json",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
+
+FastAPIInstrumentor.instrument_app(app)
+
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
@@ -28,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(request_id_middleware)
+
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])

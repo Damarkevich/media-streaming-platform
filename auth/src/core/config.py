@@ -13,8 +13,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
-    project_name: str = "auth_service"
-    project_description: str = (
+    development_mode: bool = False
+
+    service_name: str = "auth_service"
+    service_description: str = (
         "Authentication service for the Movies Streaming Platform"
     )
 
@@ -42,6 +44,9 @@ class Settings(BaseSettings):
     sql_port: int = 6543
     sql_options: str = "-c search_path=auth,public"
     sql_echo: bool = False
+
+    otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
+    otel_console_export_enabled: bool = False
 
     @field_validator("authjwt_secret_key")
     @classmethod

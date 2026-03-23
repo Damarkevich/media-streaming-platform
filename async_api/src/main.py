@@ -9,17 +9,20 @@ from src.core.handlers import service_unavailable_exception_handler
 from src.core.lifespan import lifespan
 from src.core.middleware import request_id_middleware
 from src.services.exceptions import ServiceUnavailableError
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 app = FastAPI(
-    title=settings.project_name,
+    title=settings.service_name,
+    description=settings.service_description,
     docs_url="/api/content/docs",
     openapi_url="/api/content/openapi.json",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
 
-if not settings.development_mode:
-    app.middleware("http")(request_id_middleware)
+FastAPIInstrumentor.instrument_app(app)
+
+app.middleware("http")(request_id_middleware)
 
 
 app.include_router(health.router, prefix="/api", tags=["health"])

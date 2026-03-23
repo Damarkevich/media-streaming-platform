@@ -8,11 +8,9 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends curl \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Copy the application into the container.
-COPY . /app
 
-# Install the application dependencies.
 WORKDIR /app
+COPY . .
 RUN uv sync --frozen
 
 # Run DB migrations and then start the application.

@@ -8,12 +8,14 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends curl \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Copy the application into the container.
-COPY . /app
 
-# Install the application dependencies.
+# Copy only dependency files first for better caching
 WORKDIR /app
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
+
+# Copy the rest of the application
+COPY . .
 
 # Run the application.
 CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

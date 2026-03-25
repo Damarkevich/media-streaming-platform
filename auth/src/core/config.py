@@ -52,15 +52,15 @@ class Settings(BaseSettings):
 
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
 
-    @field_validator("authjwt_secret_key")
+    @field_validator("authjwt_secret_key", "session_secret_key")
     @classmethod
-    def validate_authjwt_secret_key(cls, value: str) -> str:
-        """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
+    def validate_secret_key(cls, value: str) -> str:
+        """Ensure that secret keys are set and meet the minimum length requirement."""
         if len(value.strip()) < 32:
             raise ValueError(
-                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+                "Secret keys should be at least 32 characters for security"
             )
         return value
 

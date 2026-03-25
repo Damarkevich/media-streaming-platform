@@ -5,9 +5,10 @@ from fastapi.responses import ORJSONResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 from src.api import health
-from src.api.v1 import auth, permissions, roles, users
+from src.api.v1 import auth, google_oauth, permissions, roles, users
 from src.core.config import settings
 from src.core.lifespan import lifespan
 from src.core.limiter import limiter
@@ -33,11 +34,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
 app.middleware("http")(request_id_middleware)
 
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(google_oauth.router, prefix="/api/v1/auth", tags=["google_auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(roles.router, prefix="/api/v1/roles", tags=["roles"])
 app.include_router(

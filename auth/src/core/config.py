@@ -41,12 +41,18 @@ class Settings(BaseSettings):
     postgres_db_schema: str = "auth"
 
     sql_host: str = "localhost"
-    sql_port: int = 6543
+    sql_port: int = 5432
     sql_options: str = "-c search_path=auth,public"
     sql_echo: bool = False
 
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
+
+    session_secret_key: str
+
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
 
     @field_validator("authjwt_secret_key")
     @classmethod

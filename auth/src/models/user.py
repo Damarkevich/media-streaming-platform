@@ -29,7 +29,7 @@ class User(Base):
         nullable=False,
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -48,12 +48,14 @@ class User(Base):
     def __init__(
         self,
         email: str,
-        password_hash: str,
+        password_hash: str | None,
         first_name: str,
         last_name: str,
         is_superuser: bool = False,
     ) -> None:
-        if not self._is_werkzeug_password_hash(password_hash):
+        if password_hash is not None and not self._is_werkzeug_password_hash(
+            password_hash
+        ):
             raise ValueError("password_hash must be a Werkzeug password hash")
         self.email = email
         self.password = password_hash
@@ -89,7 +91,9 @@ class User(Base):
     async def set_password(self, password: str) -> None:
         self.password = await self.hash_password(password)
 
-    async def check_password(self, password: str) -> bool:
+    async def check_password(self, password: str | None) -> bool:
+        if self.password is None or password is None:
+            return False
         return await asyncio.to_thread(check_password_hash, self.password, password)
 
     def __repr__(self) -> str:

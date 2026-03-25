@@ -48,6 +48,7 @@ The application follows a layered architecture:
 
 ### Core Endpoints
 
+
 #### Auth (`/api/v1/auth`)
 
 - `POST /signup` — register a new user
@@ -55,6 +56,12 @@ The application follows a layered architecture:
 - `POST /refresh` — issue a new token pair using a valid refresh token
 - `DELETE /access-revoke` — revoke current access token
 - `DELETE /refresh-revoke` — revoke current refresh token
+
+
+#### Google OAuth2
+
+- `GET /google/login` — initiate OAuth2 authentication via Google (redirects to Google)
+- `GET /google/callback` — callback handler, creates a user (if not exists), returns JWT tokens
 
 #### Users (`/api/v1/users`)
 
@@ -82,6 +89,14 @@ The application follows a layered architecture:
 - `PUT /{permission_id}/roles/{role_id}` — assign permission to role
 - `DELETE /{permission_id}/roles/{role_id}` — remove permission from role
 
+
+
+### OAuth2 Users
+
+- For users registered via Google OAuth2, a password is not required (`password=None` is stored in the database).
+- If a user with the email from Google is not found, a new user is created with this email and the name from the Google profile.
+- After successful authentication, a standard pair of access/refresh tokens is issued.
+
 ### RBAC and Access Control
 
 - Roles/permissions endpoints are protected by `require_permission(...)` dependencies.
@@ -106,6 +121,7 @@ The application follows a layered architecture:
 
 - `GET /health` — status of Redis/PostgreSQL dependencies
 
+
 ### Authentication Flow
 
 1. User signs in with `email/password`.
@@ -119,7 +135,9 @@ The application follows a layered architecture:
 9. Access token issued by `/refresh` is non-fresh, so these endpoints return `401` until user re-authenticates via `/login`.
 
 
+
 ## 🛠 Tech Stack
+
 
 ### Core
 
@@ -134,8 +152,11 @@ The application follows a layered architecture:
 - **Redis**
 - **async-fastapi-jwt-auth**
 - **Alembic**
+- **Authlib** (Google OAuth2)
+- **Starlette** (SessionMiddleware)
 
 ## 🚀 Getting Started
+
 
 ### Prerequisites
 
@@ -143,6 +164,8 @@ The application follows a layered architecture:
 - uv
 - PostgreSQL instance
 - Redis instance
+- Google Cloud OAuth2 credentials (Client ID, Client Secret, Redirect URI)
+
 
 ### Installation
 
@@ -179,6 +202,7 @@ uv sync --group dev --group test
 uv run alembic upgrade head
 ```
 
+
 ### Run the Application
 
 Development:
@@ -194,6 +218,18 @@ Production-like:
 ```bash
 uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 ```
+
+
+
+### Google OAuth2 Setup
+
+1. Create an OAuth2 Client ID in Google Cloud Console.
+2. Set the following environment variables:
+	- `GOOGLE_CLIENT_ID`
+	- `GOOGLE_CLIENT_SECRET`
+	- `GOOGLE_REDIRECT_URI` (e.g., `http://localhost:8000/api/v1/auth/google/callback`)
+	- `SESSION_SECRET_KEY` (secret for SessionMiddleware, at least 32 characters)
+3. Add them to your `.env` file or container environment variables.
 
 ### Create Superuser
 
@@ -261,11 +297,17 @@ auth/
 └── pyproject.toml
 ```
 
+
+
 ## 🔧 Configuration
 
 Main settings are loaded from environment variables (or `.env`):
 
-- `AUTHJWT_SECRET_KEY`
+- `AUTHJWT_SECRET_KEY` (min 32 chars, required)
+- `SESSION_SECRET_KEY` (min 32 chars, required for OAuth)
+- `GOOGLE_CLIENT_ID` (Google OAuth2)
+- `GOOGLE_CLIENT_SECRET` (Google OAuth2)
+- `GOOGLE_REDIRECT_URI` (Google OAuth2 callback, e.g., `http://localhost:8000/api/v1/auth/google/callback`)
 - `ACCESS_TOKEN_EXPIRES`
 - `REFRESH_TOKEN_EXPIRES`
 - `SQL_ECHO`
@@ -277,8 +319,8 @@ Main settings are loaded from environment variables (or `.env`):
 - `PERMISSIONS_CACHE_TTL`
 - `CORS_ORIGINS` (JSON array of allowed origins, example: `CORS_ORIGINS='["http://localhost:3000"]'`)
 
-> Note: `AUTHJWT_SECRET_KEY` is mandatory and must be at least 32 characters long.
->
+> Note: `AUTHJWT_SECRET_KEY` and `SESSION_SECRET_KEY` are required and must be at least 32 characters long.
+> 
 > CORS notes:
 > - Use `CORS_ORIGINS='["http://localhost:3000"]'` for explicit allowed origins.
 > - Use `CORS_ORIGINS='["*"]'` to allow all origins (credentials are disabled in this mode).

@@ -40,7 +40,7 @@ class UserService:
     async def create_user(
         self,
         email: str,
-        password: str,
+        password: str | None,
         first_name: str,
         last_name: str,
         is_superuser: bool = False,
@@ -49,7 +49,7 @@ class UserService:
 
         Args:
             email: Unique email identifier.
-            password: Raw password. It will be hashed before storage.
+            password: Raw password. It will be hashed before storage. Can be None for OAuth users.
             first_name: User first name.
             last_name: User last name.
             is_superuser: Whether the user should bypass permission checks.
@@ -61,7 +61,7 @@ class UserService:
             UserAlreadyExistsError: If a user with the same email already exists.
             IntegrityError: For other database integrity errors.
         """
-        password_hash = await User.hash_password(password)
+        password_hash = await User.hash_password(password) if password else None
         normalized_email = User.normalize_email(email)
         user = User(
             email=normalized_email,
@@ -173,6 +173,24 @@ class UserService:
             SQLAlchemyError: Propagates database query errors.
         """
         result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalars().one_or_none()
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        """Retrieve a user by their unique email.
+
+        Args:
+            email: The email of the user.
+
+        Returns:
+            The User instance if found, else None.
+
+        Raises:
+            SQLAlchemyError: Propagates database query errors.
+        """
+        normalized_email = User.normalize_email(email)
+        result = await self.db.execute(
+            select(User).where(User.email == normalized_email)
+        )
         return result.scalars().one_or_none()
 
     async def log_user_action(self, user: User, log_type: LogType) -> None:

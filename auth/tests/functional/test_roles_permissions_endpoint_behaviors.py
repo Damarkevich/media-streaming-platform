@@ -121,7 +121,9 @@ async def test_get_role_by_id_returns_404_when_missing(
     """Ensure role lookup returns 404 when service has no role."""
     _override_behavior_services()
 
-    response = await test_client.get(f"/api/v1/roles/{MISSING_ROLE_ID}")
+    response = await test_client.get(
+        f"/api/v1/roles/{MISSING_ROLE_ID}", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Role not found"
@@ -134,7 +136,11 @@ async def test_create_role_returns_409_on_duplicate_name(
     """Ensure role create maps duplicate-name domain error to 409."""
     _override_behavior_services()
 
-    response = await test_client.post("/api/v1/roles", json={"name": "duplicate"})
+    response = await test_client.post(
+        "/api/v1/roles",
+        json={"name": "duplicate"},
+        headers={"X-Request-Id": "test-req-id"},
+    )
 
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"]
@@ -148,6 +154,7 @@ async def test_update_role_returns_404_when_missing(test_client: AsyncClient) ->
     response = await test_client.patch(
         f"/api/v1/roles/{MISSING_ROLE_ID}",
         json={"name": "updated"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 404
@@ -164,6 +171,7 @@ async def test_update_role_returns_409_on_duplicate_name(
     response = await test_client.patch(
         f"/api/v1/roles/{uuid4()}",
         json={"name": "duplicate"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 409
@@ -175,7 +183,9 @@ async def test_delete_role_returns_404_when_missing(test_client: AsyncClient) ->
     """Ensure role delete returns 404 when target role does not exist."""
     _override_behavior_services()
 
-    response = await test_client.delete(f"/api/v1/roles/{MISSING_ROLE_ID}")
+    response = await test_client.delete(
+        f"/api/v1/roles/{MISSING_ROLE_ID}", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Role not found"
@@ -188,7 +198,9 @@ async def test_get_role_permissions_returns_permission_list(
     """Ensure role permissions endpoint returns mapped payload."""
     _override_behavior_services()
 
-    response = await test_client.get(f"/api/v1/roles/{uuid4()}/permissions")
+    response = await test_client.get(
+        f"/api/v1/roles/{uuid4()}/permissions", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -202,7 +214,10 @@ async def test_assign_role_to_user_returns_404_for_missing_entities(
     """Ensure role assignment maps service not-found errors to 404."""
     _override_behavior_services()
 
-    response = await test_client.put(f"/api/v1/roles/{MISSING_ROLE_ID}/users/{uuid4()}")
+    response = await test_client.put(
+        f"/api/v1/roles/{MISSING_ROLE_ID}/users/{uuid4()}",
+        headers={"X-Request-Id": "test-req-id"},
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Role not found"
@@ -216,7 +231,8 @@ async def test_remove_role_from_user_returns_404_for_missing_entities(
     _override_behavior_services()
 
     response = await test_client.delete(
-        f"/api/v1/roles/{uuid4()}/users/{MISSING_USER_ID}"
+        f"/api/v1/roles/{uuid4()}/users/{MISSING_USER_ID}",
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 404
@@ -228,7 +244,9 @@ async def test_get_permissions_returns_list_payload(test_client: AsyncClient) ->
     """Ensure permissions list endpoint returns mapped permissions payload."""
     _override_behavior_services()
 
-    response = await test_client.get("/api/v1/permissions")
+    response = await test_client.get(
+        "/api/v1/permissions", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -243,7 +261,8 @@ async def test_assign_permission_to_role_returns_404_for_missing_entities(
     _override_behavior_services()
 
     response = await test_client.put(
-        f"/api/v1/permissions/{MISSING_PERMISSION_ID}/roles/{uuid4()}"
+        f"/api/v1/permissions/{MISSING_PERMISSION_ID}/roles/{uuid4()}",
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 404
@@ -258,7 +277,8 @@ async def test_remove_permission_from_role_returns_404_for_missing_entities(
     _override_behavior_services()
 
     response = await test_client.delete(
-        f"/api/v1/permissions/{uuid4()}/roles/{MISSING_ROLE_ID}"
+        f"/api/v1/permissions/{uuid4()}/roles/{MISSING_ROLE_ID}",
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 404

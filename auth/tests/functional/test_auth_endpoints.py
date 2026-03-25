@@ -15,8 +15,8 @@ async def test_signup_returns_201(test_client) -> None:
             "first_name": "Petr",
             "last_name": "Petrov",
         },
+        headers={"X-Request-Id": "test-req-1"},
     )
-
     assert response.status_code == 201
     body = response.json()
     assert "id" in body
@@ -35,6 +35,7 @@ async def test_signup_duplicate_returns_409(test_client) -> None:
             "first_name": "Petr",
             "last_name": "Petrov",
         },
+        headers={"X-Request-Id": "test-req-2"},
     )
 
     assert response.status_code == 409
@@ -47,6 +48,7 @@ async def test_login_invalid_credentials_returns_401(test_client) -> None:
     response = await test_client.post(
         "/api/v1/auth/login",
         json={"email": "bad@example.com", "password": "bad"},
+        headers={"X-Request-Id": "test-req-3"},
     )
 
     assert response.status_code == 401
@@ -59,6 +61,7 @@ async def test_login_success_returns_tokens_and_logs_action(test_client) -> None
     response = await test_client.post(
         "/api/v1/auth/login",
         json={"email": "valid@example.com", "password": "ValidPass1!"},
+        headers={"X-Request-Id": "test-req-4"},
     )
 
     assert response.status_code == 200
@@ -76,10 +79,11 @@ async def test_login_rate_limit_returns_429_after_five_requests(test_client) -> 
     """Ensure login endpoint enforces configured per-minute request limit."""
     statuses: list[int] = []
 
-    for _ in range(6):
+    for i in range(6):
         response = await test_client.post(
             "/api/v1/auth/login",
             json={"email": "valid@example.com", "password": "ValidPass1!"},
+            headers={"X-Request-Id": f"test-req-rl-{i}"},
         )
         statuses.append(response.status_code)
 
@@ -92,8 +96,11 @@ async def test_refresh_is_not_rate_limited_without_decorator(test_client) -> Non
     """Ensure endpoints without limiter decorator are not throttled by middleware."""
     statuses: list[int] = []
 
-    for _ in range(6):
-        response = await test_client.post("/api/v1/auth/refresh")
+    for i in range(6):
+        response = await test_client.post(
+            "/api/v1/auth/refresh",
+            headers={"X-Request-Id": f"test-req-refresh-{i}"},
+        )
         statuses.append(response.status_code)
 
     assert statuses == [200, 200, 200, 200, 200, 200]
@@ -102,7 +109,10 @@ async def test_refresh_is_not_rate_limited_without_decorator(test_client) -> Non
 @pytest.mark.asyncio
 async def test_refresh_returns_new_tokens(test_client) -> None:
     """Ensure refresh endpoint returns new access and refresh tokens."""
-    response = await test_client.post("/api/v1/auth/refresh")
+    response = await test_client.post(
+        "/api/v1/auth/refresh",
+        headers={"X-Request-Id": "test-req-refresh-main"},
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -113,7 +123,10 @@ async def test_refresh_returns_new_tokens(test_client) -> None:
 @pytest.mark.asyncio
 async def test_refresh_revoke_adds_jti_to_blacklist(test_client) -> None:
     """Ensure refresh revoke stores token JTI in blacklist."""
-    response = await test_client.delete("/api/v1/auth/refresh-revoke")
+    response = await test_client.delete(
+        "/api/v1/auth/refresh-revoke",
+        headers={"X-Request-Id": "test-req-refresh-revoke"},
+    )
 
     assert response.status_code == 204
     assert test_client.fake_token_service.last_refresh_blacklisted_jti == "refresh-jti"  # type: ignore[attr-defined]
@@ -122,7 +135,10 @@ async def test_refresh_revoke_adds_jti_to_blacklist(test_client) -> None:
 @pytest.mark.asyncio
 async def test_access_revoke_adds_jti_to_blacklist(test_client) -> None:
     """Ensure access revoke stores token JTI in blacklist."""
-    response = await test_client.delete("/api/v1/auth/access-revoke")
+    response = await test_client.delete(
+        "/api/v1/auth/access-revoke",
+        headers={"X-Request-Id": "test-req-access-revoke"},
+    )
 
     assert response.status_code == 204
     assert test_client.fake_token_service.last_access_blacklisted_jti == "refresh-jti"  # type: ignore[attr-defined]
@@ -138,6 +154,7 @@ async def test_cors_preflight_allows_configured_origin(test_client) -> None:
         headers={
             "Origin": allowed_origin,
             "Access-Control-Request-Method": "POST",
+            "X-Request-Id": "test-req-cors-1",
         },
     )
 
@@ -169,6 +186,7 @@ async def test_cors_preflight_rejects_unconfigured_origin_when_not_wildcard(
         headers={
             "Origin": disallowed_origin,
             "Access-Control-Request-Method": "POST",
+            "X-Request-Id": "test-req-cors-2",
         },
     )
 

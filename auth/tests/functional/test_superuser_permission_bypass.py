@@ -228,7 +228,9 @@ async def test_superuser_bypasses_permission_checks_for_roles_endpoint() -> None
 
     try:
         async with _overridden_client(subject=user_id) as client:
-            response = await client.get("/api/v1/roles")
+            response = await client.get(
+                "/api/v1/roles", headers={"X-Request-Id": "test-req-id"}
+            )
 
         assert response.status_code == HTTPStatus.OK
         assert response.json() is not None
@@ -251,6 +253,7 @@ async def test_superuser_bypasses_permission_checks_for_create_role_endpoint() -
             response = await client.post(
                 "/api/v1/roles",
                 json={"name": role_name},
+                headers={"X-Request-Id": "test-req-id"},
             )
 
         assert response.status_code == HTTPStatus.CREATED
@@ -281,7 +284,8 @@ async def test_superuser_bypasses_permission_checks_for_assign_role_endpoint() -
     try:
         async with _overridden_client(subject=superuser_id) as client:
             response = await client.put(
-                f"/api/v1/roles/{role_id}/users/{target_user_id}"
+                f"/api/v1/roles/{role_id}/users/{target_user_id}",
+                headers={"X-Request-Id": "test-req-id"},
             )
 
         assert response.status_code == HTTPStatus.NO_CONTENT
@@ -310,7 +314,8 @@ async def test_superuser_bypasses_permission_checks_for_remove_permission_endpoi
     try:
         async with _overridden_client(subject=superuser_id) as client:
             response = await client.delete(
-                f"/api/v1/permissions/{permission_id}/roles/{role_id}"
+                f"/api/v1/permissions/{permission_id}/roles/{role_id}",
+                headers={"X-Request-Id": "test-req-id"},
             )
 
         assert response.status_code == HTTPStatus.NO_CONTENT

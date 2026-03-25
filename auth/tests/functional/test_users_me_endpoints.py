@@ -24,7 +24,10 @@ async def test_me_returns_404_when_user_not_found(test_client) -> None:
     """Ensure `/users/me` returns 404 for missing user subject."""
     test_client.fake_auth.subject = "00000000-0000-0000-0000-000000000000"  # type: ignore[attr-defined]
 
-    response = await test_client.get("/api/v1/users/me")
+    response = await test_client.get(
+        "/api/v1/users/me",
+        headers={"X-Request-Id": "test-req-id"},
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
@@ -36,6 +39,7 @@ async def test_users_me_change_email_returns_204(test_client) -> None:
     response = await test_client.patch(
         "/api/v1/users/me/email",
         json={"new_email": "updated@example.com"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 204
@@ -48,6 +52,7 @@ async def test_users_me_change_email_duplicate_returns_409(test_client) -> None:
     response = await test_client.patch(
         "/api/v1/users/me/email",
         json={"new_email": "duplicate@example.com"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 409
@@ -64,8 +69,8 @@ async def test_users_me_change_email_returns_404_when_user_not_found(
     response = await test_client.patch(
         "/api/v1/users/me/email",
         json={"new_email": "updated@example.com"},
+        headers={"X-Request-Id": "test-req-id"},
     )
-
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
 
@@ -80,6 +85,7 @@ async def test_users_me_change_email_non_fresh_token_returns_401(
     response = await test_client.patch(
         "/api/v1/users/me/email",
         json={"new_email": "updated@example.com"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 401
@@ -92,6 +98,7 @@ async def test_users_me_change_password_returns_204(test_client) -> None:
     response = await test_client.patch(
         "/api/v1/users/me/password",
         json={"new_password": "StrongPass1!"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 204
@@ -108,6 +115,7 @@ async def test_users_me_change_password_returns_404_when_user_not_found(
     response = await test_client.patch(
         "/api/v1/users/me/password",
         json={"new_password": "StrongPass1!"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 404
@@ -124,6 +132,7 @@ async def test_users_me_change_password_non_fresh_token_returns_401(
     response = await test_client.patch(
         "/api/v1/users/me/password",
         json={"new_password": "StrongPass1!"},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 401
@@ -136,6 +145,7 @@ async def test_users_me_logs_returns_paginated_logs(test_client) -> None:
     response = await test_client.get(
         "/api/v1/users/me/logs",
         params={"page_size": 1, "page_number": 0},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 200
@@ -152,6 +162,7 @@ async def test_users_me_logs_are_sorted_newest_first(test_client) -> None:
     response = await test_client.get(
         "/api/v1/users/me/logs",
         params={"page_size": 10, "page_number": 0},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 200
@@ -166,6 +177,7 @@ async def test_users_me_logs_returns_empty_for_out_of_range_page(test_client) ->
     response = await test_client.get(
         "/api/v1/users/me/logs",
         params={"page_size": 10, "page_number": 1},
+        headers={"X-Request-Id": "test-req-id"},
     )
 
     assert response.status_code == 200
@@ -177,7 +189,9 @@ async def test_users_me_logs_unauthorized_returns_401(test_client) -> None:
     """Ensure logs endpoint requires authentication."""
     test_client.fake_auth.is_authorized = False  # type: ignore[attr-defined]
 
-    response = await test_client.get("/api/v1/users/me/logs")
+    response = await test_client.get(
+        "/api/v1/users/me/logs", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Authentication required"
@@ -194,6 +208,7 @@ async def test_users_me_has_permission_returns_boolean(test_client) -> None:
     try:
         response = await test_client.get(
             "/api/v1/users/me/has_permission/roles:read",
+            headers={"X-Request-Id": "test-req-id"},
         )
 
         assert response.status_code == 200
@@ -216,6 +231,7 @@ async def test_users_me_has_permission_invalid_name_returns_422(test_client) -> 
     try:
         response = await test_client.get(
             "/api/v1/users/me/has_permission/not-a-permission",
+            headers={"X-Request-Id": "test-req-id"},
         )
 
         assert response.status_code == 422

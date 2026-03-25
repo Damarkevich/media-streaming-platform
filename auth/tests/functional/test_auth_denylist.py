@@ -130,6 +130,7 @@ async def _login_and_get_tokens(client: AsyncClient) -> tuple[str, str]:
     login_response = await client.post(
         "/api/v1/auth/login",
         json={"email": "valid_user@example.com", "password": "ValidPass1!"},
+        headers={"X-Request-Id": "test-req-id"},
     )
     assert login_response.status_code == 200
     body = login_response.json()
@@ -148,20 +149,29 @@ async def test_refresh_token_is_revoked_after_logout(
 
         logout_response = await client.delete(
             "/api/v1/auth/refresh-revoke",
-            headers={"Authorization": f"Bearer {refresh_token}"},
+            headers={
+                "Authorization": f"Bearer {refresh_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
         assert logout_response.status_code == 204
 
         refresh_response = await client.post(
             "/api/v1/auth/refresh",
-            headers={"Authorization": f"Bearer {refresh_token}"},
+            headers={
+                "Authorization": f"Bearer {refresh_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
         assert refresh_response.status_code == 401
         assert refresh_response.json()["detail"] == "Token has been revoked"
 
         refresh_response_again = await client.post(
             "/api/v1/auth/refresh",
-            headers={"Authorization": f"Bearer {refresh_token}"},
+            headers={
+                "Authorization": f"Bearer {refresh_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
         assert refresh_response_again.status_code == 401
         assert refresh_response_again.json()["detail"] == "Token has been revoked"
@@ -179,13 +189,19 @@ async def test_access_token_is_revoked_after_access_revoke(
 
         first_revoke = await client.delete(
             "/api/v1/auth/access-revoke",
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
         assert first_revoke.status_code == 204
 
         second_revoke = await client.delete(
             "/api/v1/auth/access-revoke",
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
         assert second_revoke.status_code == 401
         assert second_revoke.json()["detail"] == "Token has been revoked"
@@ -203,7 +219,10 @@ async def test_refresh_with_access_token_is_denied(
 
         response = await client.post(
             "/api/v1/auth/refresh",
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
 
         assert response.status_code == 422
@@ -222,7 +241,10 @@ async def test_me_with_refresh_token_is_denied(
 
         response = await client.get(
             "/api/v1/users/me",
-            headers={"Authorization": f"Bearer {refresh_token}"},
+            headers={
+                "Authorization": f"Bearer {refresh_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
 
         assert response.status_code == 422
@@ -242,7 +264,10 @@ async def test_refresh_with_expired_refresh_token_is_denied(
 
         response = await client.post(
             "/api/v1/auth/refresh",
-            headers={"Authorization": f"Bearer {refresh_token}"},
+            headers={
+                "Authorization": f"Bearer {refresh_token}",
+                "X-Request-Id": "test-req-id",
+            },
         )
 
         assert response.status_code == 422

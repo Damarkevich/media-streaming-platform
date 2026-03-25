@@ -125,7 +125,9 @@ async def test_get_roles_returns_403_when_roles_read_permission_missing(
         permission_check_service=fake_permission_check_service,
     )
 
-    response = await test_client.get("/api/v1/roles")
+    response = await test_client.get(
+        "/api/v1/roles", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Permission 'roles:read' is required"
@@ -154,7 +156,9 @@ async def test_get_roles_returns_200_when_roles_read_permission_present(
         permission_check_service=fake_permission_check_service,
     )
 
-    response = await test_client.get("/api/v1/roles")
+    response = await test_client.get(
+        "/api/v1/roles", headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 200
     assert response.json() == [{"id": str(role_id), "name": "admin"}]
@@ -242,7 +246,9 @@ async def test_roles_and_permissions_endpoints_return_403_without_permission(
         permission_check_service=fake_permission_check_service,
     )
 
-    response = await test_client.request(method, url, json=payload)
+    response = await test_client.request(
+        method, url, json=payload, headers={"X-Request-Id": "test-req-id"}
+    )
 
     assert response.status_code == 403
     assert (

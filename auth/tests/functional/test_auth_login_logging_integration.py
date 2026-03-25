@@ -63,6 +63,7 @@ async def _signup_user(client: AsyncClient, email: str, password: str) -> str:
             "first_name": "Log",
             "last_name": "Check",
         },
+        headers={"X-Request-Id": "test-req-id"},
     )
     assert signup_response.status_code == 201
     return signup_response.json()["id"]
@@ -122,6 +123,7 @@ async def test_login_writes_audit_log_to_db() -> None:
             login_response = await client.post(
                 "/api/v1/auth/login",
                 json={"email": email, "password": password},
+                headers={"X-Request-Id": "test-req-id"},
             )
             assert login_response.status_code == 200
 
@@ -153,6 +155,7 @@ async def test_login_with_invalid_password_does_not_write_audit_log() -> None:
             login_response = await client.post(
                 "/api/v1/auth/login",
                 json={"email": email, "password": "WrongPass1!"},
+                headers={"X-Request-Id": "test-req-id"},
             )
             assert login_response.status_code == 401
 

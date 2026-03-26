@@ -1,5 +1,6 @@
-from src.core.permissions import PermissionName
 from enum import StrEnum
+
+from src.core.permissions import PermissionName
 
 
 class DefaultRole(StrEnum):

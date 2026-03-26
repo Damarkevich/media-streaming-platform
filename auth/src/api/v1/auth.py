@@ -20,7 +20,7 @@ from src.schemas.users import (
     UserLogin,
     UserResponse,
 )
-from src.services.roles import RoleService, get_role_service
+from src.services.roles import RoleNotFoundError, RoleService, get_role_service
 from src.services.tokens import TokenService, get_token_service
 from src.services.users import UserAlreadyExistsError, UserService, get_user_service
 
@@ -44,6 +44,7 @@ def _extract_jti(payload: Mapping[str, object] | None) -> str:
 async def create_user(
     user_create: UserCreate,
     user_service: Annotated[UserService, Depends(get_user_service)],
+    role_service: Annotated[RoleService, Depends(get_role_service)],
     request: Request,
 ) -> UserResponse:
     """Register a new user account and return its public projection."""
@@ -55,6 +56,16 @@ async def create_user(
             status_code=HTTPStatus.CONFLICT,
             detail="User with this email already exists",
         ) from exc
+
+    # Assign base role to the new user
+    try:
+        await role_service.assign_base_role_to_user(user.id)
+    except RoleNotFoundError as exc:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Base role not found",
+        ) from exc
+
     return UserResponse.model_validate(user)
 
 
@@ -150,7 +161,7 @@ async def api_login(
     user_service: Annotated[UserService, Depends(get_user_service)],
     request: Request,
 ) -> UserResponse:
-    """Authenticate credentials and issue a new access/refresh token pair."""
+    """Authenticate credentials and return user details."""
     user_dto: dict[str, str] = user_login.model_dump()
     user = await user_service.authenticate_user(**user_dto)
     if not user:

@@ -37,8 +37,16 @@ class FakeTokenService:
 class FakeRoleService:
     """Fake role provider for login integration tests."""
 
+    def __init__(self, db=None, redis_client=None):
+        self.db = db
+        self.redis_client = redis_client
+
     async def get_roles_by_user_id(self, user_id: uuid.UUID) -> list[object]:
         return []
+
+    async def assign_base_role_to_user(self, user_id):
+        # Stub: do nothing for tests
+        return None
 
 
 def _override_token_service() -> None:

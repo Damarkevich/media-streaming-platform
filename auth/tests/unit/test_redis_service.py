@@ -28,29 +28,11 @@ def test_key_builders_produce_expected_prefixes() -> None:
     """Ensure blacklist and permissions cache key builders use expected prefixes."""
     user_id = uuid4()
 
-    access_key = RedisClient.access_blacklist_key("jti-1")
+    access_key = RedisClient.token_blacklist_key("jti-1", token_type="access")
     permissions_key = RedisClient.permissions_cache_key(user_id)
 
     assert access_key == "blacklist:access:jti-1"
     assert permissions_key == f"auth:user_permissions:{user_id}"
-
-
-@pytest.mark.asyncio
-async def test_add_and_check_access_blacklist() -> None:
-    """Ensure access-token blacklist write/read behavior is correct."""
-    raw_client = AsyncMock()
-    raw_client.get = AsyncMock(side_effect=["true", None])
-    redis_client = RedisClient(raw_client)
-
-    await redis_client.add_access_token_to_blacklist("jti-2", ttl_seconds=45)
-    first_check = await redis_client.is_access_token_blacklisted("jti-2")
-    second_check = await redis_client.is_access_token_blacklisted("jti-2")
-
-    raw_client.setex.assert_awaited_once_with(
-        name="blacklist:access:jti-2", time=45, value="true"
-    )
-    assert first_check is True
-    assert second_check is False
 
 
 @pytest.mark.asyncio

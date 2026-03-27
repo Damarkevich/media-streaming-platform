@@ -1,5 +1,5 @@
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 from uuid import uuid4
 
 import pytest
@@ -15,13 +15,12 @@ async def test_issue_tokens_uses_configured_ttls(
     monkeypatch.setattr("src.services.tokens.settings.access_token_expires", 101)
     monkeypatch.setattr("src.services.tokens.settings.refresh_token_expires", 202)
 
-    db = AsyncMock()
     auth = AsyncMock()
     redis_client = AsyncMock()
     auth.create_access_token.return_value = "access-token"
     auth.create_refresh_token.return_value = "refresh-token"
 
-    service = TokenService(db=db, auth=auth, redis_client=redis_client)
+    service = TokenService(auth=auth, redis_client=redis_client)
     user_id = uuid4()
     roles_names = ["subscriber"]
     access_token, refresh_token = await service.issue_tokens(user_id, roles_names)
@@ -40,16 +39,30 @@ async def test_issue_tokens_uses_configured_ttls(
 
 
 @pytest.mark.asyncio
-async def test_add_refresh_to_blacklist_is_idempotent() -> None:
-    """Ensure adding same refresh JTI twice remains safe and idempotent."""
-    db = AsyncMock()
+async def test_add_refresh_to_blacklist_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure adding same refresh JTI twice remains safe and idempotent (Redis)."""
+    monkeypatch.setattr("src.services.tokens.settings.refresh_token_expires", 10000)
     auth = AsyncMock()
     redis_client = AsyncMock()
+    service = TokenService(auth=auth, redis_client=redis_client)
 
-    service = TokenService(db=db, auth=auth, redis_client=redis_client)
+    await service.add_token_to_blacklist("same-jti", token_type="refresh")
+    await service.add_token_to_blacklist("same-jti", token_type="refresh")
 
-    await service.add_refresh_to_blacklist("same-jti")
-    await service.add_refresh_to_blacklist("same-jti")
-
-    assert db.execute.await_count == 2
-    assert db.commit.await_count == 2
+    assert redis_client.add_token_to_blacklist.await_count == 2
+    redis_client.add_token_to_blacklist.assert_has_calls(
+        [
+            call(
+                jti="same-jti",
+                ttl_seconds=10000,
+                token_type="refresh",
+            ),
+            call(
+                jti="same-jti",
+                ttl_seconds=10000,
+                token_type="refresh",
+            ),
+        ]
+    )

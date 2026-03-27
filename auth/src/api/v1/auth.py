@@ -117,7 +117,7 @@ async def refresh_token(
     )
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_refresh_to_blacklist(old_refresh_jti)
+    await token_service.add_token_to_blacklist(old_refresh_jti, token_type="refresh")
 
     return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token)
 
@@ -135,7 +135,7 @@ async def access_revoke(
     await auth.jwt_required()
 
     old_access_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_access_to_blacklist(old_access_jti)
+    await token_service.add_token_to_blacklist(old_access_jti, token_type="access")
 
 
 @router.delete(
@@ -151,7 +151,7 @@ async def refresh_revoke(
     await auth.jwt_refresh_token_required()
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_refresh_to_blacklist(old_refresh_jti)
+    await token_service.add_token_to_blacklist(old_refresh_jti, token_type="refresh")
 
 
 @router.post("/api-login", response_model=UserResponse, responses=LOGIN_RESPONSES)

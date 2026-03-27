@@ -12,6 +12,7 @@ class RedisClient:
     """Thin async Redis wrapper used by auth services."""
 
     ACCESS_BLACKLIST_KEY_PREFIX = "blacklist:access:"
+    REFRESH_BLACKLIST_KEY_PREFIX = "blacklist:refresh:"
     PERMISSIONS_CACHE_KEY_PREFIX = "auth:user_permissions:"
 
     def __init__(self, client: Redis) -> None:
@@ -70,23 +71,31 @@ class RedisClient:
         await self.client.delete(key)
 
     @classmethod
-    def access_blacklist_key(cls, jti: str) -> str:
-        """Build Redis key for access-token blacklist entry.
+    def token_blacklist_key(cls, jti: str, token_type: str) -> str:
+        """Build Redis key for token blacklist entry.
 
         Args:
-            jti: Access token identifier.
+            jti: Token identifier.
+            token_type: JWT type (`access` or `refresh`).
 
         Returns:
-            Redis key for access token denylist entry.
+            Redis key for token blacklist entry.
         """
-        return f"{cls.ACCESS_BLACKLIST_KEY_PREFIX}{jti}"
+        if token_type == "access":
+            return f"{cls.ACCESS_BLACKLIST_KEY_PREFIX}{jti}"
+        if token_type == "refresh":
+            return f"{cls.REFRESH_BLACKLIST_KEY_PREFIX}{jti}"
+        raise ValueError(f"Invalid token type: {token_type}")
 
-    async def add_access_token_to_blacklist(self, jti: str, ttl_seconds: int) -> None:
-        """Store access-token JTI in denylist with TTL.
+    async def add_token_to_blacklist(
+        self, jti: str, ttl_seconds: int, token_type: str
+    ) -> None:
+        """Store token JTI in denylist with TTL.
 
         Args:
-            jti: Access token identifier.
+            jti: Token identifier.
             ttl_seconds: Time-to-live in seconds.
+            token_type: JWT type (`access` or `refresh`).
 
         Returns:
             None.
@@ -95,16 +104,17 @@ class RedisClient:
             RedisError: Propagates Redis I/O errors.
         """
         await self.client.setex(
-            name=self.access_blacklist_key(jti),
+            name=self.token_blacklist_key(jti, token_type=token_type),
             time=ttl_seconds,
             value="true",
         )
 
-    async def is_access_token_blacklisted(self, jti: str) -> bool:
-        """Return whether access-token JTI exists in denylist.
+    async def is_token_blacklisted(self, jti: str, token_type: str) -> bool:
+        """Return whether token JTI exists in denylist.
 
         Args:
-            jti: Access token identifier.
+            jti: Token identifier.
+            token_type: JWT type (`access` or `refresh`).
 
         Returns:
             True when token is blacklisted.
@@ -112,7 +122,8 @@ class RedisClient:
         Raises:
             RedisError: Propagates Redis I/O errors.
         """
-        value = await self.client.get(self.access_blacklist_key(jti))
+        key: str = self.token_blacklist_key(jti, token_type=token_type)
+        value: bytes | str | None = await self.client.get(key)
         return value is not None
 
     @classmethod

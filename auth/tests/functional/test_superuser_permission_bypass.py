@@ -60,7 +60,7 @@ async def _create_user(user_id: str, email: str, *, is_superuser: bool) -> None:
                 INSERT INTO auth.users (
                     id,
                     email,
-                    password,
+                    password_hash,
                     first_name,
                     last_name,
                     created_at,
@@ -69,7 +69,7 @@ async def _create_user(user_id: str, email: str, *, is_superuser: bool) -> None:
                 VALUES (
                     :id,
                     :email,
-                    :password,
+                    :password_hash,
                     :first_name,
                     :last_name,
                     :created_at,
@@ -80,7 +80,7 @@ async def _create_user(user_id: str, email: str, *, is_superuser: bool) -> None:
             {
                 "id": user_id,
                 "email": email,
-                "password": "test-password-hash",
+                "password_hash": "test-password-hash",
                 "first_name": "Super" if is_superuser else "Regular",
                 "last_name": "User",
                 "created_at": datetime.now(timezone.utc),

@@ -1,7 +1,7 @@
 """seed permissions
 
 Revision ID: 69cc3d7b038c
-Revises: e557b1602158
+Revises: c41fd2888559
 Create Date: 2026-03-02 19:49:43.448513
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "69cc3d7b038c"
-down_revision: Union[str, Sequence[str], None] = "e557b1602158"
+down_revision: Union[str, Sequence[str], None] = "c41fd2888559"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

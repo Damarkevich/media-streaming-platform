@@ -14,11 +14,11 @@ async def test_user_set_password_hashes_password_and_keeps_check_working() -> No
         last_name="Ivanov",
     )
 
-    original_hash = user.password
+    original_hash = user.password_hash
     await user.set_password("NewStrongPass1!")
 
-    assert user.password != "NewStrongPass1!"
-    assert user.password != original_hash
+    assert user.password_hash != "NewStrongPass1!"
+    assert user.password_hash != original_hash
     assert await user.check_password("NewStrongPass1!") is True
 
 

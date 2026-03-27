@@ -16,6 +16,8 @@ from src.services.utils import is_field_unique_violation
 
 logger = logging.getLogger(__name__)
 
+BASE_ROLE_NAME = "subscriber"
+
 
 class RoleAlreadyExistsError(Exception):
     """Raised when a role cannot be created because the name is already taken."""
@@ -324,6 +326,30 @@ class RoleService:
             .limit(1)
         )
         return result.scalars().one_or_none() is not None
+
+    async def assign_base_role_to_user(self, user_id: UUID) -> None:
+        """Assign the base role to a user.
+
+        Args:
+            user_id: The UUID of the user.
+
+        Returns:
+            None.
+
+        Raises:
+            RoleNotFoundError: If base role does not exist.
+            UserNotFoundError: If user does not exist.
+            SQLAlchemyError: If persistence fails.
+        """
+        default_roles = await self.db.execute(
+            select(Role).where(Role.name == BASE_ROLE_NAME)
+        )
+        default_role_instance = default_roles.scalars().one_or_none()
+        if not default_role_instance:
+            raise RoleNotFoundError("Base role not found")
+        await self.assign_role_to_user(
+            user_id=user_id, role_id=default_role_instance.id
+        )
 
 
 def get_role_service(

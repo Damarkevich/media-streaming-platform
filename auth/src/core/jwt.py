@@ -1,8 +1,13 @@
+from typing import Annotated
+
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
-from async_fastapi_jwt_auth.auth_jwt import AuthJWTBearer  # type: ignore[import-untyped]
+from async_fastapi_jwt_auth.auth_jwt import (
+    AuthJWTBearer,  # type: ignore[import-untyped]
+)
+from fastapi import Depends
 
 from src.core.config import Settings, settings
-from src.services.blacklist import check_token_revoked_runtime
+from src.services.redis import RedisClient, get_redis_client
 
 auth_dep = AuthJWTBearer()
 
@@ -15,17 +20,19 @@ def get_config() -> Settings:
 
 @AuthJWT.token_in_denylist_loader  # type: ignore[arg-type]
 async def check_if_token_in_blacklist(
+    redis_service: Annotated[RedisClient, Depends(get_redis_client)],
     decrypted_token: dict[str, str | int | bool],
 ) -> bool:
     """Check whether a JWT is revoked.
 
-    Access-token blacklist is stored in Redis, refresh-token blacklist is
-    persisted in PostgreSQL. If underlying storage is unavailable, this check
+    Token blacklist is stored in Redis.
+    If jwt is missing JTI or type claim, it is treated as revoked.
+    If underlying storage is unavailable, this check
     fails closed and treats token as revoked.
     """
     jti = str(decrypted_token.get("jti", ""))
     if not jti:
-        return False
+        return True
 
     token_type = str(decrypted_token.get("type", "")).strip().lower()
-    return await check_token_revoked_runtime(token_type=token_type, jti=jti)
+    return await redis_service.is_token_blacklisted(jti=jti, token_type=token_type)

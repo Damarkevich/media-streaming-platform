@@ -98,7 +98,7 @@ class UserService:
         stmt = (
             update(User)
             .where(User.id == user_id)
-            .values(password=password_hash)
+            .values(password_hash=password_hash)
             .returning(User)
         )
         result = await self.db.execute(stmt)
@@ -214,7 +214,9 @@ class UserService:
         except SQLAlchemyError:
             await self.db.rollback()
             logger.warning(
-                f"Failed to persist user action log for user_id={user.id} and log_type={log_type}"
+                "Failed to persist user action log for user_id=%s and log_type=%s",
+                user.id,
+                log_type,
             )
 
     async def get_user_logs(

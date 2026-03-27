@@ -152,6 +152,14 @@ class FakeTokenService:
     async def add_refresh_to_blacklist(self, jti: str) -> None:
         self.last_refresh_blacklisted_jti = jti
 
+    async def add_token_to_blacklist(self, jti: str, token_type: str) -> None:
+        if token_type == "access":
+            await self.add_access_to_blacklist(jti)
+        elif token_type == "refresh":
+            await self.add_refresh_to_blacklist(jti)
+        else:
+            pass
+
 
 class FakeAuth:
     """Fake AuthJWT adapter for authenticated test scenarios."""
@@ -196,6 +204,14 @@ class FakeAuth:
 
 class FakeRoleService:
     """Fake role service used by functional tests."""
+
+    async def assign_role_to_user(self, user_id, role_id):
+        # Stub: do nothing for tests
+        return None
+
+    async def assign_base_role_to_user(self, user_id):
+        # Stub: do nothing for tests
+        return None
 
     async def get_roles_by_user_id(self, user_id: UUID) -> list[object]:
         return []

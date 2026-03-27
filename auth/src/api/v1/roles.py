@@ -88,7 +88,7 @@ async def create_role(
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=str(exc),
-        )
+        ) from exc
     return RoleResponse(id=role.id, name=role.name)
 
 
@@ -110,7 +110,7 @@ async def update_role(
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=str(exc),
-        )
+        ) from exc
     if not is_updated:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,

@@ -20,7 +20,7 @@ from src.schemas.users import (
     UserLogin,
     UserResponse,
 )
-from src.services.roles import RoleService, get_role_service
+from src.services.roles import RoleNotFoundError, RoleService, get_role_service
 from src.services.tokens import TokenService, get_token_service
 from src.services.users import UserAlreadyExistsError, UserService, get_user_service
 
@@ -44,6 +44,7 @@ def _extract_jti(payload: Mapping[str, object] | None) -> str:
 async def create_user(
     user_create: UserCreate,
     user_service: Annotated[UserService, Depends(get_user_service)],
+    role_service: Annotated[RoleService, Depends(get_role_service)],
     request: Request,
 ) -> UserResponse:
     """Register a new user account and return its public projection."""
@@ -55,6 +56,16 @@ async def create_user(
             status_code=HTTPStatus.CONFLICT,
             detail="User with this email already exists",
         ) from exc
+
+    # Assign base role to the new user
+    try:
+        await role_service.assign_base_role_to_user(user.id)
+    except RoleNotFoundError as exc:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Base role not found",
+        ) from exc
+
     return UserResponse.model_validate(user)
 
 
@@ -106,7 +117,7 @@ async def refresh_token(
     )
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_refresh_to_blacklist(old_refresh_jti)
+    await token_service.add_token_to_blacklist(old_refresh_jti, token_type="refresh")
 
     return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token)
 
@@ -124,7 +135,7 @@ async def access_revoke(
     await auth.jwt_required()
 
     old_access_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_access_to_blacklist(old_access_jti)
+    await token_service.add_token_to_blacklist(old_access_jti, token_type="access")
 
 
 @router.delete(
@@ -140,7 +151,7 @@ async def refresh_revoke(
     await auth.jwt_refresh_token_required()
 
     old_refresh_jti = _extract_jti(await auth.get_raw_jwt())
-    await token_service.add_refresh_to_blacklist(old_refresh_jti)
+    await token_service.add_token_to_blacklist(old_refresh_jti, token_type="refresh")
 
 
 @router.post("/api-login", response_model=UserResponse, responses=LOGIN_RESPONSES)
@@ -150,7 +161,7 @@ async def api_login(
     user_service: Annotated[UserService, Depends(get_user_service)],
     request: Request,
 ) -> UserResponse:
-    """Authenticate credentials and issue a new access/refresh token pair."""
+    """Authenticate credentials and return user details."""
     user_dto: dict[str, str] = user_login.model_dump()
     user = await user_service.authenticate_user(**user_dto)
     if not user:

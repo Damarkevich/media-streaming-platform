@@ -61,6 +61,56 @@ services:
       retries: 5
       start_period: 10s
 
+  kafka-1:
+    image: bitnamilegacy/kafka:3.4
+    ports:
+      - "9095:9095"
+    env_file:
+      - .env
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID_1}
+      - KAFKA_ENABLE_KRAFT=${KAFKA_ENABLE_KRAFT}
+      - ALLOW_PLAINTEXT_LISTENER=${ALLOW_PLAINTEXT_LISTENER}
+      - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CFG_CONTROLLER_LISTENER_NAMES}
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_LISTENERS=${KAFKA_CFG_LISTENERS_1}
+      - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_1}
+    volumes:
+      - kafka_1_data:/bitnami/kafka
+
+  kafka-2:
+    image: bitnamilegacy/kafka:3.4
+    ports:
+      - "9096:9096"
+    env_file:
+      - .env
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID_2}
+      - KAFKA_ENABLE_KRAFT=${KAFKA_ENABLE_KRAFT}
+      - ALLOW_PLAINTEXT_LISTENER=${ALLOW_PLAINTEXT_LISTENER}
+      - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CFG_CONTROLLER_LISTENER_NAMES}
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_LISTENERS=${KAFKA_CFG_LISTENERS_2}
+      - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_2}
+    volumes:
+      - kafka_2_data:/bitnami/kafka
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.0
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=${KAFKA_UI_BOOTSTRAP_SERVERS}
+      - KAFKA_CLUSTERS_0_NAME=${KAFKA_UI_CLUSTER_NAME}
+
   movies-etl-service:
     container_name: movies-etl-service
     build: ./etl_service
@@ -149,8 +199,6 @@ services:
       retries: 5
       start_period: 20s
 
-
-
   nginx:
     container_name: movies-nginx
     image: nginx:1.29
@@ -171,8 +219,33 @@ services:
     ports:
       - "80:80"
 
+  kafka-0:
+    image: bitnamilegacy/kafka:3.4
+    ports:
+      - "9094:9094"
+    env_file:
+      - .env
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID_0}
+      - KAFKA_ENABLE_KRAFT=${KAFKA_ENABLE_KRAFT}
+      - ALLOW_PLAINTEXT_LISTENER=${ALLOW_PLAINTEXT_LISTENER}
+      - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CFG_CONTROLLER_LISTENER_NAMES}
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_LISTENERS=${KAFKA_CFG_LISTENERS_0}
+      - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_0}
+    volumes:
+      - kafka_0_data:/bitnami/kafka
+   
+   
+
 volumes:
   movies_admin_db:
   movies_admin_static:
   movies_redis_data:
   movies_elasticsearch_data:
+  kafka_0_data:
+  kafka_1_data:
+  kafka_2_data:

@@ -1,5 +1,5 @@
 COMPOSE = docker-compose
-LOCAL_INFRA_SERVICES = movies-elasticsearch movies-db movies-redis jaeger
+LOCAL_INFRA_SERVICES = movies-elasticsearch movies-db movies-redis jaeger kafka-0 kafka-1 kafka-2 kafka-ui
 
 .PHONY: dev-infra-up dev-infra-down dev-infra-ps
 

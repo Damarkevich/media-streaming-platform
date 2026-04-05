@@ -1,0 +1,129 @@
+Endpoint for ingesting events from clients. 
+
+It validates incoming data, extracts user information from JWT, and sends enriched events to Kafka for further processing. The enriched events include user_id, movie_id, and server-side timestamp for better analytics and debugging.
+---
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      $ref: '#/definitions/EventIngestRequest'
+definitions:
+  Context:
+    type: object
+    properties:
+      device:
+        type: string
+      location:
+        type: string
+      browser:
+        type: string
+      os:
+        type: string
+  Payload:
+    type: object
+    properties:
+      movie_id:
+        type: string
+        format: uuid
+      position:
+        type: integer
+      page:
+        type: string
+      duration:
+        type: integer
+      button_id:
+        type: string
+      search_query:
+        type: string
+    required:
+      - movie_id
+  Event:
+    type: object
+    properties:
+      event_id:
+        type: string
+        format: uuid
+      event_type:
+        type: string
+        enum:
+          - click
+          - page_view
+          - play_started
+          - play_progressed
+          - play_paused
+          - play_stopped
+          - quality_changed
+          - search_filtered
+      event_timestamp:
+        type: integer
+      session_id:
+        type: string
+        format: uuid
+      context:
+        $ref: '#/definitions/Context'
+      payload:
+        $ref: '#/definitions/Payload'
+    required:
+      - event_type
+      - event_timestamp
+      - session_id
+      - context
+      - payload
+  EventIngestRequest:
+    type: object
+    properties:
+      events:
+        type: array
+        items:
+          $ref: '#/definitions/Event'
+    required:
+      - events
+  EventIngestResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: success
+      events_accepted:
+        type: integer
+        description: Number of events successfully sent to Kafka
+      events_rejected:
+        type: integer
+        description: Number of events that failed validation
+    required:
+      - status
+      - events_accepted
+      - events_rejected
+  ErrorResponse:
+    type: object
+    properties:
+      message:
+        type: string
+    required:
+      - message
+  ValidationErrorResponse:
+    type: object
+    properties:
+      details:
+        type: object
+        additionalProperties: true
+    required:
+      - details
+responses:
+  200:
+    description: Events ingested successfully
+    schema:
+      $ref: '#/definitions/EventIngestResponse'
+  400:
+    description: Invalid request payload
+    schema:
+      $ref: '#/definitions/ValidationErrorResponse'
+  401:
+    description: Missing or invalid JWT access token
+    schema:
+      $ref: '#/definitions/ErrorResponse'
+  413:
+    description: Request body exceeds the configured size limit
+    schema:
+      $ref: '#/definitions/ErrorResponse'

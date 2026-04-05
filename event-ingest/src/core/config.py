@@ -1,0 +1,37 @@
+from logging import config as logging_config
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from core.logger import LOGGING
+
+logging_config.dictConfig(LOGGING)
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore", env_file=".env")
+
+    service_name: str = "Event Ingest Service"
+    service_description: str = "Event Ingest service for the Movies Streaming Platform"
+
+    debug: bool = False
+
+    authjwt_secret_key: str
+    authjwt_algorithm: str = "HS256"
+
+    kafka_bootstrap_servers: list[str] = ["localhost:9094"]
+    kafka_topic: str = "events"
+    max_content_length: int = 1 * 1024 * 1024  # 1 MB
+
+    @field_validator("authjwt_secret_key")
+    @classmethod
+    def validate_authjwt_secret_key(cls, value: str) -> str:
+        """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
+        if len(value.strip()) < 32:
+            raise ValueError(
+                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            )
+        return value
+
+
+settings = Settings()

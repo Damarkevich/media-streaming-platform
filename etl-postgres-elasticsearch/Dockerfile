@@ -3,7 +3,7 @@ FROM python:3.14
 COPY --from=ghcr.io/astral-sh/uv:0.9.22 /uv /uvx /bin/
 
 
-WORKDIR /opt/etl_service
+WORKDIR /opt/etl-postgres-elasticsearch
 ENV UV_NO_DEV=1
 
 # Copy only dependency files first for better caching

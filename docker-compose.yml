@@ -219,9 +219,9 @@ services:
     restart: unless-stopped
 
 
-  movies-etl-service:
-    container_name: movies-etl-service
-    build: ./etl_service
+  etl-postgres-elasticsearch:
+    container_name: etl-postgres-elasticsearch
+    build: ./etl-postgres-elasticsearch
     restart: unless-stopped
     depends_on:
       movies-db:

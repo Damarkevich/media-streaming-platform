@@ -109,7 +109,7 @@ The service uses YAML-based configuration (`etl_mappings.yaml`) to define how ea
 
 1. **Clone the repository and navigate to the project:**
    ```bash
-   cd etl_service
+   cd etl-postgres-elasticsearch
    ```
 
 2. **Install dependencies using uv:**
@@ -144,7 +144,7 @@ The service uses YAML-based configuration (`etl_mappings.yaml`) to define how ea
    # Logging Configuration
    LOG_LEVEL=INFO
    LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
-   LOG_NAME=etl_postgres_to_elastic
+   LOG_NAME=etl_postgres_to_elasticsearch
    ```
 
 ### Running the Application
@@ -158,8 +158,8 @@ uv run main.py
 #### Using Docker
 
 ```bash
-docker build -t etl-service .
-docker run --env-file .env etl-service
+docker build -t etl-postgres-elasticsearch .
+docker run --env-file .env etl-postgres-elasticsearch
 ```
 
 #### Full Stack with Docker Compose
@@ -184,13 +184,13 @@ Expected indices:
 
 Check ETL service logs:
 ```bash
-docker-compose logs -f etl-service
+docker-compose logs -f etl-postgres-elasticsearch
 ```
 
 ## 🏗 Project Structure
 
 ```
-etl_service/
+etl-postgres-elasticsearch/
 ├── config/
 │   ├── etl_mappings.py       # YAML mappings loader
 │   ├── etl_mappings.yaml     # Table to index mapping configuration

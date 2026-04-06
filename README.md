@@ -17,7 +17,7 @@ This platform consists of the following microservices:
 
 ### Supporting Services
 - **sqlite-to-postgres** - A tool to migrate data from SQLite databases to PostgreSQL.
-- **etl-service** - ETL pipeline for transferring data from PostgreSQL to Elasticsearch. 
+- **etl-postgres-elasticsearch** - ETL pipeline for transferring data from PostgreSQL to Elasticsearch. 
 
 ### Infrastructure
 - **schema-design** - The database schema design for the media streaming platform.

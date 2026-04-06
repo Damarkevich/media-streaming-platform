@@ -136,6 +136,29 @@ uv run flask --app src.app:create_app run --host 0.0.0.0 --port 5000
 
 For production WSGI deployments, use `src/wsgi_app.py` as the entrypoint.
 
+### Running with Docker
+
+Build the image:
+
+```bash
+cd event-ingest
+docker build -t movies-event-ingest .
+```
+
+The container runs via Gunicorn with the `gevent` worker class and uses `src.wsgi_app:app` as the WSGI entrypoint.
+
+### Running with Docker Compose
+
+From the project root:
+
+```bash
+docker compose up -d movies-event-ingest nginx
+```
+
+When the full stack is running behind nginx, the ingest endpoint is available at:
+
+- `http://localhost/api/v1/events/`
+
 ### API Documentation
 
 Swagger UI is served by Flasgger at:
@@ -208,6 +231,11 @@ Current test coverage includes:
 - Mixed batch handling (accepted + rejected)
 - Schema validation for supported event types
 - Producer lifecycle shutdown behavior
+
+Infrastructure validation performed for this service includes:
+
+- `docker compose config` for root stack validation
+- container image build validation for the `movies-event-ingest` service definition
 
 ## 🏗 Project Structure
 

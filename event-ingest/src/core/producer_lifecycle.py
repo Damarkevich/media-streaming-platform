@@ -1,7 +1,9 @@
 import atexit
-from typing import Protocol
+from typing import Protocol, TypeAlias
 
 from kafka import KafkaProducer
+
+KafkaApiVersion: TypeAlias = tuple[int, int] | tuple[int, int, int]
 
 
 class ProducerFuture(Protocol):
@@ -51,6 +53,12 @@ def register_producer_shutdown(producer: Producer) -> None:
         _shutdown_registered = True
 
 
-def create_kafka_producer(bootstrap_servers: list[str]) -> KafkaProducer:
+def create_kafka_producer(
+    bootstrap_servers: list[str],
+    api_version: KafkaApiVersion,
+) -> KafkaProducer:
     """Create a Kafka producer with configured bootstrap servers."""
-    return KafkaProducer(bootstrap_servers=bootstrap_servers)
+    return KafkaProducer(
+        bootstrap_servers=bootstrap_servers,
+        api_version=api_version,
+    )

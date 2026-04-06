@@ -11,8 +11,11 @@ logging_config.dictConfig(LOGGING)
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
-    service_name: str = "Event Ingest Service"
-    service_description: str = "Event Ingest service for the Movies Streaming Platform"
+    event_ingest_service_name: str = "Event Ingest Service"
+    event_ingest_service_description: str = (
+        "Event Ingest service for the Movies Streaming Platform"
+    )
+    event_ingest_max_content_length: int = 1 * 1024 * 1024  # 1 MB
 
     debug: bool = False
 
@@ -20,8 +23,8 @@ class Settings(BaseSettings):
     authjwt_algorithm: str = "HS256"
 
     kafka_bootstrap_servers: list[str] = ["localhost:9094"]
+    kafka_api_version: str = "3.4"
     kafka_topic: str = "events"
-    max_content_length: int = 1 * 1024 * 1024  # 1 MB
 
     @field_validator("authjwt_secret_key")
     @classmethod

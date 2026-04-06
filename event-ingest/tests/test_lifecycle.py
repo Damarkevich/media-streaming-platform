@@ -67,3 +67,20 @@ def test_shutdown_producers_swallows_producer_exceptions(monkeypatch) -> None:
 
     assert failing_producer.close_calls == 1
     assert lifecycle._producers_to_close == []
+
+
+def test_create_kafka_producer_uses_explicit_api_version(monkeypatch) -> None:
+    captured = {}
+
+    def fake_kafka_producer(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(lifecycle, "KafkaProducer", fake_kafka_producer)
+
+    lifecycle.create_kafka_producer(["kafka-0:9092"], (3, 4))
+
+    assert captured == {
+        "bootstrap_servers": ["kafka-0:9092"],
+        "api_version": (3, 4),
+    }

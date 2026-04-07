@@ -7,21 +7,10 @@ from flask_jwt_extended import JWTManager
 from api.v1.events import events_bp
 from core.config import settings
 from core.producer_lifecycle import (
-    KafkaApiVersion,
     Producer,
     create_kafka_producer,
     register_producer_shutdown,
 )
-
-
-def _parse_kafka_api_version(version: str) -> KafkaApiVersion:
-    """Convert dotted Kafka API version string to a tuple for kafka-python."""
-    parts = tuple(int(part) for part in version.split("."))
-
-    if len(parts) == 2:
-        return parts
-
-    raise ValueError("KAFKA_API_VERSION must contain two numeric parts")
 
 
 def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
@@ -51,7 +40,7 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
         or (
             lambda: create_kafka_producer(
                 settings.kafka_bootstrap_servers,
-                _parse_kafka_api_version(settings.kafka_api_version),
+                settings.kafka_api_version,
             )
         )
     )()

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     authjwt_algorithm: str = "HS256"
 
     kafka_bootstrap_servers: list[str] = ["localhost:9094"]
-    kafka_api_version: str = "3.4"
+    kafka_api_version: tuple[int, int] = (3, 4)
     kafka_topic: str = "events"
 
     @field_validator("authjwt_secret_key")

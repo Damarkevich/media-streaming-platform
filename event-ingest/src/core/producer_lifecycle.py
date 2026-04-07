@@ -1,9 +1,7 @@
 import atexit
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
 from kafka import KafkaProducer
-
-KafkaApiVersion: TypeAlias = tuple[int, int] | tuple[int, int, int]
 
 
 class ProducerFuture(Protocol):

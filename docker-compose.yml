@@ -61,6 +61,26 @@ services:
       retries: 5
       start_period: 10s
 
+  kafka-0:
+    image: bitnamilegacy/kafka:3.4
+    ports:
+      - "9094:9094"
+    env_file:
+      - .env
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID_0}
+      - KAFKA_ENABLE_KRAFT=${KAFKA_ENABLE_KRAFT}
+      - ALLOW_PLAINTEXT_LISTENER=${ALLOW_PLAINTEXT_LISTENER}
+      - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CFG_CONTROLLER_LISTENER_NAMES}
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
+      - KAFKA_CFG_LISTENERS=${KAFKA_CFG_LISTENERS_0}
+      - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_0}
+    volumes:
+      - kafka_0_data:/bitnami/kafka
+   
   kafka-1:
     image: bitnamilegacy/kafka:3.4
     ports:
@@ -233,6 +253,28 @@ services:
     env_file:
       - .env
 
+  etl-kafka-clickhouse:
+    container_name: etl-kafka-clickhouse
+    build: ./etl-kafka-clickhouse
+    restart: unless-stopped
+    depends_on:
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+      clickhouse-node1:
+        condition: service_healthy
+      clickhouse-node2:
+        condition: service_healthy
+      clickhouse-node3:
+        condition: service_healthy
+      clickhouse-node4:
+        condition: service_healthy
+    env_file:
+      - .env
+
   jaeger:
     container_name: movies-jaeger
     image: jaegertracing/all-in-one:1.76.0
@@ -354,27 +396,6 @@ services:
     ports:
       - "80:80"
 
-  kafka-0:
-    image: bitnamilegacy/kafka:3.4
-    ports:
-      - "9094:9094"
-    env_file:
-      - .env
-    environment:
-      - KAFKA_CFG_NODE_ID=${KAFKA_CFG_NODE_ID_0}
-      - KAFKA_ENABLE_KRAFT=${KAFKA_ENABLE_KRAFT}
-      - ALLOW_PLAINTEXT_LISTENER=${ALLOW_PLAINTEXT_LISTENER}
-      - KAFKA_KRAFT_CLUSTER_ID=${KAFKA_KRAFT_CLUSTER_ID}
-      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_CFG_PROCESS_ROLES}
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CFG_CONTROLLER_LISTENER_NAMES}
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP}
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CFG_CONTROLLER_QUORUM_VOTERS}
-      - KAFKA_CFG_LISTENERS=${KAFKA_CFG_LISTENERS_0}
-      - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_0}
-    volumes:
-      - kafka_0_data:/bitnami/kafka
-   
-   
 
 volumes:
   movies_admin_db:

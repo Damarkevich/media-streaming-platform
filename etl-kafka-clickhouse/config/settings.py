@@ -24,9 +24,7 @@ class Settings(BaseSettings):
         default="etl_kafka_to_clickhouse", alias="ETL_KAFKA_CLICKHOUSE_LOG_NAME"
     )
 
-    clickhouse_host: str = Field(
-        default="localhost", alias="ETL_KAFKA_CLICKHOUSE_HOST"
-    )
+    clickhouse_host: str = Field(default="localhost", alias="ETL_KAFKA_CLICKHOUSE_HOST")
     clickhouse_port: int = Field(default=9000, alias="ETL_KAFKA_CLICKHOUSE_PORT")
     clickhouse_user: str = Field(default="default", alias="CLICKHOUSE_DEFAULT_USER")
     clickhouse_password: str = Field(alias="CLICKHOUSE_DEFAULT_PASSWORD")
@@ -54,12 +52,12 @@ class Settings(BaseSettings):
 
     kafka_bootstrap_servers: list[str] = Field(
         default=["localhost:9094"],
-        alias="ETL_KAFKA_CLICKHOUSE_BOOTSTRAP_SERVERS",
+        alias="KAFKA_BOOTSTRAP_SERVERS",
     )
     kafka_api_version: tuple[int, int] = Field(
-        default=(3, 4), alias="ETL_KAFKA_CLICKHOUSE_API_VERSION"
+        default=(3, 4), alias="KAFKA_API_VERSION"
     )
-    kafka_topic: str = Field(default="events", alias="ETL_KAFKA_CLICKHOUSE_TOPIC")
+    kafka_topic: str = Field(default="events", alias="KAFKA_TOPIC")
 
     kafka_auto_offset_reset: str = Field(
         default="earliest", alias="ETL_KAFKA_CLICKHOUSE_AUTO_OFFSET_RESET"

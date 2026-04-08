@@ -65,9 +65,15 @@ def register_producer_shutdown(producer: Producer) -> None:
 def create_kafka_producer(
     bootstrap_servers: list[str],
     api_version: tuple[int, int],
+    acks: str,
+    retries: int,
+    request_timeout_ms: int,
 ) -> KafkaProducer:
-    """Create a Kafka producer with configured bootstrap servers."""
+    """Create a Kafka producer with configured delivery settings."""
     return KafkaProducer(
         bootstrap_servers=bootstrap_servers,
         api_version=api_version,
+        acks=acks,
+        retries=retries,
+        request_timeout_ms=request_timeout_ms,
     )

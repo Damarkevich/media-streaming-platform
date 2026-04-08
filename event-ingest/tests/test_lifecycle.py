@@ -78,9 +78,18 @@ def test_create_kafka_producer_uses_explicit_api_version(monkeypatch) -> None:
 
     monkeypatch.setattr(lifecycle, "KafkaProducer", fake_kafka_producer)
 
-    lifecycle.create_kafka_producer(["kafka-0:9092"], (3, 4))
+    lifecycle.create_kafka_producer(
+        ["kafka-0:9092"],
+        (3, 4),
+        "all",
+        3,
+        30000,
+    )
 
     assert captured == {
         "bootstrap_servers": ["kafka-0:9092"],
         "api_version": (3, 4),
+        "acks": "all",
+        "retries": 3,
+        "request_timeout_ms": 30000,
     }

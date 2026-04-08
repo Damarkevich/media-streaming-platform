@@ -41,6 +41,9 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
             lambda: create_kafka_producer(
                 settings.kafka_bootstrap_servers,
                 settings.kafka_api_version,
+                settings.kafka_acks,
+                settings.kafka_retries,
+                settings.kafka_request_timeout_ms,
             )
         )
     )()

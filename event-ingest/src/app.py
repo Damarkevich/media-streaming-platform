@@ -25,6 +25,7 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
     """
     app = Flask(__name__)
 
+    app.debug = settings.debug
     app.config["JWT_SECRET_KEY"] = settings.authjwt_secret_key
     app.config["JWT_ALGORITHM"] = settings.authjwt_algorithm
     app.config["MAX_CONTENT_LENGTH"] = settings.event_ingest_max_content_length

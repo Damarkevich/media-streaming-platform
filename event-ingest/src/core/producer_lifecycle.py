@@ -1,7 +1,10 @@
 import atexit
+import logging
 from typing import Protocol
 
 from kafka import KafkaProducer
+
+logger = logging.getLogger(__name__)
 
 
 class ProducerFuture(Protocol):
@@ -34,12 +37,18 @@ def shutdown_producers() -> None:
             producer.flush()
         except Exception as err:
             # atexit can run after logging streams are already closed
-            _ = err
+            try:
+                logger.error("Error flushing producer: %s", err, exc_info=True)
+            except Exception:
+                pass
         finally:
             try:
                 producer.close()
             except Exception as err:
-                _ = err
+                try:
+                    logger.error("Error closing producer: %s", err, exc_info=True)
+                except Exception:
+                    pass
 
 
 def register_producer_shutdown(producer: Producer) -> None:

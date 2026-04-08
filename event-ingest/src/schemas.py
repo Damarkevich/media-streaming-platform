@@ -59,9 +59,9 @@ class EventBatchSchema(Schema):
     events = fields.List(
         fields.Raw(),
         required=True,
-        validate=validate.Length(min=1, error="Missing 'events' key in input data"),
+        validate=validate.Length(min=1, error="'events' list must not be empty"),
         error_messages={
-            "required": "Missing 'events' key in input data",
+            "required": "'events' list must not be empty",
             "invalid": "'events' key should be a list",
         },
     )

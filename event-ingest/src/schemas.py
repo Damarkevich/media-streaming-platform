@@ -49,6 +49,9 @@ class EventApiSchema(Schema):
     payload = fields.Nested(PayloadSchema, required=True)
 
 
+event_schema = EventApiSchema()
+
+
 class EventBatchSchema(Schema):
     class Meta:
         unknown = INCLUDE
@@ -62,3 +65,6 @@ class EventBatchSchema(Schema):
             "invalid": "'events' key should be a list",
         },
     )
+
+
+event_batch_schema = EventBatchSchema()

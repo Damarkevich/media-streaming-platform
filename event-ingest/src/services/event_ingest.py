@@ -2,11 +2,10 @@ import json
 import logging
 import time
 
-from marshmallow import ValidationError
-
 from core.config import settings
 from core.producer_lifecycle import Producer
-from schemas import EventApiSchema, EventBatchSchema
+from marshmallow import ValidationError
+from schemas import event_batch_schema, event_schema
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ def process_event_batch(
         return {"details": {"_schema": ["No input data provided"]}}, 400
 
     try:
-        validated_batch = EventBatchSchema().load(data)
+        validated_batch = event_batch_schema.load(data)
     except ValidationError as err:
         return {"details": err.messages}, 400
 
@@ -39,7 +38,7 @@ def process_event_batch(
 
     for event in events:
         try:
-            event = EventApiSchema().load(event)
+            event = event_schema.load(event)
             event["user_id"] = user_id
             event["server_timestamp"] = server_timestamp
 

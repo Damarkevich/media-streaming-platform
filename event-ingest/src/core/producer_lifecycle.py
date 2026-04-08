@@ -53,7 +53,7 @@ def register_producer_shutdown(producer: Producer) -> None:
 
 def create_kafka_producer(
     bootstrap_servers: list[str],
-    api_version: KafkaApiVersion,
+    api_version: tuple[int, int],
 ) -> KafkaProducer:
     """Create a Kafka producer with configured bootstrap servers."""
     return KafkaProducer(

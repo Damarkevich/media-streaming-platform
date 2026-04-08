@@ -34,6 +34,8 @@ def process_event_batch(
     events = validated_batch["events"]
     events_count = len(events)
     events_rejected = 0
+    send_futures = []
+    delivery_errors = 0
 
     for event in events:
         try:
@@ -41,16 +43,15 @@ def process_event_batch(
             event["user_id"] = user_id
             event["server_timestamp"] = server_timestamp
 
-            kafka_producer.send(
+            future = kafka_producer.send(
                 settings.kafka_topic,
                 key=str(event["user_id"]).encode("utf-8"),
                 value=json.dumps(event, default=str).encode("utf-8"),
-            ).add_errback(
-                lambda exc: logger.error("Failed to send event to Kafka: %s", exc)
             )
+            send_futures.append(future)
 
             logger.debug(
-                "Event sent to Kafka: topic=%s event_type=%s user_id=%s",
+                "Event enqueued for Kafka: topic=%s event_type=%s user_id=%s",
                 settings.kafka_topic,
                 event.get("event_type"),
                 event.get("user_id"),
@@ -63,9 +64,33 @@ def process_event_batch(
             )
             events_rejected += 1
 
-    events_accepted = events_count - events_rejected
+    # Confirm delivery of each accepted event to avoid false success responses.
+    for future in send_futures:
+        try:
+            future.get(timeout=10)
+        except Exception as err:
+            logger.error("Event delivery failed: %s", err)
+            delivery_errors += 1
+
+    events_accepted = events_count - events_rejected - delivery_errors
+
+    if delivery_errors:
+        logger.warning(
+            "Event batch partial failure: user_id=%s accepted=%d failed=%d validation_errors=%d",
+            user_id,
+            events_accepted,
+            delivery_errors,
+            events_rejected,
+        )
+        return {
+            "status": "partial_failure",
+            "details": "Some events failed to deliver to Kafka",
+            "events_accepted": events_accepted,
+            "events_rejected": events_rejected + delivery_errors,
+        }, 503
+
     logger.info(
-        "Event batch processed: user_id=%s events_accepted=%d events_rejected=%d",
+        "Event batch processed successfully: user_id=%s events_accepted=%d events_rejected=%d",
         user_id,
         events_accepted,
         events_rejected,

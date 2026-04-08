@@ -82,3 +82,23 @@ def test_process_event_batch_accepts_valid_and_rejects_invalid_events(
         "events_rejected": 1,
     }
     assert len(producer.sent_messages) == 1
+
+
+def test_process_event_batch_returns_503_when_kafka_delivery_fails(
+    producer, make_event
+) -> None:
+    producer.delivery_error = RuntimeError("kafka unavailable")
+
+    response_body, status_code = process_event_batch(
+        {"events": [make_event()]},
+        "user-123",
+        producer,
+    )
+
+    assert status_code == 503
+    assert response_body == {
+        "status": "partial_failure",
+        "details": "Some events failed to deliver to Kafka",
+        "events_accepted": 0,
+        "events_rejected": 1,
+    }

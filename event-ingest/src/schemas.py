@@ -1,4 +1,4 @@
-from marshmallow import INCLUDE, Schema, fields, validate
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 EVENT_TYPES = (
     "click",
@@ -14,7 +14,7 @@ EVENT_TYPES = (
 
 class ContextSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     device = fields.String(required=False)
     location = fields.String(required=False)
@@ -24,7 +24,7 @@ class ContextSchema(Schema):
 
 class PayloadSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     movie_id = fields.UUID(required=False)
     position = fields.Integer(required=False)
@@ -36,7 +36,7 @@ class PayloadSchema(Schema):
 
 class EventApiSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     event_id = fields.UUID(required=True)
     event_type = fields.String(required=True, validate=validate.OneOf(EVENT_TYPES))
@@ -54,7 +54,7 @@ event_schema = EventApiSchema()
 
 class EventBatchSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     events = fields.List(
         fields.Raw(),

@@ -1,8 +1,8 @@
-from collections.abc import Callable
+from gevent import monkey
 
-from flasgger import Swagger
-from flask import Flask
-from flask_jwt_extended import JWTManager
+monkey.patch_all()
+
+from collections.abc import Callable
 
 from api.v1.events import events_bp
 from core.config import settings
@@ -11,6 +11,9 @@ from core.producer_lifecycle import (
     create_kafka_producer,
     register_producer_shutdown,
 )
+from flasgger import Swagger
+from flask import Flask
+from flask_jwt_extended import JWTManager
 
 
 def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:

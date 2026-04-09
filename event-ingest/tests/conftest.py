@@ -20,13 +20,14 @@ class FakeFuture:
     def __init__(self, error: Exception | None = None) -> None:
         self.errback = None
         self.error = error
+        self.get_timeouts: list[float | None] = []
 
     def add_errback(self, callback):
         self.errback = callback
         return self
 
     def get(self, timeout: float | None = None) -> dict[str, object]:
-        _ = timeout
+        self.get_timeouts.append(timeout)
         if self.error is not None:
             raise self.error
         return {"ok": True}

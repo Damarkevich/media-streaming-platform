@@ -35,6 +35,7 @@ def process_event_batch(
     events_rejected = 0
     send_futures = []
     delivery_errors = 0
+    delivery_timeout_seconds = settings.kafka_request_timeout_ms / 1000
 
     for event in events:
         try:
@@ -62,11 +63,33 @@ def process_event_batch(
                 err.messages,
             )
             events_rejected += 1
+        except Exception as err:
+            logger.error(
+                "Unexpected error processing event from user_id=%s: %s",
+                user_id,
+                err,
+            )
+            events_rejected += 1
 
-    # Confirm delivery of each accepted event to avoid false success responses.
-    for future in send_futures:
+    # Use a single batch-level deadline so confirmation latency does not grow
+    # linearly with the number of accepted events during Kafka outages.
+    delivery_deadline = time.monotonic() + delivery_timeout_seconds
+
+    for index, future in enumerate(send_futures):
+        remaining_timeout = delivery_deadline - time.monotonic()
+        if remaining_timeout <= 0:
+            pending_futures = len(send_futures) - index
+            logger.error(
+                "Kafka delivery deadline exceeded: user_id=%s timeout_seconds=%.3f pending_events=%d",
+                user_id,
+                delivery_timeout_seconds,
+                pending_futures,
+            )
+            delivery_errors += pending_futures
+            break
+
         try:
-            future.get(timeout=10)
+            future.get(timeout=remaining_timeout)
         except Exception as err:
             logger.error("Event delivery failed: %s", err)
             delivery_errors += 1

@@ -35,6 +35,14 @@ def test_rejects_unknown_event_type() -> None:
         schema.load(_event_payload(event_type="not_supported"))
 
 
+def test_excludes_unknown_fields() -> None:
+    schema = EventApiSchema()
+
+    event = schema.load(_event_payload(payload={"page": "/movies"}, experiment="A"))
+
+    assert "experiment" not in event
+
+
 def test_loads_valid_event_batch() -> None:
     schema = EventBatchSchema()
 

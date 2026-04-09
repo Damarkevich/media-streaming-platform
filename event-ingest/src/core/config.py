@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     kafka_bootstrap_servers: list[str] = ["localhost:9094"]
     kafka_api_version: tuple[int, int] = (3, 4)
+    kafka_acks: str = "all"
+    kafka_retries: int = 3
+    kafka_request_timeout_ms: int = 30000
     kafka_topic: str = "events"
 
     @field_validator("authjwt_secret_key")

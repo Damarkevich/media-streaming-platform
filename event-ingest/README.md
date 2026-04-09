@@ -43,7 +43,7 @@ The service follows a compact layered flow:
 	 - `user_id` from JWT identity
 	 - `server_timestamp` from server time
 5. Event is serialized to JSON and sent to Kafka topic.
-6. Service returns summary with accepted/rejected counts.
+6. Service returns summary with accepted count, validation rejects, and delivery failures when Kafka confirmation is incomplete.
 7. Validation errors are returned with structured `details` payload.
 
 ### Endpoint
@@ -55,6 +55,7 @@ The service follows a compact layered flow:
 Possible responses:
 
 - `200` - batch processed, includes accepted/rejected counters
+- `503` - batch partially failed during Kafka delivery, includes accepted count, validation rejects, and delivery failures
 - `400` - invalid request payload format (`details` field with validation errors)
 - `401` - missing or invalid JWT token
 - `413` - request body exceeds `MAX_CONTENT_LENGTH`
@@ -120,21 +121,14 @@ Notes:
 
 ### Running the Application
 
-Development run:
+Local run via the WSGI entrypoint:
 
 ```bash
 cd event-ingest
-uv run src/app.py
+uv run flask --app src.wsgi_app:app run --host 0.0.0.0 --port 5000
 ```
 
-App factory run (explicit Flask command):
-
-```bash
-cd event-ingest
-uv run flask --app src.app:create_app run --host 0.0.0.0 --port 5000
-```
-
-For production WSGI deployments, use `src/wsgi_app.py` as the entrypoint.
+`src/app.py` now exposes only the Flask app factory. Use `src/wsgi_app.py` as the runtime entrypoint for local and production startup.
 
 ### Running with Docker
 
@@ -202,6 +196,18 @@ Successful response:
 }
 ```
 
+Partial delivery failure response example (`503`):
+
+```json
+{
+	"status": "partial_failure",
+	"details": "Some events failed to deliver to Kafka",
+	"events_accepted": 1,
+	"events_rejected": 0,
+	"delivery_failures": 1
+}
+```
+
 Validation error response example (`400`):
 
 ```json
@@ -250,7 +256,7 @@ event-ingest/
 │   ├── schemas.py          # Marshmallow schemas for event validation
 │   ├── services/
 │   │   └── event_ingest.py # Event batch processing service logic
-│   ├── wsgi_app.py         # WSGI entrypoint with gevent monkey patching
+│   ├── wsgi_app.py         # Runtime entrypoint with gevent monkey patching
 │   └── core/
 │       ├── config.py       # Pydantic settings and env parsing
 │       ├── logger.py       # Logging configuration

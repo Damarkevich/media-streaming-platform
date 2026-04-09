@@ -17,12 +17,20 @@ from app import create_app
 
 
 class FakeFuture:
-    def __init__(self) -> None:
+    def __init__(self, error: Exception | None = None) -> None:
         self.errback = None
+        self.error = error
+        self.get_timeouts: list[float | None] = []
 
     def add_errback(self, callback):
         self.errback = callback
         return self
+
+    def get(self, timeout: float | None = None) -> dict[str, object]:
+        self.get_timeouts.append(timeout)
+        if self.error is not None:
+            raise self.error
+        return {"ok": True}
 
 
 class FakeProducer:
@@ -30,6 +38,7 @@ class FakeProducer:
         self.sent_messages: list[dict[str, object]] = []
         self.flushed = False
         self.closed = False
+        self.delivery_error: Exception | None = None
 
     def send(
         self,
@@ -38,13 +47,14 @@ class FakeProducer:
         key: bytes | None = None,
         **_: object,
     ) -> FakeFuture:
-        future = FakeFuture()
+        future = FakeFuture(error=self.delivery_error)
         self.sent_messages.append(
             {"topic": topic, "key": key, "value": value, "future": future}
         )
         return future
 
-    def flush(self) -> None:
+    def flush(self, timeout: float | None = None) -> None:
+        _ = timeout
         self.flushed = True
 
     def close(self) -> None:

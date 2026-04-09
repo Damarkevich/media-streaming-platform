@@ -1,5 +1,8 @@
 import json
 
+import pytest
+
+from core.config import settings
 from services.event_ingest import process_event_batch
 
 
@@ -82,3 +85,73 @@ def test_process_event_batch_accepts_valid_and_rejects_invalid_events(
         "events_rejected": 1,
     }
     assert len(producer.sent_messages) == 1
+
+
+def test_process_event_batch_returns_503_when_kafka_delivery_fails(
+    producer, make_event
+) -> None:
+    producer.delivery_error = RuntimeError("kafka unavailable")
+
+    response_body, status_code = process_event_batch(
+        {"events": [make_event()]},
+        "user-123",
+        producer,
+    )
+
+    assert status_code == 503
+    assert response_body == {
+        "status": "partial_failure",
+        "details": "Some events failed to deliver to Kafka",
+        "events_accepted": 0,
+        "events_rejected": 0,
+        "delivery_failures": 1,
+    }
+
+
+def test_process_event_batch_uses_configured_delivery_timeout(
+    producer, make_event, monkeypatch
+) -> None:
+    monkeypatch.setattr(settings, "kafka_request_timeout_ms", 1500)
+
+    response_body, status_code = process_event_batch(
+        {"events": [make_event()]},
+        "user-123",
+        producer,
+    )
+
+    assert status_code == 200
+    assert response_body == {
+        "status": "success",
+        "events_accepted": 1,
+        "events_rejected": 0,
+    }
+    assert producer.sent_messages[0]["future"].get_timeouts == [pytest.approx(1.5)]
+
+
+def test_process_event_batch_uses_single_deadline_for_batch_delivery(
+    producer, make_event, monkeypatch
+) -> None:
+    monkeypatch.setattr(settings, "kafka_request_timeout_ms", 1000)
+
+    monotonic_values = iter([100.0, 100.2, 101.1])
+    monkeypatch.setattr(
+        "services.event_ingest.time.monotonic",
+        lambda: next(monotonic_values),
+    )
+
+    response_body, status_code = process_event_batch(
+        {"events": [make_event(), make_event()]},
+        "user-123",
+        producer,
+    )
+
+    assert status_code == 503
+    assert response_body == {
+        "status": "partial_failure",
+        "details": "Some events failed to deliver to Kafka",
+        "events_accepted": 1,
+        "events_rejected": 0,
+        "delivery_failures": 1,
+    }
+    assert producer.sent_messages[0]["future"].get_timeouts == [pytest.approx(0.8)]
+    assert producer.sent_messages[1]["future"].get_timeouts == []

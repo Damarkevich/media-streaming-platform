@@ -1,4 +1,4 @@
-from marshmallow import INCLUDE, Schema, fields, validate
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 EVENT_TYPES = (
     "click",
@@ -14,7 +14,7 @@ EVENT_TYPES = (
 
 class ContextSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     device = fields.String(required=False)
     location = fields.String(required=False)
@@ -24,7 +24,7 @@ class ContextSchema(Schema):
 
 class PayloadSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     movie_id = fields.UUID(required=False)
     position = fields.Integer(required=False)
@@ -36,7 +36,7 @@ class PayloadSchema(Schema):
 
 class EventApiSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     event_id = fields.UUID(required=True)
     event_type = fields.String(required=True, validate=validate.OneOf(EVENT_TYPES))
@@ -49,16 +49,22 @@ class EventApiSchema(Schema):
     payload = fields.Nested(PayloadSchema, required=True)
 
 
+event_schema = EventApiSchema()
+
+
 class EventBatchSchema(Schema):
     class Meta:
-        unknown = INCLUDE
+        unknown = EXCLUDE
 
     events = fields.List(
         fields.Raw(),
         required=True,
-        validate=validate.Length(min=1, error="Missing 'events' key in input data"),
+        validate=validate.Length(min=1, error="'events' list must not be empty"),
         error_messages={
-            "required": "Missing 'events' key in input data",
+            "required": "Missing 'events' key in payload",
             "invalid": "'events' key should be a list",
         },
     )
+
+
+event_batch_schema = EventBatchSchema()

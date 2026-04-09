@@ -1,9 +1,5 @@
 from collections.abc import Callable
 
-from flasgger import Swagger
-from flask import Flask
-from flask_jwt_extended import JWTManager
-
 from api.v1.events import events_bp
 from core.config import settings
 from core.producer_lifecycle import (
@@ -11,6 +7,9 @@ from core.producer_lifecycle import (
     create_kafka_producer,
     register_producer_shutdown,
 )
+from flasgger import Swagger
+from flask import Flask
+from flask_jwt_extended import JWTManager
 
 
 def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
@@ -22,6 +21,7 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
     """
     app = Flask(__name__)
 
+    app.debug = settings.debug
     app.config["JWT_SECRET_KEY"] = settings.authjwt_secret_key
     app.config["JWT_ALGORITHM"] = settings.authjwt_algorithm
     app.config["MAX_CONTENT_LENGTH"] = settings.event_ingest_max_content_length
@@ -41,6 +41,9 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
             lambda: create_kafka_producer(
                 settings.kafka_bootstrap_servers,
                 settings.kafka_api_version,
+                settings.kafka_acks,
+                settings.kafka_retries,
+                settings.kafka_request_timeout_ms,
             )
         )
     )()
@@ -50,7 +53,3 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
     app.register_blueprint(events_bp)
 
     return app
-
-
-if __name__ == "__main__":
-    create_app().run()

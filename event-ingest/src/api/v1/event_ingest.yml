@@ -85,12 +85,18 @@ definitions:
       status:
         type: string
         example: success
+      details:
+        type: string
+        description: Optional details for partial delivery failures
       events_accepted:
         type: integer
         description: Number of events successfully sent to Kafka
       events_rejected:
         type: integer
         description: Number of events that failed validation
+      delivery_failures:
+        type: integer
+        description: Number of events that passed validation but failed to deliver to Kafka
     required:
       - status
       - events_accepted
@@ -127,3 +133,7 @@ responses:
     description: Request body exceeds the configured size limit
     schema:
       $ref: '#/definitions/ErrorResponse'
+  503:
+    description: Kafka is unavailable or event delivery failed
+    schema:
+      $ref: '#/definitions/EventIngestResponse'

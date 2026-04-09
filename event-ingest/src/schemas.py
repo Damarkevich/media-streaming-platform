@@ -61,7 +61,7 @@ class EventBatchSchema(Schema):
         required=True,
         validate=validate.Length(min=1, error="'events' list must not be empty"),
         error_messages={
-            "required": "'events' list must not be empty",
+            "required": "Missing 'events' key in payload",
             "invalid": "'events' key should be a list",
         },
     )

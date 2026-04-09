@@ -121,21 +121,14 @@ Notes:
 
 ### Running the Application
 
-Development run:
+Local run via the WSGI entrypoint:
 
 ```bash
 cd event-ingest
-uv run src/app.py
+uv run flask --app src.wsgi_app:app run --host 0.0.0.0 --port 5000
 ```
 
-App factory run (explicit Flask command):
-
-```bash
-cd event-ingest
-uv run flask --app src.app:create_app run --host 0.0.0.0 --port 5000
-```
-
-For production WSGI deployments, use `src/wsgi_app.py` as the entrypoint.
+`src/app.py` now exposes only the Flask app factory. Use `src/wsgi_app.py` as the runtime entrypoint for local and production startup.
 
 ### Running with Docker
 
@@ -263,7 +256,7 @@ event-ingest/
 │   ├── schemas.py          # Marshmallow schemas for event validation
 │   ├── services/
 │   │   └── event_ingest.py # Event batch processing service logic
-│   ├── wsgi_app.py         # WSGI entrypoint with gevent monkey patching
+│   ├── wsgi_app.py         # Runtime entrypoint with gevent monkey patching
 │   └── core/
 │       ├── config.py       # Pydantic settings and env parsing
 │       ├── logger.py       # Logging configuration

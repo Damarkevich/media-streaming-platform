@@ -1,7 +1,3 @@
-from gevent import monkey
-
-monkey.patch_all()
-
 from collections.abc import Callable
 
 from api.v1.events import events_bp
@@ -57,7 +53,3 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
     app.register_blueprint(events_bp)
 
     return app
-
-
-if __name__ == "__main__":
-    create_app().run()

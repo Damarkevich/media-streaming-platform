@@ -103,7 +103,8 @@ def test_process_event_batch_returns_503_when_kafka_delivery_fails(
         "status": "partial_failure",
         "details": "Some events failed to deliver to Kafka",
         "events_accepted": 0,
-        "events_rejected": 1,
+        "events_rejected": 0,
+        "delivery_failures": 1,
     }
 
 
@@ -149,7 +150,8 @@ def test_process_event_batch_uses_single_deadline_for_batch_delivery(
         "status": "partial_failure",
         "details": "Some events failed to deliver to Kafka",
         "events_accepted": 1,
-        "events_rejected": 1,
+        "events_rejected": 0,
+        "delivery_failures": 1,
     }
     assert producer.sent_messages[0]["future"].get_timeouts == [pytest.approx(0.8)]
     assert producer.sent_messages[1]["future"].get_timeouts == []

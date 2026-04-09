@@ -94,6 +94,9 @@ definitions:
       events_rejected:
         type: integer
         description: Number of events that failed validation
+      delivery_failures:
+        type: integer
+        description: Number of events that passed validation but failed to deliver to Kafka
     required:
       - status
       - events_accepted

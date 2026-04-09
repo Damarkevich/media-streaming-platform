@@ -108,7 +108,8 @@ def process_event_batch(
             "status": "partial_failure",
             "details": "Some events failed to deliver to Kafka",
             "events_accepted": events_accepted,
-            "events_rejected": events_rejected + delivery_errors,
+            "events_rejected": events_rejected,
+            "delivery_failures": delivery_errors,
         }, 503
 
     logger.info(

@@ -43,7 +43,7 @@ The service follows a compact layered flow:
 	 - `user_id` from JWT identity
 	 - `server_timestamp` from server time
 5. Event is serialized to JSON and sent to Kafka topic.
-6. Service returns summary with accepted/rejected counts.
+6. Service returns summary with accepted count, validation rejects, and delivery failures when Kafka confirmation is incomplete.
 7. Validation errors are returned with structured `details` payload.
 
 ### Endpoint
@@ -55,6 +55,7 @@ The service follows a compact layered flow:
 Possible responses:
 
 - `200` - batch processed, includes accepted/rejected counters
+- `503` - batch partially failed during Kafka delivery, includes accepted count, validation rejects, and delivery failures
 - `400` - invalid request payload format (`details` field with validation errors)
 - `401` - missing or invalid JWT token
 - `413` - request body exceeds `MAX_CONTENT_LENGTH`
@@ -199,6 +200,18 @@ Successful response:
 	"status": "success",
 	"events_accepted": 1,
 	"events_rejected": 0
+}
+```
+
+Partial delivery failure response example (`503`):
+
+```json
+{
+	"status": "partial_failure",
+	"details": "Some events failed to deliver to Kafka",
+	"events_accepted": 1,
+	"events_rejected": 0,
+	"delivery_failures": 1
 }
 ```
 

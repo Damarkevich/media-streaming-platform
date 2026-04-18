@@ -4,6 +4,7 @@ from typing import Any
 
 from config.logger import configure_logging
 from config.settings import settings
+from config.structured_logger import set_batch_id
 from extractor import KafkaExtractor
 from loader import ClickHouseLoader
 from transformer import Transformer
@@ -14,6 +15,10 @@ logger = logging.getLogger(settings.log_name)
 def run() -> None:
     """Run the Kafka -> ClickHouse ETL loop until interrupted."""
     configure_logging()
+
+    # Set initial batch_id for this ETL process run
+    set_batch_id()
+
     extractor: KafkaExtractor | None = None
     transformer = Transformer()
     loader: ClickHouseLoader | None = None

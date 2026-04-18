@@ -71,11 +71,92 @@ After starting the project, you can access the interactive API documentation (Sw
 
 These endpoints are proxied through nginx and available when the corresponding containers are running.
 
-## 6. Logs in ELK
+## 6. Unified Logging with Request Tracking
 
-- Kibana URL: http://localhost:5601
-- Dedicated ELK Elasticsearch URL: http://localhost:9201
-- Logs are shipped from Docker containers by Filebeat to Logstash and indexed in dedicated ELK Elasticsearch.
-- Default container logs index pattern: `docker-logs-*`.
-- Nginx logs index pattern: `nginx-logs-*`.
-- Create Kibana Data Views for `docker-logs-*` and `nginx-logs-*` with time field `@timestamp`.
+All services send logs to a centralized ELK stack where they can be correlated by `request_id` (for HTTP services) or `batch_id` (for batch processes).
+
+**Kibana URL:** http://localhost:5601  
+**ELK Elasticsearch:** http://localhost:9201
+
+### Log Indices
+
+Each log type is stored in a dedicated index:
+
+- **`nginx-logs-*`** — Nginx access logs with request_id
+- **`app-logs-*`** — FastAPI/Django application services (auth, api, admin) with request_id
+- **`event-ingest-logs-*`** — Event ingest service (Flask HTTP) with request_id
+- **`etl-logs-*`** — ETL batch processes (Kafka→ClickHouse, PostgreSQL→Elasticsearch) with batch_id
+- **`docker-logs-*`** — Infrastructure logs (Kafka, PostgreSQL, Redis, ClickHouse, Zookeeper, etc.)
+
+### Request Tracing (HTTP Services)
+
+Every HTTP request through nginx receives a unique `request_id` that flows through all services:
+
+1. **Nginx** generates `X-Request-Id` header and logs it in `nginx-logs-*`
+2. **Backend services** (event-ingest, auth, api, admin) extract header and inject into all log entries
+3. **Filebeat** captures Docker container logs with request_id in JSON
+4. **Logstash** normalizes and routes to appropriate index
+5. **Kibana** allows querying by `request_id` to trace request through all services
+
+### Batch Process Tracing (ETL Services)
+
+ETL batch processes generate a `batch_id` for correlation:
+
+1. **ETL service** starts and generates unique `batch_id`
+2. **All logs** during the batch cycle include `batch_id` for correlation
+3. **Filebeat/Logstash** route to `etl-logs-*` index
+4. **Kibana** allows querying by `batch_id` to trace one ETL cycle
+
+### Quick Start
+
+1. Start infrastructure: `make dev-infra-up`
+2. Open Kibana: http://localhost:5601
+3. Create Index Patterns (use `@timestamp` as timestamp field):
+   - `nginx-logs-*`, `app-logs-*`, `event-ingest-logs-*`, `etl-logs-*`, `docker-logs-*`
+4. Make a test request: `curl http://localhost/api/auth/docs`
+5. In Kibana Discover → Select `app-logs-*` → Filter by `request_id`
+6. See all logs from all services for that single HTTP request
+
+### Log Format
+
+**HTTP Services** (structured JSON with request_id):
+```json
+{
+  "timestamp": "2026-04-18T10:30:45",
+  "level": "INFO",
+  "logger": "src.api.v1.auth",
+  "message": "User authentication successful",
+  "request_id": "12345-1713442245123-1-1",
+  "module": "auth",
+  "function": "authenticate"
+}
+```
+
+**ETL Services** (structured JSON with batch_id):
+```json
+{
+  "timestamp": "2026-04-18T10:30:45",
+  "level": "INFO",
+  "logger": "extractor",
+  "message": "Extracted 150 raw events",
+  "batch_id": "batch-550e8400-e29b-41d4-a716-446655440000",
+  "module": "extractor",
+  "function": "get_batch"
+}
+```
+
+### Where Logging Is Configured
+
+- Routing and index selection: `elk/logstash/pipeline/logstash.conf`
+- Collection and enrichment: `elk/filebeat/filebeat.yml`
+- Nginx request_id generation and propagation: `nginx.conf`
+- Service-side request_id middleware and JSON formatters:
+  - `auth/src/core/middleware.py`, `auth/src/core/structured_logger.py`
+  - `async_api/src/core/middleware.py`, `async_api/src/core/structured_logger.py`
+  - `event-ingest/src/core/request_id_middleware.py`, `event-ingest/src/core/structured_logger.py`
+  - `movies_admin/config/middleware.py`, `movies_admin/config/logging_config.py`
+- ETL batch correlation (batch_id):
+  - `etl-kafka-clickhouse/config/structured_logger.py`
+  - `etl-postgres-elasticsearch/config/structured_logger.py`
+
+See [elk/README.md](./elk/README.md) for detailed architecture, log schema, and tracing examples.

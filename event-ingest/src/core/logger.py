@@ -9,6 +9,9 @@ LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
+        "json": {
+            "()": "core.structured_logger.RequestIDJsonFormatter",
+        },
         "verbose": {"format": LOG_FORMAT},
         "default": {"format": LOG_FORMAT},
         "access": {"format": LOG_FORMAT},
@@ -17,7 +20,7 @@ LOGGING: dict[str, Any] = {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
         },
         "default": {
             "formatter": "default",

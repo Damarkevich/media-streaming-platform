@@ -2,7 +2,9 @@
 
 from fastapi import Request, Response, status
 from fastapi.responses import ORJSONResponse
+
 from src.core.config import settings
+from src.core.structured_logger import set_request_id
 
 
 async def request_id_middleware(request: Request, call_next) -> Response:
@@ -27,6 +29,9 @@ async def request_id_middleware(request: Request, call_next) -> Response:
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": "X-Request-Id is required."},
         )
+
+    # Inject request_id into logging context for this request
+    set_request_id(request_id)
 
     response = await call_next(request)
     response.headers["X-Request-Id"] = request_id

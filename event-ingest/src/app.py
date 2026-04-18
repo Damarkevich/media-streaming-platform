@@ -7,6 +7,10 @@ from core.producer_lifecycle import (
     create_kafka_producer,
     register_producer_shutdown,
 )
+from core.request_id_middleware import (
+    init_request_id_middleware,
+    get_request_id_from_headers,
+)
 from flasgger import Swagger
 from flask import Flask
 from flask_jwt_extended import JWTManager
@@ -34,6 +38,17 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
 
     JWTManager(app)
     Swagger(app)
+
+    # Register request_id middleware for logging context
+    init_request_id_middleware(app)
+
+    @app.after_request
+    def add_request_id_header(response):
+        """Echo request_id in response headers."""
+        request_id = get_request_id_from_headers()
+        if request_id:
+            response.headers["X-Request-Id"] = request_id
+        return response
 
     producer = (
         producer_factory

@@ -13,6 +13,19 @@ processors:
   - add_docker_metadata:
       host: "unix:///var/run/docker.sock"
   - add_host_metadata: ~
+  - add_tags:
+      tags: ["docker", "container-log"]
+  # Extract request_id from JSON structured logs (all services)
+  - if:
+      regexp:
+        message: '"request_id"'
+    then:
+      - copy_fields:
+          fields:
+            - from: request_id
+              to: correlation_id
+          fail_on_error: false
+  # nginx-specific processing
   - if:
       equals:
         container.name: movies-nginx
@@ -41,6 +54,42 @@ processors:
             - from: nginx.body_bytes_sent
               type: long
           ignore_missing: true
+          fail_on_error: false
+  # Application logs processing (auth, api, admin services)
+  - if:
+      regexp:
+        container.name: 'movies-(auth|api|admin)'
+    then:
+      - add_tags:
+          tags: ["app", "service-log"]
+      - copy_fields:
+          fields:
+            - from: request_id
+              to: correlation_id
+          fail_on_error: false
+  # Event-ingest service logs (Flask HTTP service)
+  - if:
+      equals:
+        container.name: movies-event-ingest
+    then:
+      - add_tags:
+          tags: ["event-ingest", "service-log", "http-service"]
+      - copy_fields:
+          fields:
+            - from: request_id
+              to: correlation_id
+          fail_on_error: false
+  # ETL batch services logs
+  - if:
+      regexp:
+        container.name: 'etl-(kafka-clickhouse|postgres-elasticsearch)'
+    then:
+      - add_tags:
+          tags: ["etl", "batch-process"]
+      - copy_fields:
+          fields:
+            - from: batch_id
+              to: correlation_id
           fail_on_error: false
 
 output.logstash:

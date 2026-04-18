@@ -4,6 +4,7 @@ import time
 
 from config.etl_mappings import MAPPINGS, Mapping
 from config.logger import configure_logging
+from config.structured_logger import set_batch_id
 from es_setup import es_setup
 from extractor import DataStorage, PostgresExtractor
 from loader import ESLoadder
@@ -62,6 +63,9 @@ def process_related_data(state: State, mapping: Mapping) -> None:
 if __name__ == "__main__":
     # Configure logging
     configure_logging()
+
+    # Set initial batch_id for this ETL process run
+    set_batch_id()
 
     logger.info("Starting ETL pipeline...")
 

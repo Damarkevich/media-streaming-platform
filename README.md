@@ -34,7 +34,7 @@ To run this project using Docker Compose:
     make dev-infra-up
     ```
 
-   This starts PostgreSQL, Elasticsearch, Redis, and Jaeger only.
+  This starts PostgreSQL, two Elasticsearch nodes (application and ELK), Redis, Jaeger, and observability services (Kibana, Logstash, Filebeat).
     PostgreSQL is exposed on `127.0.0.1:5432`.
 
 3. Start the services using Docker Compose:
@@ -70,3 +70,12 @@ After starting the project, you can access the interactive API documentation (Sw
   - OpenAPI JSON: http://localhost/api/auth/openapi.json
 
 These endpoints are proxied through nginx and available when the corresponding containers are running.
+
+## 6. Logs in ELK
+
+- Kibana URL: http://localhost:5601
+- Dedicated ELK Elasticsearch URL: http://localhost:9201
+- Logs are shipped from Docker containers by Filebeat to Logstash and indexed in dedicated ELK Elasticsearch.
+- Default container logs index pattern: `docker-logs-*`.
+- Nginx logs index pattern: `nginx-logs-*`.
+- Create Kibana Data Views for `docker-logs-*` and `nginx-logs-*` with time field `@timestamp`.

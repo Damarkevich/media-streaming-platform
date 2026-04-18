@@ -42,6 +42,88 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  elk-elasticsearch:
+    container_name: movies-elk-elasticsearch
+    image: elasticsearch:9.3.3
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - elk_elasticsearch_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    ports:
+      - "127.0.0.1:9201:9200"
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: curl -s http://elk-elasticsearch:9200 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  kibana:
+    container_name: movies-kibana
+    image: kibana:9.3.3
+    env_file:
+      - .env
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elk-elasticsearch:9200
+    depends_on:
+      elk-elasticsearch:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  logstash:
+    container_name: movies-logstash
+    image: logstash:9.3.3
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    volumes:
+      - ./elk/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      elk-elasticsearch:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5044:5044"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  filebeat:
+    container_name: movies-filebeat
+    image: docker.elastic.co/beats/filebeat:9.3.3
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
+    depends_on:
+      logstash:
+        condition: service_healthy
+    restart: unless-stopped
   
   movies-redis:
     container_name: movies-redis
@@ -372,8 +454,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
-
-
   nginx:
     container_name: movies-nginx
     image: nginx:1.29
@@ -402,6 +482,8 @@ volumes:
   movies_admin_static:
   movies_redis_data:
   movies_elasticsearch_data:
+  elk_elasticsearch_data:
+  filebeat_data:
   kafka_0_data:
   kafka_1_data:
   kafka_2_data:

@@ -1,0 +1,50 @@
+filebeat.inputs:
+  - type: filestream
+    id: docker-container-logs
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*-json.log
+    parsers:
+      - ndjson:
+          target: ""
+          overwrite_keys: true
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+  - add_host_metadata: ~
+  - if:
+      equals:
+        container.name: movies-nginx
+    then:
+      - add_tags:
+          tags: ["nginx", "edge-proxy"]
+      - add_fields:
+          target: service
+          fields:
+            name: movies-nginx
+      - dissect:
+          tokenizer: '%{nginx.remote_addr} - %{nginx.remote_user} [%{nginx.time_local}] "%{nginx.request}" %{nginx.status} %{nginx.body_bytes_sent} "%{nginx.http_referer}" "%{nginx.http_user_agent}" "%{nginx.http_x_forwarded_for}" "%{nginx.request_id}"'
+          field: message
+          target_prefix: ""
+          ignore_failure: true
+      - dissect:
+          tokenizer: "%{http.request.method} %{url.original} HTTP/%{http.version}"
+          field: nginx.request
+          target_prefix: ""
+          ignore_failure: true
+      - convert:
+          fields:
+            - from: nginx.status
+              to: http.response.status_code
+              type: long
+            - from: nginx.body_bytes_sent
+              type: long
+          ignore_missing: true
+          fail_on_error: false
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+setup.ilm.enabled: false
+setup.template.enabled: false

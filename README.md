@@ -34,8 +34,8 @@ To run this project using Docker Compose:
     make dev-infra-up
     ```
 
-  This starts PostgreSQL, two Elasticsearch nodes (application and ELK), Redis, Jaeger, and observability services (Kibana, Logstash, Filebeat).
-    PostgreSQL is exposed on `127.0.0.1:5432`.
+  This starts PostgreSQL, two Elasticsearch nodes (application and ELK), Redis, MongoDB, Jaeger, and observability services (Kibana, Logstash, Filebeat).
+    PostgreSQL is exposed on `127.0.0.1:5432`, MongoDB on `127.0.0.1:27017`.
 
 3. Start the services using Docker Compose:
     ```bash

@@ -143,6 +143,29 @@ services:
       retries: 5
       start_period: 10s
 
+  movies-mongodb:
+    container_name: movies-mongodb
+    image: mongo:8.2.7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-mongo}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-mongo_password}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-ugc_database}
+    volumes:
+      - movies_mongodb_data:/data/db
+    ports:
+      - "127.0.0.1:${MONGODB_EXTERNAL_PORT:-27017}:27017"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "echo 'db.runCommand({ ping: 1 }).ok' | mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin --quiet | grep 1 >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   kafka-0:
     image: bitnamilegacy/kafka:3.4
     ports:
@@ -481,6 +504,7 @@ volumes:
   movies_admin_db:
   movies_admin_static:
   movies_redis_data:
+  movies_mongodb_data:
   movies_elasticsearch_data:
   elk_elasticsearch_data:
   filebeat_data:

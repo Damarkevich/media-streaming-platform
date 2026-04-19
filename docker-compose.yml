@@ -146,12 +146,19 @@ services:
   movies-mongodb:
     container_name: movies-mongodb
     image: mongo:8.2.7
+    entrypoint:
+      [
+        "bash",
+        "-lc",
+        "cp /run/secrets/mongodb-keyfile /tmp/mongodb-keyfile && chown mongodb:mongodb /tmp/mongodb-keyfile && chmod 400 /tmp/mongodb-keyfile && exec docker-entrypoint.sh mongod --replSet rs0 --bind_ip_all --keyFile /tmp/mongodb-keyfile",
+      ]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-mongo}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-mongo_password}
       MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-ugc_database}
     volumes:
       - movies_mongodb_data:/data/db
+      - ./configs/mongodb-keyfile:/run/secrets/mongodb-keyfile:ro
     ports:
       - "127.0.0.1:${MONGODB_EXTERNAL_PORT:-27017}:27017"
     restart: unless-stopped
@@ -159,12 +166,28 @@ services:
       test:
         [
           "CMD-SHELL",
-          "echo 'db.runCommand({ ping: 1 }).ok' | mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin --quiet | grep 1 >/dev/null || exit 1",
+          "mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin?replicaSet=rs0 --quiet --eval 'db.hello().isWritablePrimary' | grep true >/dev/null || exit 1",
         ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  movies-mongodb-rs-init:
+    image: mongo:8.2.7
+    depends_on:
+      movies-mongodb:
+        condition: service_started
+    restart: "no"
+    entrypoint:
+      [
+        "bash",
+        "-lc",
+        "until mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1 >/dev/null; do sleep 1; done; mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --eval \"const cfg = {_id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }]}; try { const current = rs.conf(); if (current.members[0].host !== cfg.members[0].host) { cfg.version = current.version + 1; rs.reconfig(cfg, { force: true }); } } catch (e) { rs.initiate(cfg); }\"",
+      ]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-mongo}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-mongo_password}
 
   kafka-0:
     image: bitnamilegacy/kafka:3.4

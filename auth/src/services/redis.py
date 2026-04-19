@@ -8,6 +8,9 @@ from redis.asyncio import Redis
 from src.db.redis import get_redis
 
 
+_runtime_redis_client: "RedisClient | None" = None
+
+
 class RedisClient:
     """Thin async Redis wrapper used by auth services."""
 
@@ -223,5 +226,11 @@ async def create_redis_client() -> RedisClient:
     Raises:
         RedisError: Propagates Redis connection errors.
     """
+    global _runtime_redis_client
+
+    if _runtime_redis_client is not None:
+        return _runtime_redis_client
+
     redis = await get_redis()
-    return RedisClient(client=redis)
+    _runtime_redis_client = RedisClient(client=redis)
+    return _runtime_redis_client

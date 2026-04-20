@@ -25,6 +25,7 @@ dependencies = [
     "starlette>=0.52.1",
     "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
+    "sentry-sdk[fastapi]>=2.0.0",
 ]
 
 [project.scripts]

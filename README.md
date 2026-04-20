@@ -34,8 +34,32 @@ To run this project using Docker Compose:
     make dev-infra-up
     ```
 
-  This starts PostgreSQL, two Elasticsearch nodes (application and ELK), Redis, MongoDB, Jaeger, and observability services (Kibana, Logstash, Filebeat).
+  This starts PostgreSQL, two Elasticsearch nodes (application and ELK), Redis, MongoDB, Jaeger, GlitchTip, and observability services (Kibana, Logstash, Filebeat).
     PostgreSQL is exposed on `127.0.0.1:5432`, MongoDB on `127.0.0.1:27017`.
+
+### GlitchTip (Sentry-compatible) setup
+
+GlitchTip is included in local infra and available at http://localhost:8007.
+
+On the first start (or after cleaning GlitchTip DB volumes), apply migrations:
+
+```bash
+docker compose run --rm glitchtip ./manage.py migrate
+```
+
+If web/worker containers were already running, restart them:
+
+```bash
+docker compose restart glitchtip glitchtip-worker
+```
+
+Then create an organization and project in GlitchTip UI and copy DSN to `.env`:
+
+```dotenv
+SENTRY_DSN=http://<public_key>@localhost:8007/<project_id>
+```
+
+This DSN is used by application services (`movies-auth`, `movies-async-api`, `movies-event-ingest`, `ugc`) via `sentry-sdk`.
 
 3. Start the services using Docker Compose:
     ```bash

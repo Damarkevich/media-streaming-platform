@@ -2,6 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -33,6 +34,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         Uses global redis.redis and postgres.engine for connection sharing.
     """
     configure_tracer()
+
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=1.0,
+        )
 
     redis.redis = Redis(
         host=settings.redis_host,

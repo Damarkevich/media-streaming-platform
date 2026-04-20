@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+import sentry_sdk
 from api.v1.events import events_bp
 from core.config import settings
 from core.producer_lifecycle import (
@@ -23,6 +24,12 @@ def create_app(producer_factory: Callable[[], Producer] | None = None) -> Flask:
     customize Kafka producer creation. Returns the configured Flask app
     instance.
     """
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=1.0,
+        )
+
     app = Flask(__name__)
 
     app.debug = settings.debug

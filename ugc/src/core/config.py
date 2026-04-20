@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
 
+    sentry_dsn: str = ""
+
     @field_validator("authjwt_secret_key")
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:

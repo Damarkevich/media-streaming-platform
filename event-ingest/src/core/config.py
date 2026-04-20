@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     kafka_request_timeout_ms: int = 30000
     kafka_topic: str = "events"
 
+    sentry_dsn: str = ""
+
     @field_validator("authjwt_secret_key")
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:

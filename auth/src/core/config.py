@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
 
+    sentry_dsn: str = ""
+
     session_secret_key: str
 
     google_client_id: str

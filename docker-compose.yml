@@ -403,6 +403,66 @@ services:
     env_file:
       - .env
 
+  sentry-db:
+    container_name: movies-sentry-db
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${GLITCHTIP_DB_USER}
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD}
+      POSTGRES_DB: ${GLITCHTIP_DB_NAME}
+    volumes:
+      - sentry_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GLITCHTIP_DB_USER} -d ${GLITCHTIP_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  glitchtip:
+    container_name: movies-glitchtip
+    image: glitchtip/glitchtip:latest
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${GLITCHTIP_DATABASE_URL}
+      REDIS_URL: ${GLITCHTIP_REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_AUTO_FIELD: ${GLITCHTIP_DEFAULT_AUTO_FIELD}
+      CELERY_WORKER_AUTOSCALE: ${GLITCHTIP_CELERY_WORKER_AUTOSCALE}
+    ports:
+      - "127.0.0.1:8007:8000"
+    depends_on:
+      sentry-db:
+        condition: service_healthy
+      movies-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  glitchtip-worker:
+    container_name: movies-glitchtip-worker
+    image: glitchtip/glitchtip:latest
+    command: ./bin/run-celery-with-beat.sh
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${GLITCHTIP_DATABASE_URL}
+      REDIS_URL: ${GLITCHTIP_REDIS_URL}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN}
+      DEFAULT_AUTO_FIELD: ${GLITCHTIP_DEFAULT_AUTO_FIELD}
+      CELERY_WORKER_AUTOSCALE: ${GLITCHTIP_CELERY_WORKER_AUTOSCALE}
+    depends_on:
+      sentry-db:
+        condition: service_healthy
+      movies-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   jaeger:
     container_name: movies-jaeger
     image: jaegertracing/all-in-one:1.76.0
@@ -540,3 +600,4 @@ volumes:
   clickhouse_node2_data:
   clickhouse_node3_data:
   clickhouse_node4_data:
+  sentry_db_data:

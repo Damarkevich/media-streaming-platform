@@ -1,5 +1,5 @@
 COMPOSE = docker-compose
-LOCAL_INFRA_SERVICES = movies-elasticsearch elk-elasticsearch movies-db movies-redis movies-mongodb jaeger kibana logstash filebeat kafka-0 kafka-1 kafka-2 kafka-ui zookeeper clickhouse-node1 clickhouse-node2 clickhouse-node3 clickhouse-node4
+LOCAL_INFRA_SERVICES = movies-elasticsearch elk-elasticsearch movies-db movies-redis movies-mongodb jaeger kibana logstash filebeat kafka-0 kafka-1 kafka-2 kafka-ui zookeeper clickhouse-node1 clickhouse-node2 clickhouse-node3 clickhouse-node4 sentry-db glitchtip glitchtip-worker
 
 .PHONY: dev-infra-up dev-infra-down dev-infra-ps
 

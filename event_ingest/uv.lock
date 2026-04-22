@@ -107,7 +107,7 @@ wheels = [
 ]
 
 [[package]]
-name = "event-ingest"
+name = "event_ingest"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

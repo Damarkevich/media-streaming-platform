@@ -1,4 +1,5 @@
 import atexit
+import contextlib
 import logging
 from typing import Protocol
 
@@ -37,23 +38,19 @@ def shutdown_producers() -> None:
             producer.flush()
         except Exception as err:
             # atexit can run after logging streams are already closed
-            try:
+            with contextlib.suppress(Exception):
                 logger.error("Error flushing producer: %s", err, exc_info=True)
-            except Exception:
-                pass
         finally:
             try:
                 producer.close()
             except Exception as err:
-                try:
+                with contextlib.suppress(Exception):
                     logger.error("Error closing producer: %s", err, exc_info=True)
-                except Exception:
-                    pass
 
 
 def register_producer_shutdown(producer: Producer) -> None:
     """Register producer for atexit cleanup, installing hook once."""
-    global _shutdown_registered
+    global _shutdown_registered  # noqa: PLW0603
 
     _producers_to_close.append(producer)
 

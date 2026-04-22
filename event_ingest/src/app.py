@@ -9,8 +9,8 @@ from core.producer_lifecycle import (
     register_producer_shutdown,
 )
 from core.request_id_middleware import (
-    init_request_id_middleware,
     get_request_id_from_headers,
+    init_request_id_middleware,
 )
 from flasgger import Swagger
 from flask import Flask

@@ -1,11 +1,13 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from flasgger import swag_from
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from core.producer_lifecycle import Producer
-
 from services.event_ingest import process_event_batch
+
+if TYPE_CHECKING:
+    from core.producer_lifecycle import Producer
 
 events_bp = Blueprint("events", __name__)
 EVENT_INGEST_SPEC_PATH = str(Path(__file__).resolve().with_name("event_ingest.yml"))

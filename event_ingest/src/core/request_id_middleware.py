@@ -1,4 +1,4 @@
-"""Flask request_id middleware for event-ingest service."""
+"""Flask request_id middleware for event_ingest service."""
 
 from core.structured_logger import set_request_id
 from flask import Flask
@@ -36,6 +36,6 @@ def get_request_id_from_headers() -> str | None:
     Returns:
         Request ID string if present, None otherwise.
     """
-    from flask import request
+    from flask import request  # noqa: PLC0415
 
     return request.headers.get("X-Request-Id")

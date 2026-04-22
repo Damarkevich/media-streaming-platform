@@ -91,7 +91,7 @@ Possible responses:
 ### Installation
 
 ```bash
-cd event-ingest
+cd event_ingest
 uv sync
 ```
 
@@ -124,7 +124,7 @@ Notes:
 Local run via the WSGI entrypoint:
 
 ```bash
-cd event-ingest
+cd event_ingest
 uv run flask --app src.wsgi_app:app run --host 0.0.0.0 --port 5000
 ```
 
@@ -135,8 +135,8 @@ uv run flask --app src.wsgi_app:app run --host 0.0.0.0 --port 5000
 Build the image:
 
 ```bash
-cd event-ingest
-docker build -t movies-event-ingest .
+cd event_ingest
+docker build -t movies-event_ingest .
 ```
 
 The container runs via Gunicorn with the `gevent` worker class and uses `src.wsgi_app:app` as the WSGI entrypoint.
@@ -146,7 +146,7 @@ The container runs via Gunicorn with the `gevent` worker class and uses `src.wsg
 From the project root:
 
 ```bash
-docker compose up -d movies-event-ingest nginx
+docker compose up -d movies-event_ingest nginx
 ```
 
 When the full stack is running behind nginx, the ingest endpoint is available at:
@@ -225,7 +225,7 @@ Validation error response example (`400`):
 Run tests:
 
 ```bash
-cd event-ingest
+cd event_ingest
 uv run --group test pytest -q
 ```
 
@@ -241,12 +241,12 @@ Current test coverage includes:
 Infrastructure validation performed for this service includes:
 
 - `docker compose config` for root stack validation
-- container image build validation for the `movies-event-ingest` service definition
+- container image build validation for the `movies-event_ingest` service definition
 
 ## 🏗 Project Structure
 
 ```
-event-ingest/
+event_ingest/
 ├── src/
 │   ├── app.py              # Flask app factory and extension wiring
 │   ├── api/

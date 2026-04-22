@@ -39,22 +39,22 @@ def process_event_batch(
 
     for event in events:
         try:
-            event = event_schema.load(event)
-            event["user_id"] = user_id
-            event["server_timestamp"] = server_timestamp
+            validated_event = event_schema.load(event)
+            validated_event["user_id"] = user_id
+            validated_event["server_timestamp"] = server_timestamp
 
             future = kafka_producer.send(
                 settings.kafka_topic,
-                key=str(event["user_id"]).encode("utf-8"),
-                value=json.dumps(event, default=str).encode("utf-8"),
+                key=str(validated_event["user_id"]).encode("utf-8"),
+                value=json.dumps(validated_event, default=str).encode("utf-8"),
             )
             send_futures.append(future)
 
             logger.debug(
                 "Event enqueued for Kafka: topic=%s event_type=%s user_id=%s",
                 settings.kafka_topic,
-                event.get("event_type"),
-                event.get("user_id"),
+                validated_event.get("event_type"),
+                validated_event.get("user_id"),
             )
         except ValidationError as err:
             logger.warning(
@@ -63,11 +63,10 @@ def process_event_batch(
                 err.messages,
             )
             events_rejected += 1
-        except Exception as err:
-            logger.error(
-                "Unexpected error processing event from user_id=%s: %s",
+        except Exception:
+            logger.exception(
+                "Unexpected error processing event from user_id=%s",
                 user_id,
-                err,
             )
             events_rejected += 1
 
@@ -90,8 +89,8 @@ def process_event_batch(
 
         try:
             future.get(timeout=remaining_timeout)
-        except Exception as err:
-            logger.error("Event delivery failed: %s", err)
+        except Exception:
+            logger.exception("Event delivery failed")
             delivery_errors += 1
 
     events_accepted = events_count - events_rejected - delivery_errors

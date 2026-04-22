@@ -1,9 +1,8 @@
 from logging import config as logging_config
 
+from core.logger import LOGGING
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from core.logger import LOGGING
 
 logging_config.dictConfig(LOGGING)
 
@@ -36,9 +35,8 @@ class Settings(BaseSettings):
     def validate_authjwt_secret_key(cls, value: str) -> str:
         """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
         if len(value.strip()) < 32:
-            raise ValueError(
-                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
-            )
+            msg = "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            raise ValueError(msg)
         return value
 
 

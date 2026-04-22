@@ -1,4 +1,4 @@
-Endpoint for ingesting events from clients. 
+Endpoint for ingesting events from clients.
 
 It validates incoming data, extracts user information from JWT, and sends enriched events to Kafka for further processing. The enriched events include user_id, movie_id, and server-side timestamp for better analytics and debugging.
 ---

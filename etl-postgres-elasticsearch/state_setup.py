@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 import redis
-
 from config.etl_mappings import MAPPINGS
 from config.settings import DEFAULT_TIMESTAMP, REDIS_DB, REDIS_HOST, REDIS_PORT
 from state import RedisStorage, State

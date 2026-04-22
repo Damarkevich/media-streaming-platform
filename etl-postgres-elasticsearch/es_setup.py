@@ -1,9 +1,9 @@
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import httpx
-
 from backoff import backoff
 from config.etl_mappings import MAPPINGS, Mapping
 from config.settings import ES_HOST, ES_PORT
@@ -35,7 +35,7 @@ def get_default_es_index_schema(mapping: Mapping) -> dict[str, Any]:
         >>> print(schema.keys())
         dict_keys(['settings', 'mappings'])
     """
-    with open(mapping.es_index_file, "r") as f:
+    with Path(mapping.es_index_file).open(encoding="utf-8") as f:
         return json.load(f)
 
 

@@ -1,15 +1,16 @@
 import logging
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import psycopg
+from backoff import backoff
+from config.settings import BATCH_SIZE, DEFAULT_TIMESTAMP, POSTGRES_CONFIG
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from backoff import backoff
-from config.settings import BATCH_SIZE, DEFAULT_TIMESTAMP, POSTGRES_CONFIG
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,8 @@ class PostgresExtractor:
             case "film_work":
                 self._process_film_work_data()
             case _:
-                raise ValueError(f"Unsupported table name: {self.table_name}")
+                msg = f"Unsupported table name: {self.table_name}"
+                raise ValueError(msg)
         return DataStorage(
             movies=self.film_work_data,
             genres=self.genres_data,
@@ -132,10 +134,12 @@ class PostgresExtractor:
             The method uses context managers to ensure proper resource cleanup.
             The connection and cursor are automatically closed after execution.
         """
-        with closing(self.connection_factory()) as conn:
-            with conn.cursor(row_factory=dict_row) as cur:
-                cur.execute(query, params)
-                return list(cur.fetchall())
+        with (
+            closing(self.connection_factory()) as conn,
+            conn.cursor(row_factory=dict_row) as cur,
+        ):
+            cur.execute(query, params)
+            return list(cur.fetchall())
 
     def _get_record_id_modified_batch(self) -> list[dict[str, Any]]:
         """
@@ -210,10 +214,10 @@ class PostgresExtractor:
         query = sql.SQL("""
             SELECT
                 fw.id,
-                fw.rating AS imdb_rating, 
-                fw.title, 
-                fw.description, 
-                fw.rating, 
+                fw.rating AS imdb_rating,
+                fw.title,
+                fw.description,
+                fw.rating,
                 COALESCE(
                     json_agg(
                         DISTINCT jsonb_build_object('id', g.id, 'name', g.name)

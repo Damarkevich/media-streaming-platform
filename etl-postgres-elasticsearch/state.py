@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
@@ -69,25 +70,24 @@ class JsonFileStorage:
 
     def _initialize_file(self) -> None:
         try:
-            with open(self.file_path, "r", encoding="utf-8") as f:
+            with Path(self.file_path).open(encoding="utf-8") as f:
                 json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             logger.info(
                 f"File {self.file_path} not found or invalid. Creating a new one."
             )
-            with open(self.file_path, "w", encoding="utf-8") as f:
+            with Path(self.file_path).open("w", encoding="utf-8") as f:
                 json.dump({}, f)
 
     def save_state(self, state: dict[str, Any]) -> None:
         current_state = self.retrieve_state()
         current_state.update(state)
-        with open(self.file_path, "w", encoding="utf-8") as f:
+        with Path(self.file_path).open("w", encoding="utf-8") as f:
             json.dump(current_state, f)
 
     def retrieve_state(self) -> dict[str, Any]:
-        with open(self.file_path, "r", encoding="utf-8") as f:
-            state = json.load(f)
-            return state
+        with Path(self.file_path).open(encoding="utf-8") as f:
+            return json.load(f)
 
 
 class RedisStorage:

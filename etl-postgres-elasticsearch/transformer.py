@@ -1,9 +1,8 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
-
 from extractor import DataStorage
+from pydantic import BaseModel
 
 
 class MovieForPersonLoadData(BaseModel):

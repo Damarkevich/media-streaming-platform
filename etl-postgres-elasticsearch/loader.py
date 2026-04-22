@@ -3,7 +3,6 @@ import logging
 from typing import Any
 
 import httpx
-
 from backoff import backoff
 from config.settings import ES_HOST, ES_PORT
 from extractor import DataStorage

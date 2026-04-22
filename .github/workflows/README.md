@@ -56,7 +56,7 @@ All workflows use matrix strategy for parallel execution:
 strategy:
   fail-fast: false
   matrix:
-    python-version: ['3.14', '3.15']
+    python-version: ['3.13', '3.14']
     service: [async_api, auth, event_ingest, ugc]
 ```
 

@@ -44,5 +44,5 @@ jobs:
       - name: Run tests with coverage
         working-directory: ${{ matrix.service }}
         run: |
-          python -m coverage run -m pytest -v
-          python -m coverage report
+          uv run coverage run -m pytest -v
+          uv run coverage report

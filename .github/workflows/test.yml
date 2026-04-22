@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ matrix.service }}
         run: |
-          uv sync --groups test --no-dev
+          uv sync --group test
 
       - name: Run tests with coverage
         working-directory: ${{ matrix.service }}

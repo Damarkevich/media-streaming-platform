@@ -82,7 +82,7 @@ class RatingService:
                 }
             },
         ]
-        cursor = await self._col.aggregate(pipeline)
+        cursor = self._col.aggregate(pipeline)
         docs = await cursor.to_list(length=1)
         if not docs:
             return {"rating_avg": None, "rating_count": 0}

@@ -138,7 +138,7 @@ class ReviewService:
             {"$limit": page_size},
         ]
 
-        cursor = await self._col.aggregate(pipeline)
+        cursor = self._col.aggregate(pipeline)
         docs = await cursor.to_list(length=page_size)
         return [_fmt(d) for d in docs]
 
@@ -158,7 +158,7 @@ class ReviewService:
                 }
             },
         ]
-        cursor = await self._ratings_col.aggregate(pipeline)
+        cursor = self._ratings_col.aggregate(pipeline)
         stats = await cursor.to_list(length=1)
         if stats:
             doc["rating_count"] = stats[0].get("rating_count", 0)

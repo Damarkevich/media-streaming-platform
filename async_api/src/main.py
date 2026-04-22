@@ -22,7 +22,8 @@ app = FastAPI(
 
 FastAPIInstrumentor.instrument_app(app)
 
-app.middleware("http")(request_id_middleware)
+if not settings.development_mode:
+    app.middleware("http")(request_id_middleware)
 
 
 app.include_router(health.router, prefix="/api", tags=["health"])

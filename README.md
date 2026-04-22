@@ -9,7 +9,7 @@ This project appears to be a software application that utilizes Docker container
 
 ## 2. CI/CD
 
-The project uses GitHub Actions for continuous integration and delivery. All workflows are configured to run on Python 3.12, 3.13, and 3.14.
+The project uses GitHub Actions for continuous integration and delivery. All workflows are configured to run on Python 3.13 and 3.14.
 
 ### Available Workflows
 

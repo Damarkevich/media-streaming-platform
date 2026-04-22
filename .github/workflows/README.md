@@ -9,7 +9,7 @@ This directory contains configuration files for the project's CI/CD pipeline.
 
 Combined workflow that executes:
 - **Lint job:** Code quality checks with ruff (formatting and linting) for all services
-- **Test job:** Run tests for each service on Python 3.14, 3.15
+- **Test job:** Run tests for each service on Python 3.13, 3.14
 
 **Features:**
 - Tests run only after successful linting
@@ -38,7 +38,7 @@ Standalone workflow for quick code quality checks:
 **Triggers:** Push to `main`/`develop`, Pull Requests
 
 Standalone workflow for running tests:
-- Python version matrix: 3.14, 3.15
+- Python version matrix: 3.13, 3.14
 - Testing with coverage
 - Uses uv for fast dependency installation with `--system` flag
 - Built-in uv caching
@@ -47,7 +47,7 @@ Standalone workflow for running tests:
 - async_api
 - auth
 - event_ingest
-- ugc
+- ugc (uses mongomock-motor, no real MongoDB needed. Note: 2 tests skipped due to mongomock limitations with advanced aggregation pipelines)
 
 ## Matrix Strategy
 
@@ -130,6 +130,9 @@ Tests require certain environment variables to be set. In GitHub Actions, these 
 
 - **AUTHJWT_SECRET_KEY** - JWT secret key (minimum 32 characters) - required for auth, async_api, event_ingest, ugc services
 - **POSTGRES_PASSWORD** - PostgreSQL password - required for auth service
+- **SESSION_SECRET_KEY** - Session secret key (minimum 32 characters) - required for auth service (OAuth sessions)
+- **GOOGLE_CLIENT_ID** - Google OAuth client ID - required for auth service
+- **GOOGLE_CLIENT_SECRET** - Google OAuth client secret - required for auth service
 
 For local testing, copy `.env.example` to `.env` in each service directory and set appropriate values.
 

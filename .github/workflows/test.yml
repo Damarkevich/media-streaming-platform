@@ -46,6 +46,9 @@ jobs:
         env:
           AUTHJWT_SECRET_KEY: test_secret_key_at_least_32_characters_long_for_testing
           POSTGRES_PASSWORD: test_password
+          SESSION_SECRET_KEY: test_session_secret_key_at_least_32_characters_long
+          GOOGLE_CLIENT_ID: test_google_client_id
+          GOOGLE_CLIENT_SECRET: test_google_client_secret
         run: |
           uv run coverage run -m pytest -v
           uv run coverage report

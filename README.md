@@ -13,9 +13,10 @@ The project uses GitHub Actions for continuous integration and delivery. All wor
 
 ### Available Workflows
 
-- **CI Pipeline** ([ci.yml](.github/workflows/ci.yml)) - Combined linting and testing workflow
 - **Linting** ([lint.yml](.github/workflows/lint.yml)) - Code quality checks with ruff
 - **Testing** ([test.yml](.github/workflows/test.yml)) - Test execution with coverage
+
+These workflows run in parallel for faster feedback.
 
 ### Local Development
 

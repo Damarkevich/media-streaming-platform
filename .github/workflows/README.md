@@ -4,22 +4,7 @@ This directory contains configuration files for the project's CI/CD pipeline.
 
 ## Workflows
 
-### 1. CI (ci.yml) - Combined Pipeline
-**Triggers:** Push to `main`/`develop`, Pull Requests
-
-Combined workflow that executes:
-- **Lint job:** Code quality checks with ruff (formatting and linting) for all services
-- **Test job:** Run tests for each service on Python 3.13, 3.14
-
-**Features:**
-- Tests run only after successful linting
-- Uses matrix strategy for parallel testing
-- Uses uv for fast dependency installation with `--system` flag
-- Built-in uv caching for faster builds
-- Coverage reports generated locally
-- Test environment variables configured (AUTHJWT_SECRET_KEY, POSTGRES_PASSWORD)
-
-### 2. Lint (lint.yml) - Linting Only
+### 1. Lint (lint.yml) - Code Quality Checks
 **Triggers:** Push to `main`/`develop`, Pull Requests
 
 Standalone workflow for quick code quality checks:
@@ -34,7 +19,7 @@ Standalone workflow for quick code quality checks:
 - etl-postgres-elasticsearch
 - ugc
 
-### 3. Tests (test.yml) - Testing Only
+### 2. Tests (test.yml) - Testing with Coverage
 **Triggers:** Push to `main`/`develop`, Pull Requests
 
 Standalone workflow for running tests:

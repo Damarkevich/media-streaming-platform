@@ -2,10 +2,10 @@ import logging
 import os
 import sqlite3
 import sys
+from collections.abc import Generator
 from contextlib import closing
 from dataclasses import asdict, astuple
 from time import time
-from typing import Generator
 
 import psycopg
 from data_mappers import (
@@ -58,8 +58,9 @@ def validate_db_settings(dsl: dict[str, str]) -> None:
     """
     missing = [k for k, v in dsl.items() if not v]
     if missing:
-        logger.error(f"Missing required DB settings: {', '.join(missing)}")
-        raise ValueError(f"Missing required DB settings: {', '.join(missing)}")
+        msg = f"Missing required DB settings: {', '.join(missing)}"
+        logger.error(msg)
+        raise ValueError(msg)
 
 
 def extract_data(
@@ -144,10 +145,10 @@ def load_data(sqlite_cursor: sqlite3.Cursor, pg_cursor: psycopg.Cursor) -> None:
             batch_as_tuples = [astuple(student) for student in batch]
             try:
                 pg_cursor.executemany(query, batch_as_tuples)
-            except psycopg_errors.Error as e:
+            except psycopg_errors.Error:
                 logger.exception(
                     f"Failed inserting batch into {data_mapper.recipient_db_schema_name()}."
-                    f"{data_mapper.db_table_name()}: {e}",
+                    f"{data_mapper.db_table_name()}"
                 )
                 raise
 
@@ -284,9 +285,9 @@ if __name__ == "__main__":
 
         logger.info(f"Data transfer completed in {time() - start:.2f} seconds")
 
-    except (sqlite3.Error, psycopg_errors.Error) as e:
-        logger.exception("Database error: %s", e)
+    except (sqlite3.Error, psycopg_errors.Error):
+        logger.exception("Database error")
         sys.exit(1)
-    except Exception as e:
-        logger.exception("Unexpected error: %s", e)
+    except Exception:
+        logger.exception("Unexpected error")
         sys.exit(1)

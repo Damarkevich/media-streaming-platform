@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 from uuid import UUID
 
 
@@ -35,7 +34,6 @@ class DataMapper(ABC):
                 fields["modified"] = v
                 continue
         return cls(**fields)
-                
 
     @staticmethod
     def recipient_db_schema_name() -> str:
@@ -54,7 +52,7 @@ class FilmWork(DataMapper):
     type: str
     created: str
     modified: str
-    creation_date: Optional[str] = "NOW()"
+    creation_date: str | None = "NOW()"
 
     def __post_init__(self):
         super().__post_init__()
@@ -65,6 +63,7 @@ class FilmWork(DataMapper):
     def db_table_name() -> str:
         return "film_work"
 
+
 @dataclass()
 class Person(DataMapper):
     full_name: str
@@ -74,19 +73,20 @@ class Person(DataMapper):
     @staticmethod
     def db_table_name() -> str:
         return "person"
-    
+
+
 @dataclass()
 class Genre(DataMapper):
     name: str
     created: str
     modified: str
-    description: Optional[str] = None
-
+    description: str | None = None
 
     @staticmethod
     def db_table_name() -> str:
         return "genre"
-    
+
+
 @dataclass()
 class GenreFilmWork(DataMapper):
     film_work_id: UUID
@@ -103,7 +103,8 @@ class GenreFilmWork(DataMapper):
     @staticmethod
     def db_table_name() -> str:
         return "genre_film_work"
-    
+
+
 @dataclass()
 class PersonFilmWork(DataMapper):
     film_work_id: UUID
@@ -117,7 +118,7 @@ class PersonFilmWork(DataMapper):
             self.film_work_id = UUID(self.film_work_id)
         if isinstance(self.person_id, str):
             self.person_id = UUID(self.person_id)
-            
+
     @staticmethod
     def db_table_name() -> str:
         return "person_film_work"

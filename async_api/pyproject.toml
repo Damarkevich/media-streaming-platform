@@ -19,7 +19,7 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.0.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "fastapi[standard]>=0.128.0",
 ]

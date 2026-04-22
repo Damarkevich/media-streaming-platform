@@ -85,6 +85,9 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: ${{ matrix.service }}
+        env:
+          AUTHJWT_SECRET_KEY: test_secret_key_at_least_32_characters_long_for_testing
+          POSTGRES_PASSWORD: test_password
         run: |
           python -m coverage run -m pytest -v
           python -m coverage report

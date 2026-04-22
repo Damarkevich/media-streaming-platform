@@ -17,6 +17,7 @@ Combined workflow that executes:
 - Uses uv for fast dependency installation with `--system` flag
 - Built-in uv caching for faster builds
 - Coverage reports generated locally
+- Test environment variables configured (AUTHJWT_SECRET_KEY, POSTGRES_PASSWORD)
 
 ### 2. Lint (lint.yml) - Linting Only
 **Triggers:** Push to `main`/`develop`, Pull Requests
@@ -122,6 +123,15 @@ Workflows use built-in uv caching to speed up builds:
 - Cache key is based on `cache-dependency-glob` (typically `pyproject.toml`)
 - Cache is automatically invalidated when dependencies change
 - uv is significantly faster than pip (10-100x)
+
+## Test Environment Variables
+
+Tests require certain environment variables to be set. In GitHub Actions, these are configured in the test workflows:
+
+- **AUTHJWT_SECRET_KEY** - JWT secret key (minimum 32 characters) - required for auth, async_api, event_ingest, ugc services
+- **POSTGRES_PASSWORD** - PostgreSQL password - required for auth service
+
+For local testing, copy `.env.example` to `.env` in each service directory and set appropriate values.
 
 ## Extending
 

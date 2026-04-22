@@ -24,6 +24,10 @@ def test_settings_requires_required_vars(
     monkeypatch: pytest.MonkeyPatch, missing_var, valid_value
 ) -> None:
     """Ensure settings validation fails when any required variable is missing."""
+    # Clear all environment variables to ensure clean test
+    for var_name, _ in REQUIRED_ENV_VARS:
+        monkeypatch.delenv(var_name.upper(), raising=False)
+    
     # Prepare kwargs with all valid values
     kwargs = {
         "authjwt_secret_key": VALID_AUTHJWT_SECRET_KEY,
@@ -45,8 +49,14 @@ def test_settings_requires_required_vars(
         ("session_secret_key", "   "),
     ],
 )
-def test_settings_rejects_blank_required_vars(field, blank_value):
+def test_settings_rejects_blank_required_vars(
+    monkeypatch: pytest.MonkeyPatch, field, blank_value
+):
     """Ensure settings validation fails for blank required secrets/keys."""
+    # Clear all environment variables to ensure clean test
+    for var_name, _ in REQUIRED_ENV_VARS:
+        monkeypatch.delenv(var_name.upper(), raising=False)
+    
     kwargs = {
         "authjwt_secret_key": VALID_AUTHJWT_SECRET_KEY,
         "session_secret_key": VALID_SESSION_SECRET_KEY,
@@ -60,8 +70,14 @@ def test_settings_rejects_blank_required_vars(field, blank_value):
     assert "should be at least 32 characters" in str(exc_info.value)
 
 
-def test_settings_accepts_all_valid_required_vars() -> None:
+def test_settings_accepts_all_valid_required_vars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Ensure settings accept all valid required variables."""
+    # Clear all environment variables to ensure clean test
+    for var_name, _ in REQUIRED_ENV_VARS:
+        monkeypatch.delenv(var_name.upper(), raising=False)
+    
     settings = Settings(
         _env_file=None,
         authjwt_secret_key=VALID_AUTHJWT_SECRET_KEY,

@@ -2,9 +2,8 @@ import json
 import logging
 from typing import Any
 
-from kafka import KafkaConsumer
-
 from config.settings import settings
+from kafka import KafkaConsumer
 
 logger = logging.getLogger(settings.log_name)
 
@@ -28,8 +27,8 @@ class KafkaExtractor:
         """Deserialize a Kafka message payload from JSON bytes."""
         try:
             return json.loads(message.decode("utf-8"))
-        except json.JSONDecodeError as e:
-            logger.error("Failed to decode message: %s", e)
+        except json.JSONDecodeError:
+            logger.exception("Failed to decode message")
             return {}
 
     def get_batch(self) -> list[dict[str, Any]]:

@@ -3,7 +3,6 @@ import time
 from typing import Any
 
 from clickhouse_driver import Client
-
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -50,10 +49,7 @@ class ClickHouseLoader:
 
         rows = [tuple(event[column] for column in INSERT_COLUMNS) for event in events]
         columns_sql = ", ".join(INSERT_COLUMNS)
-        query = "INSERT INTO {table} ({columns}) VALUES".format(
-            table=self.insert_target_table,
-            columns=columns_sql,
-        )
+        query = f"INSERT INTO {self.insert_target_table} ({columns_sql}) VALUES"
 
         self.client.execute(query, rows)
 
@@ -64,7 +60,6 @@ class ClickHouseLoader:
         for attempt in range(1, attempts + 1):
             try:
                 self.load(events)
-                return
             except Exception:
                 if attempt >= attempts:
                     raise
@@ -79,6 +74,8 @@ class ClickHouseLoader:
                     backoff,
                 )
                 time.sleep(backoff)
+            else:
+                return
 
     def close(self) -> None:
         """Close the ClickHouse client connection."""

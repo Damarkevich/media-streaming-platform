@@ -1,7 +1,6 @@
 import logging
 
 from clickhouse_driver import Client
-
 from config.logger import configure_logging
 from config.settings import settings
 
@@ -37,19 +36,13 @@ def run() -> None:
     local_table = local_database + "." + local_table_name
 
     create_distributed_db_query = (
-        "CREATE DATABASE IF NOT EXISTS {db}{cluster_clause}".format(
-            db=distributed_database,
-            cluster_clause=cluster_clause,
-        )
+        f"CREATE DATABASE IF NOT EXISTS {distributed_database}{cluster_clause}"
     )
     client.execute(create_distributed_db_query)
 
     if local_database != distributed_database:
         create_local_db_query = (
-            "CREATE DATABASE IF NOT EXISTS {db}{cluster_clause}".format(
-                db=local_database,
-                cluster_clause=cluster_clause,
-            )
+            f"CREATE DATABASE IF NOT EXISTS {local_database}{cluster_clause}"
         )
         client.execute(create_local_db_query)
 
@@ -83,19 +76,11 @@ def run() -> None:
 
     client.execute(local_query)
 
-    distributed_query = """
+    distributed_query = f"""
         CREATE TABLE IF NOT EXISTS {distributed_table}{cluster_clause}
         AS {local_table}
-        ENGINE = Distributed('{cluster_name}', '{local_database}', '{local_table_name}', {sharding_key})
-        """.format(
-        distributed_table=distributed_table,
-        cluster_clause=cluster_clause,
-        local_table=local_table,
-        cluster_name=settings.clickhouse_cluster_name,
-        local_database=local_database,
-        local_table_name=local_table_name,
-        sharding_key=settings.clickhouse_sharding_key,
-    )
+        ENGINE = Distributed('{settings.clickhouse_cluster_name}', '{local_database}', '{local_table_name}', {settings.clickhouse_sharding_key})
+        """
     client.execute(distributed_query)
 
     logger.info(

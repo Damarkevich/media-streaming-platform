@@ -96,23 +96,24 @@ class Settings(BaseSettings):
     @classmethod
     def validate_sql_identifier(cls, value: str) -> str:
         if not SQL_IDENTIFIER_RE.fullmatch(value):
-            raise ValueError("Invalid SQL identifier")
+            msg = "Invalid SQL identifier"
+            raise ValueError(msg)
         return value
 
     @field_validator("clickhouse_sharding_key")
     @classmethod
     def validate_sharding_key(cls, value: str) -> str:
         if not SHARDING_KEY_RE.fullmatch(value):
-            raise ValueError(
-                "Invalid sharding key. Expected format: cityHash64(column_name)"
-            )
+            msg = "Invalid sharding key. Expected format: cityHash64(column_name)"
+            raise ValueError(msg)
         return value
 
     @field_validator("clickhouse_replicated_path_suffix")
     @classmethod
     def validate_replicated_path_suffix(cls, value: str) -> str:
         if not PATH_SUFFIX_RE.fullmatch(value):
-            raise ValueError("Invalid replicated path suffix")
+            msg = "Invalid replicated path suffix"
+            raise ValueError(msg)
         return value
 
 

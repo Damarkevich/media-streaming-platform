@@ -1,12 +1,11 @@
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
-
 from config.settings import settings
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 logger = logging.getLogger(settings.log_name)
 
@@ -17,15 +16,16 @@ def _parse_timestamp(value: Any) -> datetime:
         return value
 
     if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(value)
+        return datetime.fromtimestamp(value, tz=UTC)
 
     if isinstance(value, str):
         try:
-            return datetime.fromtimestamp(float(value))
+            return datetime.fromtimestamp(float(value), tz=UTC)
         except ValueError:
             return datetime.fromisoformat(value)
 
-    raise ValueError("Unsupported timestamp format")
+    msg = "Unsupported timestamp format"
+    raise ValueError(msg)
 
 
 class RawEvent(BaseModel):
@@ -51,8 +51,9 @@ class RawEvent(BaseModel):
         if value is None:
             return {}
         if isinstance(value, dict):
-            return cast(dict[str, Any], value)
-        raise ValueError("Must be an object")
+            return cast("dict[str, Any]", value)
+        msg = "Must be an object"
+        raise ValueError(msg)
 
 
 class Transformer:

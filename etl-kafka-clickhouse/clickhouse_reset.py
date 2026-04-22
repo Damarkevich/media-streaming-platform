@@ -2,7 +2,6 @@ import logging
 
 from clickhouse_driver import Client
 from clickhouse_driver.errors import ServerException
-
 from config.logger import configure_logging
 from config.settings import settings
 
@@ -43,10 +42,7 @@ def _drop_stale_replica_znode_local(client: Client) -> None:
         table_name=local_table_name + "_" + settings.clickhouse_replicated_path_suffix,
     )
 
-    query = "SYSTEM DROP REPLICA '{replica}' FROM ZKPATH '{zk_path}'".format(
-        replica=replica,
-        zk_path=zk_path,
-    )
+    query = f"SYSTEM DROP REPLICA '{replica}' FROM ZKPATH '{zk_path}'"
 
     try:
         client.execute(query)
@@ -93,10 +89,7 @@ def _drop_stale_replica_znode_cluster(client: Client) -> None:
             + settings.clickhouse_replicated_path_suffix,
         )
 
-        query = "SYSTEM DROP REPLICA '{replica}' FROM ZKPATH '{zk_path}'".format(
-            replica=host_name,
-            zk_path=zk_path,
-        )
+        query = f"SYSTEM DROP REPLICA '{host_name}' FROM ZKPATH '{zk_path}'"
 
         try:
             client.execute(query)
@@ -138,16 +131,10 @@ def run() -> None:
         local_table,
     )
 
-    drop_distributed_query = "DROP TABLE IF EXISTS {table}{cluster_clause}".format(
-        table=distributed_table,
-        cluster_clause=cluster_clause,
-    )
+    drop_distributed_query = f"DROP TABLE IF EXISTS {distributed_table}{cluster_clause}"
     client.execute(drop_distributed_query)
 
-    drop_local_query = "DROP TABLE IF EXISTS {table}{cluster_clause}".format(
-        table=local_table,
-        cluster_clause=cluster_clause,
-    )
+    drop_local_query = f"DROP TABLE IF EXISTS {local_table}{cluster_clause}"
     client.execute(drop_local_query)
 
     if settings.clickhouse_run_ddl_on_cluster:

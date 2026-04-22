@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import DateTime, Index, String
@@ -39,7 +39,7 @@ class Log(Base):
     log_type: Mapped[LogType] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         index=True,
         nullable=False,
     )

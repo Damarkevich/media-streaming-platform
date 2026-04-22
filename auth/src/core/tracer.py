@@ -24,7 +24,7 @@ def configure_tracer() -> None:
     Returns:
         None.
     """
-    global _provider
+    global _provider  # noqa: PLW0603
 
     if _provider is not None:
         return
@@ -49,7 +49,7 @@ def shutdown_tracer() -> None:
     Returns:
         None.
     """
-    global _provider
+    global _provider  # noqa: PLW0603
 
     if _provider is None:
         return

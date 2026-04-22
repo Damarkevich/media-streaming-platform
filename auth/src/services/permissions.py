@@ -107,9 +107,11 @@ class PermissionService:
             SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
-            raise RoleNotFoundError("Role not found")
+            msg = "Role not found"
+            raise RoleNotFoundError(msg)
         if not await self._permission_exists(permission_id):
-            raise PermissionNotFoundError("Permission not found")
+            msg = "Permission not found"
+            raise PermissionNotFoundError(msg)
 
         if await self._role_permission_exists(
             role_id=role_id, permission_id=permission_id
@@ -150,9 +152,11 @@ class PermissionService:
             SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
-            raise RoleNotFoundError("Role not found")
+            msg = "Role not found"
+            raise RoleNotFoundError(msg)
         if not await self._permission_exists(permission_id):
-            raise PermissionNotFoundError("Permission not found")
+            msg = "Permission not found"
+            raise PermissionNotFoundError(msg)
 
         stmt = delete(RolePermission).where(
             RolePermission.role_id == role_id,

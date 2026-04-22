@@ -69,17 +69,17 @@ class RoleService:
         try:
             await self.db.commit()
             await self.db.refresh(new_role)
-            return new_role
         except IntegrityError as exc:
             await self.db.rollback()
             if is_field_unique_violation(exc, "name"):
-                raise RoleAlreadyExistsError(
-                    f"Role with name '{name}' already exists."
-                ) from exc
+                msg = f"Role with name '{name}' already exists."
+                raise RoleAlreadyExistsError(msg) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()
             raise
+        else:
+            return new_role
 
     async def update_role(self, role_id: UUID, new_name: str) -> bool:
         """Update the name of an existing role.
@@ -106,17 +106,17 @@ class RoleService:
             if (getattr(result, "rowcount", 0) or 0) == 0:
                 return False
             await self.db.commit()
-            return True
         except IntegrityError as exc:
             await self.db.rollback()
             if is_field_unique_violation(exc, "name"):
-                raise RoleAlreadyExistsError(
-                    f"Role with name '{new_name}' already exists."
-                ) from exc
+                msg = f"Role with name '{new_name}' already exists."
+                raise RoleAlreadyExistsError(msg) from exc
             raise
         except SQLAlchemyError:
             await self.db.rollback()
             raise
+        else:
+            return True
 
     async def delete_role(self, role_id: UUID) -> bool:
         """Delete a role by ID.
@@ -223,9 +223,11 @@ class RoleService:
             SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
-            raise RoleNotFoundError("Role not found")
+            msg = "Role not found"
+            raise RoleNotFoundError(msg)
         if not await self._user_exists(user_id):
-            raise UserNotFoundError("User not found")
+            msg_0 = "User not found"
+            raise UserNotFoundError(msg_0)
 
         if await self._user_role_exists(user_id=user_id, role_id=role_id):
             return
@@ -260,9 +262,11 @@ class RoleService:
             SQLAlchemyError: If persistence fails.
         """
         if not await self._role_exists(role_id):
-            raise RoleNotFoundError("Role not found")
+            msg = "Role not found"
+            raise RoleNotFoundError(msg)
         if not await self._user_exists(user_id):
-            raise UserNotFoundError("User not found")
+            msg = "User not found"
+            raise UserNotFoundError(msg)
 
         stmt = delete(UserRole).where(
             UserRole.user_id == user_id, UserRole.role_id == role_id
@@ -346,7 +350,8 @@ class RoleService:
         )
         default_role_instance = default_roles.scalars().one_or_none()
         if not default_role_instance:
-            raise RoleNotFoundError("Base role not found")
+            msg = "Base role not found"
+            raise RoleNotFoundError(msg)
         await self.assign_role_to_user(
             user_id=user_id, role_id=default_role_instance.id
         )

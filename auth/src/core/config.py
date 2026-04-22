@@ -61,10 +61,9 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, value: str) -> str:
         """Ensure that secret keys are set and meet the minimum length requirement."""
         if len(value.strip()) < 32:
-            raise ValueError(
-                "Secret keys should be at least 32 characters for security"
-            )
+            msg = "Secret keys should be at least 32 characters for security"
+            raise ValueError(msg)
         return value
 
 
-settings = Settings()  # type: ignore
+settings = Settings()  # pyright: ignore[reportCallIssue]

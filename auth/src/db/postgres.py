@@ -42,6 +42,6 @@ async def check_postgres() -> bool:
         async with async_session() as session:
             result = await session.execute(text("SELECT 1"))
             return result.scalar() == 1
-    except Exception as e:
-        logger.error(f"Error connecting to PostgreSQL: {e}")
+    except Exception:
+        logger.exception("Error connecting to PostgreSQL")
         return False

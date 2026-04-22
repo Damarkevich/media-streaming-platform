@@ -6,18 +6,17 @@ Create Date: 2026-03-02 19:49:43.448513
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 from uuid import uuid4
 
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "69cc3d7b038c"
-down_revision: Union[str, Sequence[str], None] = "c41fd2888559"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "c41fd2888559"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 PERMISSIONS_TO_ADD: tuple[str, ...] = (

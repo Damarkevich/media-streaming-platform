@@ -11,11 +11,15 @@ def validate_strong_password(value: str) -> str:
         ValueError: If at least one complexity rule is violated.
     """
     if not any("A" <= ch <= "Z" for ch in value):
-        raise ValueError("password must contain at least one uppercase English letter")
+        msg = "password must contain at least one uppercase English letter"
+        raise ValueError(msg)
     if not any("a" <= ch <= "z" for ch in value):
-        raise ValueError("password must contain at least one lowercase English letter")
+        msg = "password must contain at least one lowercase English letter"
+        raise ValueError(msg)
     if not any(ch.isdigit() for ch in value):
-        raise ValueError("password must contain at least one digit")
+        msg = "password must contain at least one digit"
+        raise ValueError(msg)
     if not any(not ch.isalnum() for ch in value):
-        raise ValueError("password must contain at least one special character")
+        msg = "password must contain at least one special character"
+        raise ValueError(msg)
     return value

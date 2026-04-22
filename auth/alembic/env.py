@@ -1,10 +1,9 @@
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 from src.core.config import settings
 from src.db.postgres import Base
 from src.models import log, role, user  # noqa: F401
@@ -99,7 +98,7 @@ def run_migrations_online() -> None:
 
         await connectable.dispose()
 
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
     asyncio.run(run_async_migrations())
 

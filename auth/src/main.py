@@ -50,7 +50,8 @@ app.include_router(
 
 @app.exception_handler(AuthJWTException)
 def authjwt_exception_handler(
-    request: Request, exc: AuthJWTException
+    request: Request,  # noqa: ARG001
+    exc: AuthJWTException,
 ) -> ORJSONResponse:
     """Translate AuthJWT exceptions into unified JSON HTTP responses."""
     return ORJSONResponse(
@@ -61,7 +62,8 @@ def authjwt_exception_handler(
 
 @app.exception_handler(RateLimitExceeded)
 def rate_limit_exception_handler(
-    request: Request, exc: RateLimitExceeded
+    request: Request,  # noqa: ARG001
+    exc: RateLimitExceeded,  # noqa: ARG001
 ) -> ORJSONResponse:
     """Handle rate limit breaches with a unified JSON HTTP response."""
     return ORJSONResponse(

@@ -72,18 +72,19 @@ class GoogleOAuthService:
             )
         except OAuthError as exc:
             logger.error("Google OAuth authentication failed: %s", exc, exc_info=True)
-            raise GoogleOAuthError("Google authentication failed") from exc
+            msg = "Google authentication failed"
+            raise GoogleOAuthError(msg) from exc
         except Exception as exc:
             logger.error("Unexpected error during Google OAuth: %s", exc, exc_info=True)
-            raise GoogleOAuthError(
-                "Unexpected error during Google authentication"
-            ) from exc
+            msg = "Unexpected error during Google authentication"
+            raise GoogleOAuthError(msg) from exc
 
         try:
             dto = GoogleUserDTO(**user_info)
         except Exception as exc:
             logger.error("Failed to parse Google user info: %s", exc, exc_info=True)
-            raise GoogleOAuthError("Invalid user info structure from Google") from exc
+            msg = "Invalid user info structure from Google"
+            raise GoogleOAuthError(msg) from exc
 
         if not dto.email or not dto.email_verified:
             logger.warning(
@@ -91,7 +92,8 @@ class GoogleOAuthService:
                 dto.email,
                 dto.email_verified,
             )
-            raise GoogleOAuthEmailError("Google account does not have a verified email")
+            msg = "Google account does not have a verified email"
+            raise GoogleOAuthEmailError(msg)
         return dto
 
 

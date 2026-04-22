@@ -1,8 +1,8 @@
 import asyncio
 from typing import Annotated
 
-from sqlalchemy import select
 import typer
+from sqlalchemy import select
 
 from src.db.postgres import async_session
 from src.models.role import Role, UserRole
@@ -75,9 +75,8 @@ def create_superuser(
             result = await db.execute(select(Role).where(Role.name == AdminRoleName))
             role: Role | None = result.scalars().one_or_none()
             if not role:
-                raise AdminRoleNotFoundError(
-                    f"Required role '{AdminRoleName}' not found in the system."
-                )
+                msg = f"Required role '{AdminRoleName}' not found in the system."
+                raise AdminRoleNotFoundError(msg)
 
             db.add(UserRole(user_id=user.id, role_id=role.id))
             await db.commit()

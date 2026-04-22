@@ -7,7 +7,6 @@ from redis.asyncio import Redis
 
 from src.db.redis import get_redis
 
-
 _runtime_redis_client: "RedisClient | None" = None
 
 
@@ -88,7 +87,8 @@ class RedisClient:
             return f"{cls.ACCESS_BLACKLIST_KEY_PREFIX}{jti}"
         if token_type == "refresh":
             return f"{cls.REFRESH_BLACKLIST_KEY_PREFIX}{jti}"
-        raise ValueError(f"Invalid token type: {token_type}")
+        msg = f"Invalid token type: {token_type}"
+        raise ValueError(msg)
 
     async def add_token_to_blacklist(
         self, jti: str, ttl_seconds: int, token_type: str
@@ -226,7 +226,7 @@ async def create_redis_client() -> RedisClient:
     Raises:
         RedisError: Propagates Redis connection errors.
     """
-    global _runtime_redis_client
+    global _runtime_redis_client  # noqa: PLW0603
 
     if _runtime_redis_client is not None:
         return _runtime_redis_client

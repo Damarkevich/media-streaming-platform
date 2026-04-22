@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
     """
     FastAPI lifespan context manager.
 
@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         async with postgres.async_session() as session:
             await session.execute(text("SELECT 1"))
-    except Exception as e:
-        logger.error(f"Error connecting to PostgreSQL: {e}")
+    except Exception:
+        logger.exception("Error connecting to PostgreSQL")
         raise
 
     yield

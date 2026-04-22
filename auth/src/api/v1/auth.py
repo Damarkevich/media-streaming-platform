@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from http import HTTPStatus
-from typing import Annotated, Mapping
+from typing import Annotated
 from uuid import UUID
 
 from async_fastapi_jwt_auth import AuthJWT  # type: ignore[import-untyped]
@@ -45,7 +46,7 @@ async def create_user(
     user_create: UserCreate,
     user_service: Annotated[UserService, Depends(get_user_service)],
     role_service: Annotated[RoleService, Depends(get_role_service)],
-    request: Request,
+    request: Request,  # noqa: ARG001
 ) -> UserResponse:
     """Register a new user account and return its public projection."""
     user_dto = user_create.model_dump()
@@ -76,7 +77,7 @@ async def login(
     user_service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
     roles_service: Annotated[RoleService, Depends(get_role_service)],
-    request: Request,
+    request: Request,  # noqa: ARG001
 ) -> TokenResponse:
     """Authenticate credentials and issue a new access/refresh token pair."""
     user_dto: dict[str, str] = user_login.model_dump()
@@ -159,7 +160,7 @@ async def refresh_revoke(
 async def api_login(
     user_login: UserLogin,
     user_service: Annotated[UserService, Depends(get_user_service)],
-    request: Request,
+    request: Request,  # noqa: ARG001
 ) -> UserResponse:
     """Authenticate credentials and return user details."""
     user_dto: dict[str, str] = user_login.model_dump()

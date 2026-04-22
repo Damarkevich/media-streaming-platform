@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
     """Manage application startup and shutdown lifecycle."""
     configure_tracer()
 
@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     try:
         await mongo.client.admin.command("ping")
-    except Exception as e:
-        logger.error("Failed to connect to MongoDB: %s", e)
+    except Exception:
+        logger.exception("Failed to connect to MongoDB")
         raise
 
     yield

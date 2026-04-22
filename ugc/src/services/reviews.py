@@ -1,6 +1,7 @@
 import logging
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
+
 from pymongo import ReturnDocument
 
 from src.db.mongo import get_client, get_db
@@ -42,25 +43,27 @@ class ReviewService:
         return await self._attach_rating_stats(doc)
 
     async def delete(self, user_id: UUID, movie_id: UUID) -> bool:
-        async with self._client.start_session() as session:
-            async with await session.start_transaction():
-                review = await self._col.find_one(
-                    {"user_id": str(user_id), "movie_id": str(movie_id)},
-                    {"_id": 1},
-                    session=session,
-                )
-                if review is None:
-                    return False
+        async with (
+            self._client.start_session() as session,
+            await session.start_transaction(),
+        ):
+            review = await self._col.find_one(
+                {"user_id": str(user_id), "movie_id": str(movie_id)},
+                {"_id": 1},
+                session=session,
+            )
+            if review is None:
+                return False
 
-                await self._col.delete_one(
-                    {"user_id": str(user_id), "movie_id": str(movie_id)},
-                    session=session,
-                )
-                await self._ratings_col.delete_many(
-                    {"target_type": REVIEW, "target_id": review["_id"]},
-                    session=session,
-                )
-                return True
+            await self._col.delete_one(
+                {"user_id": str(user_id), "movie_id": str(movie_id)},
+                session=session,
+            )
+            await self._ratings_col.delete_many(
+                {"target_type": REVIEW, "target_id": review["_id"]},
+                session=session,
+            )
+            return True
 
     async def get_my_review(self, user_id: UUID, movie_id: UUID) -> dict | None:
         doc = await self._col.find_one(

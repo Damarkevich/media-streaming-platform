@@ -8,7 +8,8 @@ client: AsyncMongoClient | None = None
 
 def get_client() -> AsyncMongoClient:
     if client is None:
-        raise RuntimeError("MongoDB client is not initialized")
+        msg = "MongoDB client is not initialized"
+        raise RuntimeError(msg)
     return client
 
 
@@ -69,8 +70,6 @@ async def check_mongo() -> bool:
         # Transactional write paths require a writable primary in a replica set.
         if not hello.get("isWritablePrimary", False):
             return False
-        if not hello.get("setName"):
-            return False
-        return True
+        return bool(hello.get("setName"))
     except Exception:
         return False

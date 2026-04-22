@@ -18,7 +18,7 @@ async def upsert_review(
     movie_id: Annotated[UUID4, Path()],
     body: ReviewIn,
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: ReviewService = Depends(get_review_service),
+    service: ReviewService = Depends(get_review_service),  # noqa: B008
 ) -> ReviewOut:
     """Create or update the current user's review for a movie (one review per user per movie)."""
     doc = await service.upsert(user_id=token.sub, movie_id=movie_id, text=body.text)
@@ -29,7 +29,7 @@ async def upsert_review(
 async def delete_review(
     movie_id: Annotated[UUID4, Path()],
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: ReviewService = Depends(get_review_service),
+    service: ReviewService = Depends(get_review_service),  # noqa: B008
 ) -> None:
     """Delete the current user's review for a movie."""
     removed = await service.delete(user_id=token.sub, movie_id=movie_id)
@@ -43,7 +43,7 @@ async def delete_review(
 async def get_my_review(
     movie_id: Annotated[UUID4, Path()],
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: ReviewService = Depends(get_review_service),
+    service: ReviewService = Depends(get_review_service),  # noqa: B008
 ) -> ReviewOut:
     """Get the current user's review for a movie."""
     doc = await service.get_my_review(user_id=token.sub, movie_id=movie_id)
@@ -57,13 +57,13 @@ async def get_my_review(
 @router.get("/movies/{movie_id}/reviews", response_model=list[ReviewOut])
 async def list_movie_reviews(
     movie_id: Annotated[UUID4, Path()],
-    token: Annotated[TokenPayload, Depends(require_ugc_access)],
+    token: Annotated[TokenPayload, Depends(require_ugc_access)],  # noqa: ARG001
     sort: Annotated[
         Literal["-created_at", "created_at", "-rating_avg", "rating_avg"],
         Query(description="Sort by creation date or rating average"),
     ] = "-created_at",
-    pagination: PaginationParams = Depends(PaginationParams),
-    service: ReviewService = Depends(get_review_service),
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    service: ReviewService = Depends(get_review_service),  # noqa: B008
 ) -> list[ReviewOut]:
     """List all reviews for a movie with sorting by date or rating."""
     docs = await service.list_for_movie(
@@ -78,8 +78,8 @@ async def list_movie_reviews(
 @router.get("/reviews/{review_id}", response_model=ReviewOut)
 async def get_review(
     review_id: Annotated[UUID4, Path()],
-    token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: ReviewService = Depends(get_review_service),
+    token: Annotated[TokenPayload, Depends(require_ugc_access)],  # noqa: ARG001
+    service: ReviewService = Depends(get_review_service),  # noqa: B008
 ) -> ReviewOut:
     """Get a single review by its ID."""
     doc = await service.get_review_by_id(review_id=review_id)

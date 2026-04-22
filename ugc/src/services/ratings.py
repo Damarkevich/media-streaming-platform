@@ -39,34 +39,32 @@ class RatingService:
     async def set_review_rating(
         self, user_id: UUID, review_id: UUID, value: int
     ) -> dict:
-        async with self._client.start_session() as session:
-            async with await session.start_transaction():
-                review_id_str = await self._ensure_review_exists(
-                    review_id, session=session
-                )
-                return await self._upsert(
-                    str(user_id), REVIEW, review_id_str, value, session=session
-                )
+        async with (
+            self._client.start_session() as session,
+            await session.start_transaction(),
+        ):
+            review_id_str = await self._ensure_review_exists(review_id, session=session)
+            return await self._upsert(
+                str(user_id), REVIEW, review_id_str, value, session=session
+            )
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
-        async with self._client.start_session() as session:
-            async with await session.start_transaction():
-                review_id_str = await self._ensure_review_exists(
-                    review_id, session=session
-                )
-                return await self._delete(
-                    str(user_id), REVIEW, review_id_str, session=session
-                )
+        async with (
+            self._client.start_session() as session,
+            await session.start_transaction(),
+        ):
+            review_id_str = await self._ensure_review_exists(review_id, session=session)
+            return await self._delete(
+                str(user_id), REVIEW, review_id_str, session=session
+            )
 
     async def get_review_rating(self, user_id: UUID, review_id: UUID) -> dict | None:
-        async with self._client.start_session() as session:
-            async with await session.start_transaction():
-                review_id_str = await self._ensure_review_exists(
-                    review_id, session=session
-                )
-                return await self._get(
-                    str(user_id), REVIEW, review_id_str, session=session
-                )
+        async with (
+            self._client.start_session() as session,
+            await session.start_transaction(),
+        ):
+            review_id_str = await self._ensure_review_exists(review_id, session=session)
+            return await self._get(str(user_id), REVIEW, review_id_str, session=session)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict:
         pipeline = [
@@ -119,7 +117,7 @@ class RatingService:
     ) -> dict:
         now = datetime.now(UTC)
 
-        doc = await self._col.find_one_and_update(
+        return await self._col.find_one_and_update(
             {"user_id": user_id, "target_type": target_type, "target_id": target_id},
             {
                 "$set": {"value": value, "updated_at": now},
@@ -129,7 +127,6 @@ class RatingService:
             return_document=ReturnDocument.AFTER,
             session=session,
         )
-        return doc
 
     async def _delete(
         self, user_id: str, target_type: str, target_id: str, session=None
@@ -138,9 +135,7 @@ class RatingService:
             {"user_id": user_id, "target_type": target_type, "target_id": target_id},
             session=session,
         )
-        if deleted_doc is None:
-            return False
-        return True
+        return deleted_doc is not None
 
 
 def get_rating_service() -> RatingService:

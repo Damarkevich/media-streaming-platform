@@ -19,7 +19,7 @@ router = APIRouter(redirect_slashes=False)
 async def add_bookmark(
     movie_id: Annotated[UUID4, Path()],
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: BookmarkService = Depends(get_bookmark_service),
+    service: BookmarkService = Depends(get_bookmark_service),  # noqa: B008
 ) -> BookmarkOut:
     """Add a movie to the current user's bookmarks (idempotent)."""
     doc = await service.add(user_id=token.sub, movie_id=movie_id)
@@ -30,7 +30,7 @@ async def add_bookmark(
 async def remove_bookmark(
     movie_id: Annotated[UUID4, Path()],
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    service: BookmarkService = Depends(get_bookmark_service),
+    service: BookmarkService = Depends(get_bookmark_service),  # noqa: B008
 ) -> None:
     """Remove a movie from the current user's bookmarks."""
     removed = await service.remove(user_id=token.sub, movie_id=movie_id)
@@ -43,8 +43,8 @@ async def remove_bookmark(
 @router.get("/bookmarks", response_model=list[BookmarkOut])
 async def list_bookmarks(
     token: Annotated[TokenPayload, Depends(require_ugc_access)],
-    pagination: PaginationParams = Depends(PaginationParams),
-    service: BookmarkService = Depends(get_bookmark_service),
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    service: BookmarkService = Depends(get_bookmark_service),  # noqa: B008
 ) -> list[BookmarkOut]:
     """List bookmarks for the current user, newest first."""
     docs = await service.list_for_user(

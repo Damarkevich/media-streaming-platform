@@ -13,7 +13,7 @@ _provider: TracerProvider | None = None
 
 def configure_tracer() -> None:
     """Configure the global OpenTelemetry tracer provider (idempotent)."""
-    global _provider
+    global _provider  # noqa: PLW0603
 
     if _provider is not None:
         return
@@ -34,7 +34,7 @@ def configure_tracer() -> None:
 
 def shutdown_tracer() -> None:
     """Shutdown the tracer provider and flush pending spans."""
-    global _provider
+    global _provider  # noqa: PLW0603
 
     if _provider is None:
         return

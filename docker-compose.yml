@@ -19,7 +19,7 @@ services:
 
   movies-elasticsearch:
     container_name: movies-elasticsearch
-    image: elasticsearch:9.2.3
+    image: elasticsearch:9.3.3
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
@@ -124,7 +124,7 @@ services:
       logstash:
         condition: service_healthy
     restart: unless-stopped
-  
+
   movies-redis:
     container_name: movies-redis
     image: redis:8.4.0
@@ -208,7 +208,7 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=${KAFKA_CFG_ADVERTISED_LISTENERS_0}
     volumes:
       - kafka_0_data:/bitnami/kafka
-   
+
   kafka-1:
     image: bitnamilegacy/kafka:3.4
     ports:
@@ -539,7 +539,7 @@ services:
 
   movies-event-ingest:
     container_name: movies-event-ingest
-    build: ./event-ingest
+    build: ./event_ingest
     restart: unless-stopped
     depends_on:
       kafka-0:

@@ -68,8 +68,9 @@ class PersonService:
         except NotFoundError:
             return []
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return [Person(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -91,8 +92,9 @@ class PersonService:
         except NotFoundError:
             return None
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return Person(**doc["_source"])
 
@@ -126,9 +128,9 @@ class PersonService:
         }
 
 
-@lru_cache()  # Cache the PersonService instance to avoid redundant creations
+@lru_cache  # Cache the PersonService instance to avoid redundant creations
 def get_person_service(
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    elastic: AsyncElasticsearch = Depends(get_elastic),  # noqa: B008
 ) -> PersonService:
     """
     Dependency function that creates and returns a PersonService instance.

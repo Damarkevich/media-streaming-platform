@@ -39,10 +39,9 @@ class Settings(BaseSettings):
     def validate_authjwt_secret_key(cls, value: str) -> str:
         """Ensure that AUTHJWT_SECRET_KEY is set and meets the minimum length requirement."""
         if len(value.strip()) < 32:
-            raise ValueError(
-                "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
-            )
+            msg = "AUTHJWT_SECRET_KEY should be at least 32 characters for security"
+            raise ValueError(msg)
         return value
 
 
-settings = Settings()
+settings = Settings()  # pyright: ignore[reportCallIssue]

@@ -90,8 +90,9 @@ class FilmService:
         except NotFoundError:
             return []
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -130,8 +131,9 @@ class FilmService:
         except NotFoundError:
             return []
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return [Film(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -153,8 +155,9 @@ class FilmService:
         except NotFoundError:
             return None
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return Film(**doc["_source"])
 
@@ -182,8 +185,9 @@ class FilmService:
         except NotFoundError:
             return []
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return [Film(**doc["_source"]) for doc in response["docs"] if doc.get("found")]
 
@@ -207,10 +211,11 @@ class FilmService:
         sort_fields: list[dict[str, str]] = []
         for field in sort.split(","):
             order = "asc"
-            if field.startswith("-"):
+            field_name = field
+            if field_name.startswith("-"):
                 order = "desc"
-                field = field[1:]
-            sort_fields.append({field: order})
+                field_name = field_name[1:]
+            sort_fields.append({field_name: order})
         return sort_fields
 
     def _prepare_es_genre_query_params(
@@ -267,8 +272,8 @@ class FilmService:
         }
 
 
-@lru_cache()  # Cache the FilmService instance to avoid redundant creations
-def get_film_service(elastic: AsyncElasticsearch = Depends(get_elastic)) -> FilmService:
+@lru_cache  # Cache the FilmService instance to avoid redundant creations
+def get_film_service(elastic: AsyncElasticsearch = Depends(get_elastic)) -> FilmService:  # noqa: B008
     """
     Dependency function that creates and returns a FilmService instance.
 

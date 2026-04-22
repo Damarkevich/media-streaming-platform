@@ -7,7 +7,8 @@ from src.services.exceptions import ServiceUnavailableError
 
 
 async def service_unavailable_exception_handler(
-    request: Request, exc: ServiceUnavailableError
+    request: Request,  # noqa: ARG001
+    exc: ServiceUnavailableError,  # noqa: ARG001
 ) -> ORJSONResponse:
     """Convert service availability errors into unified JSON responses.
 

@@ -5,7 +5,6 @@ def validate_sort(sort: str) -> str:
     for field in sort.split(","):
         field_name = field.lstrip("-")
         if field_name not in allowed_fields:
-            raise ValueError(
-                f"Invalid sort field: {field_name}, allowed fields are: {', '.join(allowed_fields)}"
-            )
+            msg = f"Invalid sort field: {field_name}, allowed fields are: {', '.join(allowed_fields)}"
+            raise ValueError(msg)
     return sort

@@ -12,7 +12,7 @@ from src.db import elastic, redis
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
     """Manage application startup and shutdown lifecycle.
 
     Startup actions:

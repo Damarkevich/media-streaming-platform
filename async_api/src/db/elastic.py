@@ -5,7 +5,8 @@ es: AsyncElasticsearch | None = None
 
 async def get_elastic() -> AsyncElasticsearch:
     if es is None:
-        raise RuntimeError("Elasticsearch client is not initialized")
+        msg = "Elasticsearch client is not initialized"
+        raise RuntimeError(msg)
     return es
 
 
@@ -28,6 +29,7 @@ async def check_es() -> bool:
     try:
         client = await get_elastic()
         result = await client.ping()
-        return result is True
     except Exception:
         return False
+    else:
+        return result is True

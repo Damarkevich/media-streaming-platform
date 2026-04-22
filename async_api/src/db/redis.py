@@ -5,7 +5,8 @@ redis: Redis | None = None
 
 async def get_redis() -> Redis:
     if redis is None:
-        raise RuntimeError("Redis client is not initialized")
+        msg = "Redis client is not initialized"
+        raise RuntimeError(msg)
     return redis
 
 
@@ -26,7 +27,8 @@ async def check_redis() -> bool:
 
     try:
         client = await get_redis()
-        result = await client.ping()  # type: ignore
-        return result is True
+        result = await client.ping()  # pyright: ignore[reportGeneralTypeIssues]
     except Exception:
         return False
+    else:
+        return result is True

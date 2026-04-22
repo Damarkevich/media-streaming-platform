@@ -2,15 +2,18 @@ import functools
 import hashlib
 import json
 import logging
-from typing import Any, Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
-from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.db.redis import get_redis
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +54,7 @@ def normalize_mapping(data: Mapping[str, Any]) -> list[tuple[str, str]]:
         if value is None:
             continue
 
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             for v in sorted(map(str, value)):
                 items.append((key, v))
         else:

@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 from fastapi.responses import ORJSONResponse
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from src.api import health
 from src.api.v1 import films, genres, persons
@@ -9,7 +10,6 @@ from src.core.handlers import service_unavailable_exception_handler
 from src.core.lifespan import lifespan
 from src.core.middleware import request_id_middleware
 from src.services.exceptions import ServiceUnavailableError
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 app = FastAPI(
     title=settings.service_name,

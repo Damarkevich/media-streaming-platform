@@ -3,7 +3,7 @@ name = "async_api"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "elasticsearch[async]>=9.2.1",
     "fastapi>=0.128.0",
@@ -19,7 +19,7 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.0.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "fastapi[standard]>=0.128.0",
 ]

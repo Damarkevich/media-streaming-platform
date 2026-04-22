@@ -11,7 +11,6 @@ from src.core.token_validation import (
     is_token_type_not_access,
 )
 
-
 bearer_scheme = HTTPBearer(auto_error=False)
 
 

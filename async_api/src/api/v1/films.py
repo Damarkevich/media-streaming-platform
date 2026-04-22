@@ -16,11 +16,11 @@ router = APIRouter(redirect_slashes=False)
 @router.get("", response_model=list[Film])
 @cache()
 async def films_list(
-    request: Request,
+    request: Request,  # noqa: ARG001
     sort: Annotated[str, AfterValidator(validate_sort)] = "-imdb_rating",
     genre: Annotated[UUID4 | None, Query(description="Filter by genre ID")] = None,
-    pagination: PaginationParams = Depends(PaginationParams),
-    film_service: FilmService = Depends(get_film_service),
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    film_service: FilmService = Depends(get_film_service),  # noqa: B008
 ) -> list[Film]:
     """Retrieve a paginated list of films with optional sorting and genre filtering."""
     films = await film_service.get_list(
@@ -39,10 +39,10 @@ async def films_list(
 @router.get("/search", response_model=list[Film])
 @cache()
 async def films_search(
-    request: Request,
+    request: Request,  # noqa: ARG001
     query: Annotated[str, Query(description="Search query string", min_length=1)],
-    pagination: PaginationParams = Depends(PaginationParams),
-    film_service: FilmService = Depends(get_film_service),
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    film_service: FilmService = Depends(get_film_service),  # noqa: B008
 ) -> list[Film]:
     """Search for films by title and description."""
     films = await film_service.search(
@@ -60,9 +60,9 @@ async def films_search(
 @router.get("/{film_id}", response_model=FilmDetail)
 @cache()
 async def film_details(
-    request: Request,
+    request: Request,  # noqa: ARG001
     film_id: Annotated[UUID4, Path(description="The ID of the film to retrieve")],
-    film_service: FilmService = Depends(get_film_service),
+    film_service: FilmService = Depends(get_film_service),  # noqa: B008
 ) -> FilmDetail:
     """Retrieve detailed information about a specific film by its ID."""
     film = await film_service.get_by_id(film_id=film_id)

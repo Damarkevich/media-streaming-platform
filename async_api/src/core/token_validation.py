@@ -36,11 +36,12 @@ async def is_access_token_revoked(token_payload: TokenPayload) -> bool:
         redis = await get_redis()
         key = f"{ACCESS_BLACKLIST_KEY_PREFIX}{jti}"
         value = await redis.get(key)
-        return value is not None
     except Exception:
         # Fail closed: if denylist storage is unavailable, block access.
         logger.exception("Failed to validate access-token denylist status")
         return True
+    else:
+        return value is not None
 
 
 async def is_token_type_not_access(token_payload: TokenPayload) -> bool:

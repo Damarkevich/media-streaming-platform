@@ -15,9 +15,9 @@ router = APIRouter(redirect_slashes=False)
 @router.get("", response_model=list[Genre])
 @cache()
 async def genres_list(
-    request: Request,
-    pagination: PaginationParams = Depends(PaginationParams),
-    genre_service: GenreService = Depends(get_genre_service),
+    request: Request,  # noqa: ARG001
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    genre_service: GenreService = Depends(get_genre_service),  # noqa: B008
 ) -> list[Genre]:
     """Retrieve a list of genres."""
     genres = await genre_service.get_list(
@@ -31,9 +31,9 @@ async def genres_list(
 @router.get("/{genre_id}", response_model=Genre)
 @cache()
 async def genre_detail(
-    request: Request,
+    request: Request,  # noqa: ARG001
     genre_id: Annotated[UUID4, Path(description="Genre ID")],
-    genre_service: GenreService = Depends(get_genre_service),
+    genre_service: GenreService = Depends(get_genre_service),  # noqa: B008
 ) -> Genre:
     """Retrieve detailed information about a specific genre by its ID."""
     genre = await genre_service.get_by_id(genre_id)

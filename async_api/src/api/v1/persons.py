@@ -16,10 +16,10 @@ router = APIRouter(redirect_slashes=False)
 @router.get("/search", response_model=list[Person])
 @cache()
 async def persons_search(
-    request: Request,
+    request: Request,  # noqa: ARG001
     query: Annotated[str, Query(description="Search query string", min_length=1)],
-    pagination: PaginationParams = Depends(PaginationParams),
-    person_service: PersonService = Depends(get_person_service),
+    pagination: PaginationParams = Depends(PaginationParams),  # noqa: B008
+    person_service: PersonService = Depends(get_person_service),  # noqa: B008
 ) -> list[Person]:
     """Search for persons by a full name."""
     persons = await person_service.search(
@@ -42,10 +42,10 @@ async def persons_search(
 @router.get("/{person_id}/film", response_model=list[Film])
 @cache()
 async def person_films(
-    request: Request,
+    request: Request,  # noqa: ARG001
     person_id: Annotated[UUID4, Path(description="Person ID")],
-    person_service: PersonService = Depends(get_person_service),
-    film_service: FilmService = Depends(get_film_service),
+    person_service: PersonService = Depends(get_person_service),  # noqa: B008
+    film_service: FilmService = Depends(get_film_service),  # noqa: B008
 ) -> list[Film]:
     """Retrieve information about films for a specific person by its ID."""
     person = await person_service.get_by_id(person_id=person_id)
@@ -68,9 +68,9 @@ async def person_films(
 @router.get("/{person_id}", response_model=Person)
 @cache()
 async def person_details(
-    request: Request,
+    request: Request,  # noqa: ARG001
     person_id: Annotated[UUID4, Path(description="Person ID")],
-    person_service: PersonService = Depends(get_person_service),
+    person_service: PersonService = Depends(get_person_service),  # noqa: B008
 ) -> Person:
     """Retrieve detailed information about a specific person by its ID."""
     person = await person_service.get_by_id(person_id=person_id)

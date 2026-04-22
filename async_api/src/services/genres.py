@@ -64,8 +64,9 @@ class GenreService:
         except NotFoundError:
             return []
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return [Genre(**item["_source"]) for item in doc["hits"]["hits"]]
 
@@ -87,15 +88,16 @@ class GenreService:
         except NotFoundError:
             return None
         except ConnectionError as e:
-            logger.error(f"Elasticsearch connection error: {e}")
-            raise ServiceUnavailableError("Elasticsearch service is unavailable")
+            logger.exception("Elasticsearch connection error")
+            msg = "Elasticsearch service is unavailable"
+            raise ServiceUnavailableError(msg) from e
 
         return Genre(**doc["_source"])
 
 
-@lru_cache()  # Cache the GenreService instance to avoid redundant creations
+@lru_cache  # Cache the GenreService instance to avoid redundant creations
 def get_genre_service(
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    elastic: AsyncElasticsearch = Depends(get_elastic),  # noqa: B008
 ) -> GenreService:
     """
     Dependency function that creates and returns a GenreService instance.

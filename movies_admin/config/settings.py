@@ -47,7 +47,7 @@ DATABASES = {
         "USER": os.getenv("POSTGRES_USER"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
         "HOST": os.getenv("SQL_HOST", "127.0.0.1"),
-        "PORT": os.getenv("SQL_PORT", 5432),
+        "PORT": os.getenv("SQL_PORT", 5432),  # noqa: PLW1508
         "OPTIONS": {"options": os.getenv("SQL_OPTIONS")},
     }
 }
@@ -93,7 +93,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(BASE_DIR, "static")  # noqa: PTH118
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -102,7 +102,8 @@ AUTH_USER_MODEL = "accounts.User"
 AUTH_API_LOGIN_URL = os.environ.get("AUTH_API_LOGIN_URL", "")
 
 if not AUTH_API_LOGIN_URL:
-    raise ValueError("AUTH_API_LOGIN_URL environment variable is not set")
+    msg = "AUTH_API_LOGIN_URL environment variable is not set"
+    raise ValueError(msg)
 
 AUTHENTICATION_BACKENDS = [
     "accounts.authentication.MoviesAuthBackend",

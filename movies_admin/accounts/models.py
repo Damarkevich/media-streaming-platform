@@ -8,7 +8,8 @@ from django.db import models
 class UserManager(BaseUserManager):
     def create_user(self, email: str, password: str | None = None):
         if not email:
-            raise ValueError("Users must have an email address")
+            msg = "Users must have an email address"
+            raise ValueError(msg)
 
         user = self.model(email=self.normalize_email(email))
         user.set_password(password)
@@ -39,8 +40,8 @@ class User(AbstractBaseUser):
     def __str__(self):
         return f"{self.email} {self.id}"
 
-    def has_perm(self, perm, obj=None):
+    def has_perm(self, perm, obj=None):  # noqa: ARG002
         return self.is_superuser or self.is_staff
 
-    def has_module_perms(self, app_label):
+    def has_module_perms(self, app_label):  # noqa: ARG002
         return self.is_superuser or self.is_staff

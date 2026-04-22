@@ -37,8 +37,11 @@ class MoviesAuthBackend(BaseBackend):
     a fallback authentication path when needed.
     """
 
-    def authenticate(
-        self, request, username: str | None = None, password: str | None = None
+    def authenticate(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self,
+        request,  # noqa: ARG002
+        username: str | None = None,
+        password: str | None = None,
     ):
         """Authenticate a user via external API and upsert the local user record.
 

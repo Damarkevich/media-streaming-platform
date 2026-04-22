@@ -27,12 +27,12 @@ class Genre(UUIDMixin, TimeStampedMixin):
     def __str__(self):
         return self.name
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         db_table = 'content"."genre'
         verbose_name = _("genre")
         verbose_name_plural = _("genres")
-        ordering = ["name"]
-        indexes = [models.Index(fields=["name"], name="genre_name_idx")]
+        ordering = ["name"]  # noqa: RUF012
+        indexes = [models.Index(fields=["name"], name="genre_name_idx")]  # noqa: RUF012
 
 
 class FilmWorkTypeChoices(models.TextChoices):
@@ -74,12 +74,12 @@ class FilmWork(UUIDMixin, TimeStampedMixin):
     def __str__(self):
         return f"{self.title}({self.creation_date.year if self.creation_date else ''})"
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         db_table = 'content"."film_work'
         verbose_name = _("film_work")
         verbose_name_plural = _("film_works")
-        ordering = ["title"]
-        indexes = [
+        ordering = ["title"]  # noqa: RUF012
+        indexes = [  # noqa: RUF012
             models.Index(fields=["title"], name="film_work_title_idx"),
             models.Index(fields=["type", "rating"], name="film_work_type_rating_idx"),
         ]
@@ -91,12 +91,12 @@ class Person(UUIDMixin, TimeStampedMixin):
     def __str__(self):
         return self.full_name
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         db_table = 'content"."person'
         verbose_name = _("person")
         verbose_name_plural = _("persons")
-        ordering = ["full_name"]
-        indexes = [models.Index(fields=["full_name"], name="person_full_name_idx")]
+        ordering = ["full_name"]  # noqa: RUF012
+        indexes = [models.Index(fields=["full_name"], name="person_full_name_idx")]  # noqa: RUF012
 
 
 class GenreFilmWork(UUIDMixin):
@@ -114,12 +114,12 @@ class GenreFilmWork(UUIDMixin):
     )
     created = models.DateTimeField(_("created"), auto_now_add=True)
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         db_table = 'content"."genre_film_work'
         verbose_name = _("genre_film_work")
         verbose_name_plural = _("genre_film_works")
-        ordering = ["-created"]
-        constraints = [
+        ordering = ["-created"]  # noqa: RUF012
+        constraints = [  # noqa: RUF012
             models.UniqueConstraint(
                 fields=["genre", "film_work"],
                 name="unique_genre_film_work",
@@ -143,12 +143,12 @@ class PersonFilmWork(UUIDMixin):
     role = models.CharField(_("role"), max_length=255)
     created = models.DateTimeField(_("created"), auto_now_add=True)
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         db_table = 'content"."person_film_work'
         verbose_name = _("person_film_work")
         verbose_name_plural = _("person_film_works")
-        ordering = ["-created"]
-        indexes = [
+        ordering = ["-created"]  # noqa: RUF012
+        indexes = [  # noqa: RUF012
             models.Index(
                 fields=["film_work", "person", "role"],
                 name="film_work_person_role_idx",
@@ -158,7 +158,7 @@ class PersonFilmWork(UUIDMixin):
                 name="person_film_work_idx",
             ),
         ]
-        constraints = [
+        constraints = [  # noqa: RUF012
             models.UniqueConstraint(
                 fields=["film_work", "person", "role"],
                 name="unique_film_work_person_role",

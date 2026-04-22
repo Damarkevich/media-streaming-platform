@@ -2,7 +2,7 @@
 
 import contextvars
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 # Context variable to store request_id across async boundaries
 request_id_context: contextvars.ContextVar[str | None] = contextvars.ContextVar(

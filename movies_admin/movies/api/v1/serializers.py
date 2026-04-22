@@ -1,4 +1,4 @@
-from rest_framework.serializers import ModelSerializer, ListField, CharField
+from rest_framework.serializers import CharField, ListField, ModelSerializer
 
 from movies.models import FilmWork
 

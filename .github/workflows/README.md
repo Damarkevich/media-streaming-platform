@@ -1,31 +1,31 @@
 # GitHub Actions Workflows
 
-Этот каталог содержит конфигурационные файлы для CI/CD пайплайна проекта.
+This directory contains configuration files for the project's CI/CD pipeline.
 
 ## Workflows
 
-### 1. CI (ci.yml) - Комбинированный пайплайн
-**Триггеры:** Push в `main`/`develop`, Pull Requests
+### 1. CI (ci.yml) - Combined Pipeline
+**Triggers:** Push to `main`/`develop`, Pull Requests
 
-Комбинированный workflow, который выполняет:
-- **Lint job:** Проверка кода с помощью ruff (форматирование и линтинг) для всех сервисов
-- **Test job:** Запуск тестов для каждого сервиса на Python 3.14, 3.15
+Combined workflow that executes:
+- **Lint job:** Code quality checks with ruff (formatting and linting) for all services
+- **Test job:** Run tests for each service on Python 3.14, 3.15
 
-**Особенности:**
-- Тесты запускаются только после успешного линтинга
-- Используется матрица стратегий для параллельного тестирования
-- Используется uv для быстрой установки зависимостей
-- Встроенное кеширование uv для ускорения сборки
-- Coverage отчеты генерируются локально
+**Features:**
+- Tests run only after successful linting
+- Uses matrix strategy for parallel testing
+- Uses uv for fast dependency installation with `--system` flag
+- Built-in uv caching for faster builds
+- Coverage reports generated locally
 
-### 2. Lint (lint.yml) - Только линтинг
-**Триггеры:** Push в `main`/`develop`, Pull Requests
+### 2. Lint (lint.yml) - Linting Only
+**Triggers:** Push to `main`/`develop`, Pull Requests
 
-Отдельный workflow для быстрой проверки качества кода:
-- Проверка форматирования с `ruff format --check`
-- Проверка стиля кода с `ruff check`
+Standalone workflow for quick code quality checks:
+- Format checking with `ruff format --check`
+- Code style checking with `ruff check`
 
-**Сервисы:**
+**Services:**
 - async_api
 - auth
 - event_ingest
@@ -33,16 +33,16 @@
 - etl-postgres-elasticsearch
 - ugc
 
-### 3. Tests (test.yml) - Только тестирование
-**Триггеры:** Push в `main`/`develop`, Pull Requests
+### 3. Tests (test.yml) - Testing Only
+**Triggers:** Push to `main`/`develop`, Pull Requests
 
-Отдельный workflow для запуска тестов:
-- Матрица Python версий: 3.14, 3.15
-- Тестирование с coverage
-- Используется uv для быстрой установки зависимостей
-- Встроенное кеширование uv
+Standalone workflow for running tests:
+- Python version matrix: 3.14, 3.15
+- Testing with coverage
+- Uses uv for fast dependency installation with `--system` flag
+- Built-in uv caching
 
-**Тестируемые сервисы:**
+**Tested services:**
 - async_api
 - auth
 - event_ingest
@@ -50,7 +50,7 @@
 
 ## Matrix Strategy
 
-Все workflows используют matrix strategy для параллельного выполнения:
+All workflows use matrix strategy for parallel execution:
 
 ```yaml
 strategy:
@@ -60,77 +60,77 @@ strategy:
     service: [async_api, auth, event_ingest, ugc]
 ```
 
-Это создает 12 параллельных job'ов для тестирования (4 сервиса × 3 версии Python).
+This creates 8 parallel test jobs (4 services × 2 Python versions).
 
-## Конфигурация Ruff
+## Ruff Configuration
 
-Настройки линтера находятся в файле `ruff.toml` в корне репозитория.
+Linter settings are located in the `ruff.toml` file in the repository root.
 
-Основные правила:
-- Длина строки: 88 символов (как в Black)
-- Минимальная версия Python: 3.12
-- Включены правила: pycodestyle, pyflakes, isort, pep8-naming, pyupgrade, flake8-bugbear и многие другие
+Key rules:
+- Line length: 88 characters (Black-compatible)
+- Minimum Python version: 3.12
+- Enabled rules: pycodestyle, pyflakes, isort, pep8-naming, pyupgrade, flake8-bugbear, and many others
 
-## Использование
+## Usage
 
-### Локальная разработка
+### Local Development
 
-Установите uv и ruff:
+Install uv and ruff:
 ```bash
-# Установить uv (рекомендуется)
+# Install uv (recommended)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-# или через pip
+# or via pip
 pip install uv
 
-# Установить ruff
+# Install ruff
 uv tool install ruff
-# или
+# or
 pip install ruff
 ```
 
-Проверка кода:
+Code checks:
 ```bash
-# Проверить весь проект
+# Check entire project
 ruff check .
 
-# Проверить конкретный сервис
+# Check specific service
 cd async_api
 ruff check .
 
-# Автоматически исправить проблемы
+# Auto-fix issues
 ruff check --fix .
 
-# Проверить форматирование
+# Check formatting
 ruff format --check .
 
-# Применить форматирование
+# Apply formatting
 ruff format .
 ```
 
-### Pre-commit hooks
+### Pre-commit Hooks
 
-Установите pre-commit hooks для автоматической проверки перед коммитом:
+Install pre-commit hooks for automatic checks before commits:
 ```bash
 pip install pre-commit
 pre-commit install
 ```
 
-## Кеширование
+## Caching
 
-Workflows используют встроенное кеширование uv для ускорения сборки:
-- Кеш автоматически управляется через `astral-sh/setup-uv@v5`
-- Ключ кеша основан на `cache-dependency-glob` (обычно `pyproject.toml`)
-- Кеш автоматически инвалидируется при изменении зависимостей
-- uv значительно быстрее pip (в 10-100 раз)
+Workflows use built-in uv caching to speed up builds:
+- Cache is automatically managed via `astral-sh/setup-uv@v5`
+- Cache key is based on `cache-dependency-glob` (typically `pyproject.toml`)
+- Cache is automatically invalidated when dependencies change
+- uv is significantly faster than pip (10-100x)
 
-## Расширение
+## Extending
 
-Чтобы добавить новый сервис в CI:
-1. Добавьте имя сервиса в `matrix.service` в соответствующих workflows
-2. Убедитесь, что в сервисе есть `pyproject.toml` с группой зависимостей `test`
-3. Убедитесь, что тесты запускаются через pytest
+To add a new service to CI:
+1. Add the service name to `matrix.service` in the relevant workflows
+2. Ensure the service has a `pyproject.toml` with a `test` dependency group
+3. Ensure tests run via pytest
 
-## Ссылки
+## Links
 
 - [Ruff Documentation](https://docs.astral.sh/ruff/)
 - [uv Documentation](https://docs.astral.sh/uv/)

@@ -25,13 +25,13 @@ async def authentication(
         raise HTTPException(
             status_code=http.HTTPStatus.UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
-            detail="Invalid authorization code.",
+            detail="Authorization credentials were not provided.",
         )
     if credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=http.HTTPStatus.UNAUTHORIZED,
             headers={"WWW-Authenticate": "Bearer"},
-            detail="Only Bearer token might be accepted",
+            detail="Only Bearer tokens are accepted.",
         )
 
     decoded_token = decode_token(credentials.credentials)

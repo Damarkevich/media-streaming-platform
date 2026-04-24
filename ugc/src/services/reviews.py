@@ -11,8 +11,15 @@ REVIEW = "review"
 
 
 def _fmt(doc: dict) -> dict:
-    """Normalize Mongo _id field to public id field for API serialization."""
+    """Normalize Mongo _id field to public id field for API serialization.
+
+    Also backfills denormalized rating fields that may be absent on legacy
+    documents created before the denormalization migration.
+    """
     doc["id"] = str(doc.pop("_id"))
+    doc.setdefault("rating_count", 0)
+    doc.setdefault("rating_sum", 0.0)
+    doc.setdefault("rating_avg", None)
     return doc
 
 

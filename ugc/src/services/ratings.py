@@ -110,22 +110,35 @@ class RatingService:
     async def _update_review_stats(
         self, review_id: str, count_delta: int, sum_delta: float, session=None
     ) -> None:
-        """Increment denormalized rating_count/rating_sum on the review and recompute rating_avg."""
-        doc = await self._reviews_col.find_one_and_update(
+        """Atomically increment rating_count/rating_sum and recompute rating_avg.
+
+        Uses a single aggregation-pipeline update (MongoDB 4.2+) so that
+        rating_avg is always consistent with the post-increment count/sum values,
+        eliminating the two-write race present in the previous implementation.
+        """
+        await self._reviews_col.update_one(
             {"_id": review_id},
-            {"$inc": {"rating_count": count_delta, "rating_sum": sum_delta}},
-            return_document=ReturnDocument.AFTER,
+            [
+                {
+                    "$set": {
+                        "rating_count": {"$add": ["$rating_count", count_delta]},
+                        "rating_sum": {"$add": ["$rating_sum", sum_delta]},
+                    }
+                },
+                {
+                    "$set": {
+                        "rating_avg": {
+                            "$cond": {
+                                "if": {"$gt": ["$rating_count", 0]},
+                                "then": {"$divide": ["$rating_sum", "$rating_count"]},
+                                "else": None,
+                            }
+                        }
+                    }
+                },
+            ],
             session=session,
         )
-        if doc is not None:
-            count = doc.get("rating_count", 0)
-            total = doc.get("rating_sum", 0.0)
-            avg = total / count if count > 0 else None
-            await self._reviews_col.update_one(
-                {"_id": review_id},
-                {"$set": {"rating_avg": avg}},
-                session=session,
-            )
 
     async def _ensure_review_exists(self, review_id: UUID, session=None) -> str:
         review_id_str = str(review_id)

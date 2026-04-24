@@ -7,11 +7,20 @@ from src.core.config import settings
 from src.core.lifespan import lifespan
 from src.core.middleware import request_id_middleware
 
+
+def _get_docs_url() -> str | None:
+    return "/api/ugc/docs" if settings.development_mode else None
+
+
+def _get_openapi_url() -> str | None:
+    return "/api/ugc/openapi.json" if settings.development_mode else None
+
+
 app = FastAPI(
     title=settings.service_name,
     description=settings.service_description,
-    docs_url="/api/ugc/docs",
-    openapi_url="/api/ugc/openapi.json",
+    docs_url=_get_docs_url(),
+    openapi_url=_get_openapi_url(),
     lifespan=lifespan,
 )
 

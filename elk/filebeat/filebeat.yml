@@ -24,7 +24,7 @@ processors:
           fields:
             - from: request_id
               to: correlation_id
-          fail_on_error: false
+          fail_on_error: true
   # nginx-specific processing
   - if:
       equals:
@@ -40,7 +40,7 @@ processors:
           tokenizer: '%{nginx.remote_addr} - %{nginx.remote_user} [%{nginx.time_local}] "%{nginx.request}" %{nginx.status} %{nginx.body_bytes_sent} "%{nginx.http_referer}" "%{nginx.http_user_agent}" "%{nginx.http_x_forwarded_for}" "%{nginx.request_id}"'
           field: message
           target_prefix: ""
-          ignore_failure: true
+          ignore_failure: false
       - dissect:
           tokenizer: "%{http.request.method} %{url.original} HTTP/%{http.version}"
           field: nginx.request
@@ -66,7 +66,7 @@ processors:
           fields:
             - from: request_id
               to: correlation_id
-          fail_on_error: false
+          fail_on_error: true
   # Event-ingest service logs (Flask HTTP service)
   - if:
       equals:
@@ -78,7 +78,7 @@ processors:
           fields:
             - from: request_id
               to: correlation_id
-          fail_on_error: false
+          fail_on_error: true
   # ETL batch services logs
   - if:
       regexp:
@@ -90,7 +90,7 @@ processors:
           fields:
             - from: batch_id
               to: correlation_id
-          fail_on_error: false
+          fail_on_error: true
 
 output.logstash:
   hosts: ["logstash:5044"]

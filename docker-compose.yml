@@ -183,7 +183,7 @@ services:
       [
         "bash",
         "-lc",
-        "until mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1 >/dev/null; do sleep 1; done; mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --eval \"const cfg = {_id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }]}; try { const current = rs.conf(); if (current.members[0].host !== cfg.members[0].host) { cfg.version = current.version + 1; rs.reconfig(cfg, { force: true }); } } catch (e) { rs.initiate(cfg); }\"",
+        "until mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1 >/dev/null; do sleep 1; done; mongosh mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@movies-mongodb:27017/admin --eval \"const cfg = {_id: 'rs0', members: [{ _id: 0, host: 'movies-mongodb:27017' }]}; try { const current = rs.conf(); if (current.members[0].host !== cfg.members[0].host) { cfg.version = current.version + 1; rs.reconfig(cfg, { force: true }); } } catch (e) { rs.initiate(cfg); }\"",
       ]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-mongo}
@@ -560,6 +560,35 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  movies-ugc:
+    container_name: movies-ugc
+    build: ./ugc
+    restart: unless-stopped
+    depends_on:
+      movies-mongodb:
+        condition: service_healthy
+      movies-mongodb-rs-init:
+        condition: service_completed_successfully
+      movies-redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      movies-auth:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f -H 'X-Request-Id: healthcheck' http://localhost:8000/api/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   nginx:
     container_name: movies-nginx
     image: nginx:1.29
@@ -575,6 +604,8 @@ services:
       movies-async-api:
         condition: service_healthy
       movies-event-ingest:
+        condition: service_healthy
+      movies-ugc:
         condition: service_healthy
       movies-elasticsearch:
         condition: service_healthy

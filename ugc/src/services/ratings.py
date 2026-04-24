@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pymongo import ReturnDocument
 
-from src.db.mongo import get_client, get_db
+from src.db.mongo import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,6 @@ class ReviewNotFoundError(Exception):
 class RatingService:
     def __init__(self) -> None:
         db = get_db()
-        self._client = get_client()
         self._col = db.ratings
         self._reviews_col = db.reviews
 
@@ -38,33 +37,38 @@ class RatingService:
 
     async def set_review_rating(
         self, user_id: UUID, review_id: UUID, value: int
-    ) -> dict:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._upsert(
-                str(user_id), REVIEW, review_id_str, value, session=session
-            )
+    ) -> dict | None:
+        review_id_str = await self._ensure_review_exists(review_id)
+        # Use BEFORE to atomically learn the previous state: None means insert,
+        # a document means update — eliminating the separate _get + upsert race.
+        before = await self._upsert(
+            str(user_id),
+            REVIEW,
+            review_id_str,
+            value,
+            return_document=ReturnDocument.BEFORE,
+        )
+        after = await self._get(str(user_id), REVIEW, review_id_str)
+        if before is None:
+            count_delta, sum_delta = 1, float(value)
+        else:
+            count_delta, sum_delta = 0, float(value - before["value"])
+        await self._update_review_stats(review_id_str, count_delta, sum_delta)
+        return after
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._delete(
-                str(user_id), REVIEW, review_id_str, session=session
+        review_id_str = await self._ensure_review_exists(review_id)
+        existing = await self._get(str(user_id), REVIEW, review_id_str)
+        removed = await self._delete(str(user_id), REVIEW, review_id_str)
+        if removed and existing is not None:
+            await self._update_review_stats(
+                review_id_str, -1, -float(existing["value"])
             )
+        return removed
 
     async def get_review_rating(self, user_id: UUID, review_id: UUID) -> dict | None:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._get(str(user_id), REVIEW, review_id_str, session=session)
+        review_id_str = await self._ensure_review_exists(review_id)
+        return await self._get(str(user_id), REVIEW, review_id_str)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict:
         pipeline = [
@@ -103,6 +107,39 @@ class RatingService:
             session=session,
         )
 
+    async def _update_review_stats(
+        self, review_id: str, count_delta: int, sum_delta: float, session=None
+    ) -> None:
+        """Atomically increment rating_count/rating_sum and recompute rating_avg.
+
+        Uses a single aggregation-pipeline update (MongoDB 4.2+) so that
+        rating_avg is always consistent with the post-increment count/sum values,
+        eliminating the two-write race present in the previous implementation.
+        """
+        await self._reviews_col.update_one(
+            {"_id": review_id},
+            [
+                {
+                    "$set": {
+                        "rating_count": {"$add": ["$rating_count", count_delta]},
+                        "rating_sum": {"$add": ["$rating_sum", sum_delta]},
+                    }
+                },
+                {
+                    "$set": {
+                        "rating_avg": {
+                            "$cond": {
+                                "if": {"$gt": ["$rating_count", 0]},
+                                "then": {"$divide": ["$rating_sum", "$rating_count"]},
+                                "else": None,
+                            }
+                        }
+                    }
+                },
+            ],
+            session=session,
+        )
+
     async def _ensure_review_exists(self, review_id: UUID, session=None) -> str:
         review_id_str = str(review_id)
         doc = await self._reviews_col.find_one(
@@ -113,8 +150,14 @@ class RatingService:
         return review_id_str
 
     async def _upsert(
-        self, user_id: str, target_type: str, target_id: str, value: int, session=None
-    ) -> dict:
+        self,
+        user_id: str,
+        target_type: str,
+        target_id: str,
+        value: int,
+        return_document: ReturnDocument = ReturnDocument.AFTER,
+        session=None,
+    ) -> dict | None:
         now = datetime.now(UTC)
 
         return await self._col.find_one_and_update(
@@ -124,7 +167,7 @@ class RatingService:
                 "$setOnInsert": {"created_at": now},
             },
             upsert=True,
-            return_document=ReturnDocument.AFTER,
+            return_document=return_document,
             session=session,
         )
 

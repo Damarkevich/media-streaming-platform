@@ -59,6 +59,8 @@ This platform consists of the following microservices:
 ### Core Services
 - **movies-admin** - A Django-based admin interface for managing movies in the project.
 - **async-api** - A FastAPI-based asynchronous API for accessing movies data from Elasticsearch in the project.
+- **auth** - A FastAPI-based authentication and authorization service with JWT tokens and role-based access control.
+- **ugc** - A FastAPI-based User-Generated Content service for bookmarks, ratings, and reviews, backed by MongoDB.
 
 ### Supporting Services
 - **sqlite-to-postgres** - A tool to migrate data from SQLite databases to PostgreSQL.
@@ -137,6 +139,10 @@ After starting the project, you can access the interactive API documentation (Sw
 - **Auth service:**
   - Swagger UI: http://localhost/api/auth/docs
   - OpenAPI JSON: http://localhost/api/auth/openapi.json
+
+- **UGC service:**
+  - Swagger UI: http://localhost/api/ugc/docs
+  - OpenAPI JSON: http://localhost/api/ugc/openapi.json
 
 These endpoints are proxied through nginx and available when the corresponding containers are running.
 

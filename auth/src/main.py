@@ -14,11 +14,20 @@ from src.core.lifespan import lifespan
 from src.core.limiter import limiter
 from src.core.middleware import request_id_middleware
 
+
+def _get_docs_url() -> str | None:
+    return "/api/auth/docs" if settings.development_mode else None
+
+
+def _get_openapi_url() -> str | None:
+    return "/api/auth/openapi.json" if settings.development_mode else None
+
+
 app = FastAPI(
     title=settings.service_name,
     description=settings.service_description,
-    docs_url="/api/auth/docs",
-    openapi_url="/api/auth/openapi.json",
+    docs_url=_get_docs_url(),
+    openapi_url=_get_openapi_url(),
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )

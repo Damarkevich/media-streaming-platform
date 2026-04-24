@@ -11,11 +11,20 @@ from src.core.lifespan import lifespan
 from src.core.middleware import request_id_middleware
 from src.services.exceptions import ServiceUnavailableError
 
+
+def _get_docs_url() -> str | None:
+    return "/api/content/docs" if settings.development_mode else None
+
+
+def _get_openapi_url() -> str | None:
+    return "/api/content/openapi.json" if settings.development_mode else None
+
+
 app = FastAPI(
     title=settings.service_name,
     description=settings.service_description,
-    docs_url="/api/content/docs",
-    openapi_url="/api/content/openapi.json",
+    docs_url=_get_docs_url(),
+    openapi_url=_get_openapi_url(),
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )

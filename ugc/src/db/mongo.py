@@ -63,6 +63,13 @@ async def ensure_indexes() -> None:
                     ("created_at", DESCENDING),
                 ]
             ),
+            IndexModel(
+                [
+                    ("movie_id", ASCENDING),
+                    ("rating_avg", ASCENDING),
+                    ("created_at", DESCENDING),
+                ]
+            ),
         ]
     )
 

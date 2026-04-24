@@ -32,6 +32,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
         decode_responses=True,
     )
 
+    try:
+        await redis.redis.ping()
+    except Exception:
+        logger.exception("Failed to connect to Redis")
+        raise
+
     mongo.client = AsyncMongoClient(settings.mongodb_uri)
 
     await mongo.ensure_indexes()
@@ -45,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
     yield
 
     if redis.redis:
-        await redis.redis.close()
+        await redis.redis.aclose()
 
     if mongo.client:
         await mongo.client.close()

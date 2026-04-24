@@ -30,7 +30,7 @@ default_language_version:
   python: python3.14
 
 # Run hooks in specific stages
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
 
 # Fail fast on first hook failure
 fail_fast: false

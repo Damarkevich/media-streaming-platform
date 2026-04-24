@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pymongo import ReturnDocument
 
-from src.db.mongo import get_client, get_db
+from src.db.mongo import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,6 @@ class ReviewNotFoundError(Exception):
 class RatingService:
     def __init__(self) -> None:
         db = get_db()
-        self._client = get_client()
         self._col = db.ratings
         self._reviews_col = db.reviews
 
@@ -39,51 +38,29 @@ class RatingService:
     async def set_review_rating(
         self, user_id: UUID, review_id: UUID, value: int
     ) -> dict:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            existing = await self._get(
-                str(user_id), REVIEW, review_id_str, session=session
-            )
-            doc = await self._upsert(
-                str(user_id), REVIEW, review_id_str, value, session=session
-            )
-            if existing is None:
-                count_delta, sum_delta = 1, float(value)
-            else:
-                count_delta, sum_delta = 0, float(value - existing["value"])
-            await self._update_review_stats(
-                review_id_str, count_delta, sum_delta, session=session
-            )
-            return doc
+        review_id_str = await self._ensure_review_exists(review_id)
+        existing = await self._get(str(user_id), REVIEW, review_id_str)
+        doc = await self._upsert(str(user_id), REVIEW, review_id_str, value)
+        if existing is None:
+            count_delta, sum_delta = 1, float(value)
+        else:
+            count_delta, sum_delta = 0, float(value - existing["value"])
+        await self._update_review_stats(review_id_str, count_delta, sum_delta)
+        return doc
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            existing = await self._get(
-                str(user_id), REVIEW, review_id_str, session=session
+        review_id_str = await self._ensure_review_exists(review_id)
+        existing = await self._get(str(user_id), REVIEW, review_id_str)
+        removed = await self._delete(str(user_id), REVIEW, review_id_str)
+        if removed and existing is not None:
+            await self._update_review_stats(
+                review_id_str, -1, -float(existing["value"])
             )
-            removed = await self._delete(
-                str(user_id), REVIEW, review_id_str, session=session
-            )
-            if removed and existing is not None:
-                await self._update_review_stats(
-                    review_id_str, -1, -float(existing["value"]), session=session
-                )
-            return removed
+        return removed
 
     async def get_review_rating(self, user_id: UUID, review_id: UUID) -> dict | None:
-        async with (
-            self._client.start_session() as session,
-            await session.start_transaction(),
-        ):
-            review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._get(str(user_id), REVIEW, review_id_str, session=session)
+        review_id_str = await self._ensure_review_exists(review_id)
+        return await self._get(str(user_id), REVIEW, review_id_str)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict:
         pipeline = [

@@ -101,3 +101,32 @@ async def test_review_rating_lifecycle(async_client: AsyncClient) -> None:
     assert removed.status_code == 204
     assert missing.status_code == 404
     assert missing.json()["detail"] == "Rating not found."
+
+
+@pytest.mark.asyncio
+async def test_review_rating_updates_denormalized_stats(async_client: AsyncClient) -> None:
+    movie_id = uuid4()
+
+    review = await async_client.put(
+        f"/api/v1/movies/{movie_id}/review",
+        json={"text": "review for stats check"},
+    )
+    assert review.status_code == 200
+    review_id = review.json()["id"]
+    assert review.json()["rating_count"] == 0
+    assert review.json()["rating_avg"] is None
+
+    await async_client.put(f"/api/v1/reviews/{review_id}/rating", json={"value": 10})
+    after_like = await async_client.get(f"/api/v1/reviews/{review_id}")
+    assert after_like.json()["rating_count"] == 1
+    assert after_like.json()["rating_avg"] == 10.0
+
+    await async_client.put(f"/api/v1/reviews/{review_id}/rating", json={"value": 0})
+    after_dislike = await async_client.get(f"/api/v1/reviews/{review_id}")
+    assert after_dislike.json()["rating_count"] == 1
+    assert after_dislike.json()["rating_avg"] == 0.0
+
+    await async_client.delete(f"/api/v1/reviews/{review_id}/rating")
+    after_remove = await async_client.get(f"/api/v1/reviews/{review_id}")
+    assert after_remove.json()["rating_count"] == 0
+    assert after_remove.json()["rating_avg"] is None

@@ -35,12 +35,15 @@ class ReviewService:
                     "user_id": str(user_id),
                     "movie_id": str(movie_id),
                     "created_at": now,
+                    "rating_count": 0,
+                    "rating_sum": 0.0,
+                    "rating_avg": None,
                 },
             },
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
-        return await self._attach_rating_stats(doc)
+        return _fmt(doc)
 
     async def delete(self, user_id: UUID, movie_id: UUID) -> bool:
         async with (
@@ -69,11 +72,11 @@ class ReviewService:
         doc = await self._col.find_one(
             {"user_id": str(user_id), "movie_id": str(movie_id)}
         )
-        return await self._attach_rating_stats(doc) if doc else None
+        return _fmt(doc) if doc else None
 
     async def get_review_by_id(self, review_id: UUID) -> dict | None:
         doc = await self._col.find_one({"_id": str(review_id)})
-        return await self._attach_rating_stats(doc) if doc else None
+        return _fmt(doc) if doc else None
 
     async def list_for_movie(
         self,
@@ -90,49 +93,6 @@ class ReviewService:
         }
         pipeline = [
             {"$match": {"movie_id": str(movie_id)}},
-            {
-                "$lookup": {
-                    "from": "ratings",
-                    "let": {"review_id": "$_id"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$target_type", REVIEW]},
-                                        {"$eq": ["$target_id", "$$review_id"]},
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "$group": {
-                                "_id": None,
-                                "rating_count": {"$sum": 1},
-                                "rating_avg": {"$avg": "$value"},
-                            }
-                        },
-                    ],
-                    "as": "rating_stats",
-                }
-            },
-            {
-                "$addFields": {
-                    "rating_count": {
-                        "$ifNull": [
-                            {"$arrayElemAt": ["$rating_stats.rating_count", 0]},
-                            0,
-                        ]
-                    },
-                    "rating_avg": {
-                        "$ifNull": [
-                            {"$arrayElemAt": ["$rating_stats.rating_avg", 0]},
-                            None,
-                        ]
-                    },
-                }
-            },
-            {"$project": {"rating_stats": 0}},
             {"$sort": sort_map[sort]},
             {"$skip": page_number * page_size},
             {"$limit": page_size},
@@ -141,32 +101,6 @@ class ReviewService:
         cursor = self._col.aggregate(pipeline)
         docs = await cursor.to_list(length=page_size)
         return [_fmt(d) for d in docs]
-
-    async def _attach_rating_stats(self, doc: dict) -> dict:
-        pipeline = [
-            {
-                "$match": {
-                    "target_type": REVIEW,
-                    "target_id": doc["_id"],
-                }
-            },
-            {
-                "$group": {
-                    "_id": None,
-                    "rating_count": {"$sum": 1},
-                    "rating_avg": {"$avg": "$value"},
-                }
-            },
-        ]
-        cursor = self._ratings_col.aggregate(pipeline)
-        stats = await cursor.to_list(length=1)
-        if stats:
-            doc["rating_count"] = stats[0].get("rating_count", 0)
-            doc["rating_avg"] = stats[0].get("rating_avg")
-        else:
-            doc["rating_count"] = 0
-            doc["rating_avg"] = None
-        return _fmt(doc)
 
 
 def get_review_service() -> ReviewService:

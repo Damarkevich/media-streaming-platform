@@ -51,11 +51,18 @@ async def ensure_indexes() -> None:
         ]
     )
 
-    # reviews: unique (user_id, movie_id); list by movie ordered by date
+    # reviews: unique (user_id, movie_id); list by movie ordered by date or rating
     await database.reviews.create_indexes(
         [
             IndexModel([("user_id", ASCENDING), ("movie_id", ASCENDING)], unique=True),
             IndexModel([("movie_id", ASCENDING), ("created_at", DESCENDING)]),
+            IndexModel(
+                [
+                    ("movie_id", ASCENDING),
+                    ("rating_avg", DESCENDING),
+                    ("created_at", DESCENDING),
+                ]
+            ),
         ]
     )
 

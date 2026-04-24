@@ -44,9 +44,20 @@ class RatingService:
             await session.start_transaction(),
         ):
             review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._upsert(
+            existing = await self._get(
+                str(user_id), REVIEW, review_id_str, session=session
+            )
+            doc = await self._upsert(
                 str(user_id), REVIEW, review_id_str, value, session=session
             )
+            if existing is None:
+                count_delta, sum_delta = 1, float(value)
+            else:
+                count_delta, sum_delta = 0, float(value - existing["value"])
+            await self._update_review_stats(
+                review_id_str, count_delta, sum_delta, session=session
+            )
+            return doc
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
         async with (
@@ -54,9 +65,17 @@ class RatingService:
             await session.start_transaction(),
         ):
             review_id_str = await self._ensure_review_exists(review_id, session=session)
-            return await self._delete(
+            existing = await self._get(
                 str(user_id), REVIEW, review_id_str, session=session
             )
+            removed = await self._delete(
+                str(user_id), REVIEW, review_id_str, session=session
+            )
+            if removed and existing is not None:
+                await self._update_review_stats(
+                    review_id_str, -1, -float(existing["value"]), session=session
+                )
+            return removed
 
     async def get_review_rating(self, user_id: UUID, review_id: UUID) -> dict | None:
         async with (
@@ -102,6 +121,26 @@ class RatingService:
             {"user_id": user_id, "target_type": target_type, "target_id": target_id},
             session=session,
         )
+
+    async def _update_review_stats(
+        self, review_id: str, count_delta: int, sum_delta: float, session=None
+    ) -> None:
+        """Increment denormalized rating_count/rating_sum on the review and recompute rating_avg."""
+        doc = await self._reviews_col.find_one_and_update(
+            {"_id": review_id},
+            {"$inc": {"rating_count": count_delta, "rating_sum": sum_delta}},
+            return_document=ReturnDocument.AFTER,
+            session=session,
+        )
+        if doc is not None:
+            count = doc.get("rating_count", 0)
+            total = doc.get("rating_sum", 0.0)
+            avg = total / count if count > 0 else None
+            await self._reviews_col.update_one(
+                {"_id": review_id},
+                {"$set": {"rating_avg": avg}},
+                session=session,
+            )
 
     async def _ensure_review_exists(self, review_id: UUID, session=None) -> str:
         review_id_str = str(review_id)

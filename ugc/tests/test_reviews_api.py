@@ -46,9 +46,6 @@ async def test_get_review_by_id(async_client: AsyncClient) -> None:
     assert fetched.json()["id"] == review_id
 
 
-@pytest.mark.skip(
-    reason="Requires real MongoDB - mongomock doesn't support $lookup with 'let' and 'pipeline' operators"
-)
 @pytest.mark.asyncio
 async def test_list_reviews_sorted_by_created_at(
     async_client: AsyncClient,
@@ -71,6 +68,9 @@ async def test_list_reviews_sorted_by_created_at(
             "text": "older review",
             "created_at": datetime(2020, 1, 1, tzinfo=UTC),
             "updated_at": datetime(2020, 1, 1, tzinfo=UTC),
+            "rating_count": 0,
+            "rating_sum": 0.0,
+            "rating_avg": None,
         }
     )
 
@@ -88,9 +88,6 @@ async def test_list_reviews_sorted_by_created_at(
     assert newest_first.json()[0]["id"] != oldest_first.json()[0]["id"]
 
 
-@pytest.mark.skip(
-    reason="Requires real MongoDB - mongomock doesn't support $lookup with 'let' and 'pipeline' operators"
-)
 @pytest.mark.asyncio
 async def test_list_reviews_sorted_by_rating_and_paginated(
     async_client: AsyncClient,
@@ -114,25 +111,24 @@ async def test_list_reviews_sorted_by_rating_and_paginated(
             "text": "other user review",
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
+            "rating_count": 0,
+            "rating_sum": 0.0,
+            "rating_avg": None,
         }
     )
 
+    # Rate first review low (0) and second review high (10) via API
     low = await async_client.put(
         f"/api/v1/reviews/{first_id}/rating",
         json={"value": 0},
     )
     assert low.status_code == 200
 
-    await test_db.ratings.insert_one(
-        {
-            "user_id": str(uuid4()),
-            "target_type": "review",
-            "target_id": second_id,
-            "value": 10,
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
-        }
+    high = await async_client.put(
+        f"/api/v1/reviews/{second_id}/rating",
+        json={"value": 10},
     )
+    assert high.status_code == 200
 
     by_rating = await async_client.get(
         f"/api/v1/movies/{movie_id}/reviews",
@@ -148,6 +144,8 @@ async def test_list_reviews_sorted_by_rating_and_paginated(
     assert len(by_rating.json()) == 1
     assert len(by_rating_page_2.json()) == 1
     assert by_rating.json()[0]["id"] != by_rating_page_2.json()[0]["id"]
+    # second review (rating_avg=10) should sort first in descending order
+    assert by_rating.json()[0]["id"] == second_id
 
 
 @pytest.mark.asyncio

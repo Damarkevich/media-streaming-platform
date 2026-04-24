@@ -37,16 +37,24 @@ class RatingService:
 
     async def set_review_rating(
         self, user_id: UUID, review_id: UUID, value: int
-    ) -> dict:
+    ) -> dict | None:
         review_id_str = await self._ensure_review_exists(review_id)
-        existing = await self._get(str(user_id), REVIEW, review_id_str)
-        doc = await self._upsert(str(user_id), REVIEW, review_id_str, value)
-        if existing is None:
+        # Use BEFORE to atomically learn the previous state: None means insert,
+        # a document means update — eliminating the separate _get + upsert race.
+        before = await self._upsert(
+            str(user_id),
+            REVIEW,
+            review_id_str,
+            value,
+            return_document=ReturnDocument.BEFORE,
+        )
+        after = await self._get(str(user_id), REVIEW, review_id_str)
+        if before is None:
             count_delta, sum_delta = 1, float(value)
         else:
-            count_delta, sum_delta = 0, float(value - existing["value"])
+            count_delta, sum_delta = 0, float(value - before["value"])
         await self._update_review_stats(review_id_str, count_delta, sum_delta)
-        return doc
+        return after
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
         review_id_str = await self._ensure_review_exists(review_id)
@@ -129,8 +137,14 @@ class RatingService:
         return review_id_str
 
     async def _upsert(
-        self, user_id: str, target_type: str, target_id: str, value: int, session=None
-    ) -> dict:
+        self,
+        user_id: str,
+        target_type: str,
+        target_id: str,
+        value: int,
+        return_document: ReturnDocument = ReturnDocument.AFTER,
+        session=None,
+    ) -> dict | None:
         now = datetime.now(UTC)
 
         return await self._col.find_one_and_update(
@@ -140,7 +154,7 @@ class RatingService:
                 "$setOnInsert": {"created_at": now},
             },
             upsert=True,
-            return_document=ReturnDocument.AFTER,
+            return_document=return_document,
             session=session,
         )
 

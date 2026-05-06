@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     otel_traces_endpoint: str = "http://localhost:4318/v1/traces"
     otel_console_export_enabled: bool = False
 
+    # Internal service-to-service auth key (must match delivery/scheduler workers)
+    internal_api_key: str = ""
+
     sentry_dsn: str = ""
 
     session_secret_key: str

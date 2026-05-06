@@ -248,6 +248,22 @@ class UserService:
         )
         return list(result.scalars().all())
 
+    async def list_users(self, page: int, page_size: int) -> list[User]:
+        """Return a paginated list of all users ordered by creation time.
+
+        Args:
+            page: Zero-based page index.
+            page_size: Number of users per page.
+
+        Returns:
+            A list of User instances.
+        """
+        offset = page * page_size
+        result = await self.db.execute(
+            select(User).order_by(User.created_at).offset(offset).limit(page_size)
+        )
+        return list(result.scalars().all())
+
 
 def get_user_service(db: Annotated[AsyncSession, Depends(get_session)]) -> UserService:
     """FastAPI dependency provider for UserService.

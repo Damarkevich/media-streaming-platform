@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from src.api.v1.paginators import PaginationParams
 from src.api.v1.responses import (
@@ -13,11 +13,14 @@ from src.api.v1.responses import (
     GET_USER_ROLES_RESPONSES,
     PASSWORD_CHANGE_RESPONSES,
 )
+from src.core.config import settings
 from src.core.permissions import PermissionName
 from src.schemas.logs import LogResponse
 from src.schemas.roles import RoleResponse
 from src.schemas.users import (
     UserEmailChangeRequest,
+    UserInternalListResponse,
+    UserInternalResponse,
     UserPasswordChangeRequest,
     UserPermissionCheckResponse,
     UserResponse,
@@ -141,3 +144,62 @@ async def check_user_permission(
     """Check whether the current user has a specific permission."""
     has_perm = await permission_check_service.has_permission(user_id, permission_name)
     return UserPermissionCheckResponse(has_permission=has_perm)
+
+
+# ---------------------------------------------------------------------------
+# Internal service-to-service endpoints (not exposed via nginx)
+# Protected by a static API key header checked inside the container network.
+# ---------------------------------------------------------------------------
+
+
+def _require_internal_key(x_internal_key: Annotated[str, Header()]) -> None:
+    """Dependency that validates the X-Internal-Key header."""
+    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail="Forbidden")
+
+
+@router.get(
+    "/internal/{user_id}",
+    response_model=UserInternalResponse,
+    include_in_schema=False,
+)
+async def get_user_internal(
+    user_id: UUID,
+    _: Annotated[None, Depends(_require_internal_key)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> UserInternalResponse:
+    """Return minimal user profile for internal service enrichment."""
+    user = await user_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+    return UserInternalResponse(
+        user_id=user.id,
+        email=user.email,
+        first_name=user.first_name or "",
+        last_name=user.last_name or "",
+    )
+
+
+@router.get(
+    "/internal",
+    response_model=UserInternalListResponse,
+    include_in_schema=False,
+)
+async def list_users_internal(
+    _: Annotated[None, Depends(_require_internal_key)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    page: Annotated[int, Query(ge=0)] = 0,
+    page_size: Annotated[int, Query(ge=1, le=500)] = 500,
+) -> UserInternalListResponse:
+    """Return a paginated list of users for campaign fanout."""
+    users = await user_service.list_users(page=page, page_size=page_size)
+    items = [
+        UserInternalResponse(
+            user_id=u.id,
+            email=u.email,
+            first_name=u.first_name or "",
+            last_name=u.last_name or "",
+        )
+        for u in users
+    ]
+    return UserInternalListResponse(items=items, page=page, page_size=page_size)

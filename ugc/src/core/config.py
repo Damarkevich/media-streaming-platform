@@ -43,6 +43,9 @@ class Settings(BaseSettings):
 
     sentry_dsn: str = ""
 
+    # Kafka — notifications events
+    kafka_bootstrap_servers: str = "kafka-0:9092,kafka-1:9092,kafka-2:9092"
+
     @field_validator("authjwt_secret_key")
     @classmethod
     def validate_authjwt_secret_key(cls, value: str) -> str:

@@ -3,7 +3,7 @@
 User-Generated Content service for the media streaming platform.
 The service is built with FastAPI and provides bookmarks, movie/review ratings, and text reviews.
 
-## Overview
+## 🎯 Overview
 
 This service is responsible for:
 
@@ -22,7 +22,7 @@ This service is responsible for:
 - Request-ID middleware for traceability in non-development mode
 - OpenAPI docs for UGC routes
 
-## Logic Description
+## 📚 Logic Description
 
 ### Architecture
 
@@ -74,7 +74,7 @@ Aggregates are calculated on read (MVP):
 - movie rating stats (`rating_avg`, `rating_count`) are computed from `ratings`
 - review rating stats are computed from `ratings` and attached in review responses
 
-## API Endpoints
+## 📖 API Endpoints
 
 Base path for business endpoints: `/api/v1`
 
@@ -113,7 +113,7 @@ Ratings:
 - `DELETE /api/v1/reviews/{review_id}/rating`
 - `GET /api/v1/reviews/{review_id}/rating/my`
 
-## Tech Stack
+## 🛠 Tech Stack
 
 Core:
 
@@ -131,7 +131,7 @@ Observability:
 
 - OpenTelemetry FastAPI instrumentation
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -176,7 +176,7 @@ Health endpoint:
 
 - `http://localhost:8000/api/health`
 
-## Configuration
+## 🔧 Configuration
 
 Main settings are loaded from environment variables or `.env`.
 
@@ -200,7 +200,7 @@ Common settings:
 - `OTEL_TRACES_ENDPOINT` (default `http://localhost:4318/v1/traces`)
 - `OTEL_CONSOLE_EXPORT_ENABLED` (default `false`)
 
-## Testing
+## ✅ Testing
 
 Run tests:
 
@@ -217,7 +217,7 @@ Current functional coverage includes:
 - not-found behavior for missing reviews in review-rating endpoints
 - cascade cleanup of review ratings on review deletion
 
-## Project Structure
+## 🏗 Project Structure
 
 ```
 ugc/

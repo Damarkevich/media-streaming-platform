@@ -60,3 +60,20 @@ class UserPermissionCheckResponse(BaseModel):
     """Response schema for permission-check endpoint."""
 
     has_permission: bool
+
+
+class UserInternalResponse(BaseModel):
+    """Minimal user profile for internal service-to-service enrichment."""
+
+    user_id: UUID
+    email: EmailStr
+    first_name: str
+    last_name: str
+
+
+class UserInternalListResponse(BaseModel):
+    """Paginated list of users for campaign fanout."""
+
+    items: list[UserInternalResponse]
+    page: int
+    page_size: int

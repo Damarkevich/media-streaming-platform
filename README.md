@@ -5,7 +5,9 @@ Microservices backend for an online cinema platform. Python 3.14 • FastAPI •
 
 ## 1. What is this
 
-This project appears to be a software application that utilizes Docker containerization for deployment and orchestration. The project contains infrastructure-related configuration files, specifically Docker Compose setup for managing multi-container Docker applications.
+This is a microservices backend for an online cinema platform.
+
+The repository contains business services (auth, catalog, UGC, notifications), background workers, ETL pipelines, and local infrastructure orchestration via Docker Compose.
 
 ## 2. CI/CD
 
@@ -61,11 +63,17 @@ This platform consists of the following microservices:
 - **async-api** - A FastAPI-based asynchronous API for accessing movies data from Elasticsearch in the project.
 - **auth** - A FastAPI-based authentication and authorization service with JWT tokens and role-based access control.
 - **ugc** - A FastAPI-based User-Generated Content service for bookmarks, ratings, and reviews, backed by MongoDB.
+- **notifications** - A FastAPI-based notifications management service (templates and campaigns) with PostgreSQL storage and Kafka fanout.
+
+### Notifications Platform Workers
+- **delivery-worker** - Kafka consumers that deliver email notifications via Brevo, apply review-liked throttling with Redis, and persist delivery statuses.
+- **scheduler-worker** - APScheduler-based worker that runs weekly digest jobs and publishes delivery tasks to Kafka.
 
 ### Supporting Services
 - **sqlite-to-postgres** - A tool to migrate data from SQLite databases to PostgreSQL.
 - **etl-postgres-elasticsearch** - ETL pipeline for transferring data from PostgreSQL to Elasticsearch.
 - **etl-kafka-clickhouse** - ETL pipeline scaffold for transferring events from Kafka to ClickHouse.
+- **event-ingest** - Flask-based ingestion service that accepts client events and forwards them to Kafka.
 
 ### Infrastructure
 - **schema-design** - The database schema design for the media streaming platform.
@@ -106,7 +114,7 @@ Then create an organization and project in GlitchTip UI and copy DSN to `.env`:
 SENTRY_DSN=http://<public_key>@localhost:8007/<project_id>
 ```
 
-This DSN is used by application services (`movies-auth`, `movies-async-api`, `movies-event_ingest`, `ugc`) via `sentry-sdk`.
+This DSN is used by application services (`movies-auth`, `movies-async-api`, `movies-event-ingest`, `movies-ugc`, `movies-notifications`) via `sentry-sdk`.
 
 3. Start the services using Docker Compose:
     ```bash
@@ -144,6 +152,10 @@ After starting the project, you can access the interactive API documentation (Sw
   - Swagger UI: http://localhost/api/ugc/docs
   - OpenAPI JSON: http://localhost/api/ugc/openapi.json
 
+- **Notifications API (management endpoints):**
+  - Base path via nginx: http://localhost/api/v1/notifications/
+  - Note: Swagger UI for notifications is not currently exposed via nginx in `configs/site.conf`.
+
 These endpoints are proxied through nginx and available when the corresponding containers are running.
 
 ## 6. Unified Logging with Request Tracking
@@ -158,7 +170,7 @@ All services send logs to a centralized ELK stack where they can be correlated b
 Each log type is stored in a dedicated index:
 
 - **`nginx-logs-*`** — Nginx access logs with request_id
-- **`app-logs-*`** — FastAPI/Django application services (auth, api, admin) with request_id
+- **`app-logs-*`** — FastAPI/Django application services (auth, api, admin, ugc, notifications) with request_id
 - **`event_ingest-logs-*`** — Event ingest service (Flask HTTP) with request_id
 - **`etl-logs-*`** — ETL batch processes (Kafka→ClickHouse, PostgreSQL→Elasticsearch) with batch_id
 - **`docker-logs-*`** — Infrastructure logs (Kafka, PostgreSQL, Redis, ClickHouse, Zookeeper, etc.)

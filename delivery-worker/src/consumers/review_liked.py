@@ -95,6 +95,8 @@ async def _handle(payload: dict) -> None:
         "first_name": first_name,
         "last_name": last_name,
         "review_id": review_id,
+        "review_text_preview": f"review #{review_id}",
+        "likes_count": 1,
     }
     subject, body = template_renderer.render(
         template["subject_template"], template["body_template"], variables

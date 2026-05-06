@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, datetime
 
 import orjson
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from sqlalchemy import text
 
 from src.core.config import settings
@@ -31,17 +31,22 @@ async def run() -> None:
         enable_auto_commit=False,
         value_deserializer=orjson.loads,
     )
+    dlq_producer = AIOKafkaProducer(
+        bootstrap_servers=settings.kafka_bootstrap_servers,
+    )
     await consumer.start()
+    await dlq_producer.start()
     logger.info("delivery consumer started, topic=%s", TOPIC)
     try:
         async for msg in consumer:
-            await _handle(msg.value)
+            await _handle(msg.value, dlq_producer)
             await consumer.commit()
     finally:
         await consumer.stop()
+        await dlq_producer.stop()
 
 
-async def _handle(payload: dict) -> None:
+async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
     idempotency_key: str = payload.get("idempotency_key", "")
     user_id: str = payload.get("user_id", "")
     campaign_id: str | None = payload.get("campaign_id")
@@ -68,12 +73,14 @@ async def _handle(payload: dict) -> None:
         tpl = tpl_row.mappings().first()
         if tpl is None:
             logger.error("Template %s not found, dropping message", template_id)
+            await _publish_dlq(dlq_producer, payload, "template_not_found")
             return
 
         # Fetch user email
         user = await auth_client.get_user(user_id)
         if user is None:
             logger.warning("User %s not found, dropping delivery", user_id)
+            await _publish_dlq(dlq_producer, payload, "user_not_found")
             return
 
         to_email: str = user["email"]
@@ -112,3 +119,18 @@ async def _handle(payload: dict) -> None:
             sent_at=sent_at,
             error=error,
         )
+
+
+async def _publish_dlq(
+    producer: AIOKafkaProducer,
+    payload: dict,
+    reason: str,
+) -> None:
+    """Publish non-processable messages to DLQ for later inspection/replay."""
+    message = {"reason": reason, "payload": payload}
+    key = str(payload.get("idempotency_key", reason)).encode()
+    await producer.send(
+        DLQ_TOPIC,
+        key=key,
+        value=orjson.dumps(message),
+    )

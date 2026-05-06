@@ -4,12 +4,15 @@ from uuid import UUID
 
 from pymongo import ReturnDocument
 
+from src.core.kafka import publish
 from src.db.mongo import get_db
 
 logger = logging.getLogger(__name__)
 
 MOVIE = "movie"
 REVIEW = "review"
+REVIEW_LIKED_TOPIC = "notifications.events.review_liked"
+LIKE_VALUE = 10
 
 
 class ReviewNotFoundError(Exception):
@@ -54,6 +57,9 @@ class RatingService:
         else:
             count_delta, sum_delta = 0, float(value - before["value"])
         await self._update_review_stats(review_id_str, count_delta, sum_delta)
+        # Fire-and-forget notification when a user likes a review (value == 10)
+        if value == LIKE_VALUE:
+            await self._publish_review_liked(str(user_id), review_id_str)
         return after
 
     async def remove_review_rating(self, user_id: UUID, review_id: UUID) -> bool:
@@ -98,6 +104,30 @@ class RatingService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    async def _publish_review_liked(self, liker_user_id: str, review_id: str) -> None:
+        """Fetch review author and publish review_liked event to Kafka."""
+        try:
+            doc = await self._reviews_col.find_one({"_id": review_id}, {"user_id": 1})
+            if doc is None:
+                return
+            review_author_id: str = doc["user_id"]
+            # Don't notify someone that they liked their own review
+            if review_author_id == liker_user_id:
+                return
+            publish(
+                REVIEW_LIKED_TOPIC,
+                key=f"review_liked:{review_id}:{liker_user_id}",
+                payload={
+                    "review_id": review_id,
+                    "review_author_id": review_author_id,
+                    "liker_user_id": liker_user_id,
+                },
+            )
+        except Exception:
+            logger.exception(
+                "Failed to publish review_liked event for review %s", review_id
+            )
 
     async def _get(
         self, user_id: str, target_type: str, target_id: str, session=None

@@ -5,7 +5,7 @@ This folder contains local development configuration for centralized log collect
 ## Architecture
 
 - **nginx**: Generates unique `X-Request-Id` for each incoming request and passes it to backend services
-- **FastAPI services** (async_api, auth): Extract request_id from headers and inject into structured JSON logs
+- **FastAPI services** (async_api, auth, ugc, notifications): Extract request_id from headers and inject into structured JSON logs
 - **Flask service** (event-ingest): Extracts request_id from headers and injects into structured JSON logs
 - **Django service** (movies_admin): Extracts request_id from headers and injects into structured JSON logs
 - **ETL batch services** (etl-kafka-clickhouse, etl-postgres-elasticsearch): Generate batch_id for process correlation
@@ -24,8 +24,8 @@ This folder contains local development configuration for centralized log collect
 ## Expected index patterns
 
 - `nginx-logs-*` — nginx access logs with request_id
-- `app-logs-*` — FastAPI/Django application logs (auth, api, admin services) with request_id
-- `event-ingest-logs-*` — Event ingest service (Flask HTTP) logs with request_id  
+- `app-logs-*` — FastAPI/Django application logs (auth, api, admin, ugc, notifications services) with request_id
+- `event-ingest-logs-*` — Event ingest service (Flask HTTP) logs with request_id
 - `etl-logs-*` — ETL batch process logs (Kafka→ClickHouse, PostgreSQL→Elasticsearch) with batch_id
 - `docker-logs-*` — Other container logs (PostgreSQL, Redis, ClickHouse, Kafka, Zookeeper, etc.)
 

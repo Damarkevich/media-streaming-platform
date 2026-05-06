@@ -609,9 +609,99 @@ services:
         condition: service_healthy
       movies-elasticsearch:
         condition: service_healthy
+      movies-notifications:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "80:80"
+
+  # ---------------------------------------------------------------------------
+  # Notifications platform
+  # ---------------------------------------------------------------------------
+
+  kafka-init-notifications:
+    image: bitnamilegacy/kafka:3.4
+    container_name: kafka-init-notifications
+    depends_on:
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        kafka-topics.sh --bootstrap-server kafka-0:9092 --create --if-not-exists \
+          --topic notifications.delivery --partitions 6 --replication-factor 3
+        kafka-topics.sh --bootstrap-server kafka-0:9092 --create --if-not-exists \
+          --topic notifications.events.review_liked --partitions 3 --replication-factor 3
+        kafka-topics.sh --bootstrap-server kafka-0:9092 --create --if-not-exists \
+          --topic notifications.delivery.dlq --partitions 3 --replication-factor 3
+        echo "Notification topics created."
+    restart: "no"
+
+  movies-notifications:
+    container_name: movies-notifications
+    build: ./notifications
+    restart: unless-stopped
+    depends_on:
+      movies-db:
+        condition: service_healthy
+      kafka-init-notifications:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/api/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  movies-scheduler-worker:
+    container_name: movies-scheduler-worker
+    build: ./scheduler-worker
+    restart: unless-stopped
+    depends_on:
+      movies-db:
+        condition: service_healthy
+      kafka-init-notifications:
+        condition: service_completed_successfully
+      movies-async-api:
+        condition: service_healthy
+      movies-auth:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  movies-delivery-worker:
+    container_name: movies-delivery-worker
+    build: ./delivery-worker
+    restart: unless-stopped
+    depends_on:
+      movies-db:
+        condition: service_healthy
+      movies-redis:
+        condition: service_healthy
+      kafka-init-notifications:
+        condition: service_completed_successfully
+      movies-auth:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  # TODO: movies-ws-notify — WebSocket delivery, deferred to future phase
+  # movies-ws-notify:
+  #   container_name: movies-ws-notify
+  #   build: ./ws-notify
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
 
 
 volumes:

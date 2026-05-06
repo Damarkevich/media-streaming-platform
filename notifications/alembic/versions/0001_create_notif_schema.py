@@ -147,7 +147,7 @@ def upgrade() -> None:
             'weekly_digest',
             'WEEKLY_DIGEST',
             'Your weekend watchlist 🎬',
-            '<p>Hello, {{{{ first_name }}}}!</p><p>Top 10 films this week:</p>{{{{ films_list }}}}',
+            '<p>Hello, {{{{ first_name }}}}!</p><p>Top 10 films this week:</p>{{{{ films_list | safe }}}}',
             '["first_name", "films_list"]'
         ),
         (

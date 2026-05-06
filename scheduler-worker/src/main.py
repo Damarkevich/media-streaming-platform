@@ -48,6 +48,13 @@ async def main() -> None:
 
     # Parse "min hour dom month dow" into CronTrigger kwargs
     parts = cron.split()
+    if len(parts) != 5:
+        logger.warning(
+            "Invalid cron from DB: %s. Falling back to default: %s",
+            cron,
+            settings.weekly_digest_cron,
+        )
+        parts = settings.weekly_digest_cron.split()
     trigger = CronTrigger(
         minute=parts[0],
         hour=parts[1],

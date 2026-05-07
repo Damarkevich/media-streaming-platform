@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.db import async_session
-from src.services.api_clients import get_all_user_ids
+from src.services.api_clients import iter_user_ids
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +61,16 @@ async def _process_one_campaign(producer: AIOKafkaProducer) -> bool:
         template_variables: dict[str, Any] = campaign["template_variables"] or {}
 
         try:
-            user_ids = await get_all_user_ids()
-            await _publish_campaign_messages(
+            published = await _publish_campaign_messages(
                 producer=producer,
                 campaign_id=campaign_id,
                 template_id=template_id,
                 template_variables=template_variables,
-                user_ids=user_ids,
+            )
+            logger.info(
+                "campaign_fanout: campaign %s published %d messages",
+                campaign_id,
+                published,
             )
             await _mark_campaign_done(session, campaign_id)
             await session.commit()
@@ -117,9 +120,9 @@ async def _publish_campaign_messages(
     campaign_id: uuid.UUID,
     template_id: uuid.UUID,
     template_variables: dict[str, Any],
-    user_ids: list[str],
-) -> None:
-    for user_id in user_ids:
+) -> int:
+    published = 0
+    async for user_id in iter_user_ids():
         idempotency_key = f"campaign:{campaign_id}:user:{user_id}"
         message = {
             "campaign_id": str(campaign_id),
@@ -134,3 +137,5 @@ async def _publish_campaign_messages(
             key=idempotency_key.encode(),
             value=json.dumps(message).encode(),
         )
+        published += 1
+    return published

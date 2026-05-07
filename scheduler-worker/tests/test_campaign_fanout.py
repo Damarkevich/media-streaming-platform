@@ -73,13 +73,9 @@ class TestProcessOneCampaign:
                 },
             ),
             patch(
-                "src.jobs.campaign_fanout.get_all_user_ids",
-                new_callable=AsyncMock,
-                return_value=["user-1", "user-2"],
-            ),
-            patch(
                 "src.jobs.campaign_fanout._publish_campaign_messages",
                 new_callable=AsyncMock,
+                return_value=2,
             ) as mock_publish,
             patch(
                 "src.jobs.campaign_fanout._mark_campaign_done",
@@ -117,7 +113,7 @@ class TestProcessOneCampaign:
                 },
             ),
             patch(
-                "src.jobs.campaign_fanout.get_all_user_ids",
+                "src.jobs.campaign_fanout._publish_campaign_messages",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("auth unavailable"),
             ),
@@ -148,13 +144,19 @@ class TestPublishCampaignMessages:
 
         mock_producer.send = fake_send
 
-        await _publish_campaign_messages(
-            producer=mock_producer,
-            campaign_id=campaign_id,
-            template_id=template_id,
-            template_variables={"greeting": "hello"},
-            user_ids=["u-1"],
-        )
+        async def fake_iter_user_ids():
+            yield "u-1"
+
+        with patch(
+            "src.jobs.campaign_fanout.iter_user_ids",
+            side_effect=fake_iter_user_ids,
+        ):
+            published = await _publish_campaign_messages(
+                producer=mock_producer,
+                campaign_id=campaign_id,
+                template_id=template_id,
+                template_variables={"greeting": "hello"},
+            )
 
         msg = sent_payloads[0]
         assert msg["campaign_id"] == str(campaign_id)
@@ -163,3 +165,4 @@ class TestPublishCampaignMessages:
         assert msg["channel"] == "EMAIL"
         assert msg["template_variables"] == {"greeting": "hello"}
         assert msg["idempotency_key"] == f"campaign:{campaign_id}:user:u-1"
+        assert published == 1

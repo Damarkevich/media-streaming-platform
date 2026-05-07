@@ -1,6 +1,7 @@
 """HTTP clients for auth internal API and async-api films list."""
 
 import logging
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -35,10 +36,16 @@ async def get_top_films(n: int) -> list[dict]:
 
 
 async def get_all_user_ids() -> list[str]:
-    """Paginate auth internal endpoint to collect all user IDs."""
+    """Paginate auth internal endpoint and collect all user IDs in memory."""
     ids: list[str] = []
+    async for user_id in iter_user_ids():
+        ids.append(user_id)
+    return ids
+
+
+async def iter_user_ids(page_size: int = 500) -> AsyncIterator[str]:
+    """Stream user IDs page-by-page from auth internal endpoint."""
     page = 0
-    page_size = 500
     while True:
         try:
             resp = await _get_client().get(
@@ -52,8 +59,10 @@ async def get_all_user_ids() -> list[str]:
             break
         data = resp.json()
         items: list[dict] = data.get("items", [])
-        ids.extend(item["user_id"] for item in items)
+        for item in items:
+            user_id = item.get("user_id")
+            if user_id:
+                yield user_id
         if len(items) < page_size:
             break
         page += 1
-    return ids

@@ -14,7 +14,7 @@ from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.db import async_session
-from src.services import auth_client, delivery_record, email, template_renderer
+from src.services import auth_client, email, idempotency, template_renderer
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +54,15 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
     template_variables: dict = payload.get("template_variables", {})
 
     async with async_session() as session:
-        # Idempotency: skip if already recorded
-        row = await session.execute(
-            text("SELECT id FROM notif.deliveries WHERE idempotency_key = :k"),
-            {"k": idempotency_key},
+        # Reserve idempotency key first (at-least-once safe pattern).
+        reserved = await idempotency.reserve_key(
+            campaign_id=campaign_id,
+            user_id=user_id,
+            channel="EMAIL",
+            idempotency_key=idempotency_key,
+            session=session,
         )
-        if row.first() is not None:
+        if not reserved:
             logger.debug("Skipping duplicate delivery key=%s", idempotency_key)
             return
 
@@ -73,6 +76,12 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
         tpl = tpl_row.mappings().first()
         if tpl is None:
             logger.error("Template %s not found, dropping message", template_id)
+            await idempotency.finalize_key(
+                idempotency_key=idempotency_key,
+                status="FAILED",
+                error="Template not found",
+                session=session,
+            )
             await _publish_dlq(dlq_producer, payload, "template_not_found")
             return
 
@@ -80,6 +89,12 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
         user = await auth_client.get_user(user_id)
         if user is None:
             logger.warning("User %s not found, dropping delivery", user_id)
+            await idempotency.finalize_key(
+                idempotency_key=idempotency_key,
+                status="FAILED",
+                error="User not found",
+                session=session,
+            )
             await _publish_dlq(dlq_producer, payload, "user_not_found")
             return
 
@@ -109,15 +124,12 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
         else:
             error = "Brevo send_transac_email returned error"
 
-        await delivery_record.record_delivery(
-            session,
-            campaign_id=campaign_id,
-            user_id=user_id,
-            channel="EMAIL",
+        await idempotency.finalize_key(
             idempotency_key=idempotency_key,
             status=status,
             sent_at=sent_at,
             error=error,
+            session=session,
         )
 
 

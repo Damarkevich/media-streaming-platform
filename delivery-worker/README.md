@@ -19,7 +19,7 @@ This worker is responsible for:
 - Fully asynchronous Kafka consumers (`aiokafka`)
 - Email sending via `brevo-python`
 - Redis-based throttle for review-liked notifications
-- Idempotency check by `idempotency_key`
+- Durable idempotency reservation by `idempotency_key` (`PENDING -> SENT/FAILED`)
 - Delivery persistence in PostgreSQL
 
 ## 📚 Logic Description
@@ -34,21 +34,34 @@ The process starts two consumers concurrently:
 ### Delivery Flow (`notifications.delivery`)
 
 1. Read message from Kafka.
-2. Skip if `idempotency_key` already exists in `notif.deliveries`.
-3. Load template from `notif.templates`.
-4. Fetch recipient profile from auth internal API.
-5. Render subject/body with Jinja2 variables.
-6. Send email via Brevo.
-7. Persist delivery result (`SENT` or `FAILED`).
+2. Reserve `idempotency_key` by inserting `PENDING` in `notif.deliveries`.
+3. If key already reserved/processed: skip message.
+4. Load template from `notif.templates`.
+5. Fetch recipient profile from auth internal API.
+6. Render subject/body with Jinja2 variables.
+7. Send email via Brevo.
+8. Finalize delivery status (`SENT` or `FAILED`) in the same idempotency record.
 
 ### Review-liked Flow (`notifications.events.review_liked`)
 
 1. Read event payload (`review_id`, `review_author_id`, `liker_user_id`).
-2. Check Redis throttle key `notif:review_liked:{review_author_id}`.
-3. If throttled: persist `THROTTLED` and stop.
-4. If not throttled: fetch template `review_liked`, fetch author profile, send email.
-5. On success: set throttle key with TTL (default 86400 sec).
-6. Persist delivery result (`SENT` or `FAILED`).
+2. Reserve `idempotency_key` by inserting `PENDING` in `notif.deliveries`.
+3. If key already reserved/processed: skip event.
+4. Check Redis throttle key `notif:review_liked:{review_author_id}`.
+5. If throttled: finalize status `THROTTLED` and stop.
+6. If not throttled: fetch template `review_liked`, fetch author profile, send email.
+7. On success: set throttle key with TTL (default 86400 sec).
+8. Finalize delivery status (`SENT` or `FAILED`).
+
+### Idempotency Pattern
+
+For both consumers the worker follows an at-least-once safe order:
+
+1. `reserve_key` — insert `PENDING` row for `idempotency_key`.
+2. Perform side effects (render/send/throttle logic).
+3. `finalize_key` — update reserved row to terminal status (`SENT`, `FAILED`, `THROTTLED`).
+
+This prevents duplicate emails when a worker crashes after send but before Kafka offset commit.
 
 ## 🛠 Tech Stack
 
@@ -124,16 +137,14 @@ Important optional settings:
 
 ## ✅ Testing
 
-Automated tests are not added yet for this worker.
+Automated tests are available for core delivery-worker flows.
 
-Recommended next step:
+Run test suite:
 
 ```bash
 cd delivery-worker
 uv run pytest -q
 ```
-
-after adding a `tests/` package.
 
 ## 🏗 Project Structure
 

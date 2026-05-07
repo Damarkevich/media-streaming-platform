@@ -15,8 +15,8 @@ from src.core.config import settings
 from src.core.db import async_session
 from src.services import (
     auth_client,
-    delivery_record,
     email,
+    idempotency,
     template_renderer,
     throttle,
 )
@@ -54,6 +54,16 @@ async def _handle(payload: dict) -> None:
 
     idempotency_key = f"review_liked:{review_id}:{liker_user_id}"
 
+    reserved = await idempotency.reserve_key(
+        campaign_id=None,
+        user_id=review_author_id,
+        channel="EMAIL",
+        idempotency_key=idempotency_key,
+    )
+    if not reserved:
+        logger.debug("Skipping duplicate review_liked key=%s", idempotency_key)
+        return
+
     # Throttle: one email per author per day
     if await throttle.is_throttled(review_author_id):
         logger.info(
@@ -61,21 +71,21 @@ async def _handle(payload: dict) -> None:
             review_author_id,
             review_id,
         )
-        async with async_session() as session:
-            await delivery_record.record_delivery(
-                session,
-                campaign_id=None,
-                user_id=review_author_id,
-                channel="EMAIL",
-                idempotency_key=idempotency_key,
-                status="THROTTLED",
-            )
+        await idempotency.finalize_key(
+            idempotency_key=idempotency_key,
+            status="THROTTLED",
+        )
         return
 
     # Fetch template from DB
     template = await _get_review_liked_template()
     if template is None:
         logger.error("review_liked template not found in DB, dropping message")
+        await idempotency.finalize_key(
+            idempotency_key=idempotency_key,
+            status="FAILED",
+            error="Template not found",
+        )
         return
 
     # Fetch author's email
@@ -83,6 +93,11 @@ async def _handle(payload: dict) -> None:
     if user is None:
         logger.warning(
             "User %s not found, dropping review_liked delivery", review_author_id
+        )
+        await idempotency.finalize_key(
+            idempotency_key=idempotency_key,
+            status="FAILED",
+            error="User not found",
         )
         return
 
@@ -113,17 +128,12 @@ async def _handle(payload: dict) -> None:
     else:
         error = "Brevo send_transac_email returned error"
 
-    async with async_session() as session:
-        await delivery_record.record_delivery(
-            session,
-            campaign_id=None,
-            user_id=review_author_id,
-            channel="EMAIL",
-            idempotency_key=idempotency_key,
-            status=status,
-            sent_at=sent_at,
-            error=error,
-        )
+    await idempotency.finalize_key(
+        idempotency_key=idempotency_key,
+        status=status,
+        sent_at=sent_at,
+        error=error,
+    )
 
 
 _cached_template: dict | None = None

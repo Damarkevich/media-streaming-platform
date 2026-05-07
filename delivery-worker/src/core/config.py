@@ -31,5 +31,9 @@ class Settings(BaseSettings):
     auth_internal_url: str = "http://movies-auth:8000"
     internal_api_key: str = ""
 
+    # Consumer retry behavior
+    consumer_max_retries: int = 3
+    consumer_retry_delay_seconds: float = 1.0
+
 
 settings = Settings()

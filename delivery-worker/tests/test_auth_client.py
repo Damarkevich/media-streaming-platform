@@ -2,6 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import pytest
+
 
 class TestGetUser:
     async def test_returns_user_dict_on_success(self):
@@ -33,16 +36,17 @@ class TestGetUser:
 
         assert result is None
 
-    async def test_returns_none_on_network_error(self):
+    async def test_raises_on_network_error(self):
         from src.services.auth_client import get_user
 
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(side_effect=Exception("connection refused"))
+        mock_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("connection refused")
+        )
 
         with patch("src.services.auth_client.get_http_client", return_value=mock_client):
-            result = await get_user("some-user")
-
-        assert result is None
+            with pytest.raises(httpx.HTTPError):
+                await get_user("some-user")
 
     async def test_sends_internal_key_header(self):
         from src.services.auth_client import get_user

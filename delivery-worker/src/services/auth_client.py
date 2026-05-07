@@ -17,16 +17,27 @@ def get_http_client() -> httpx.AsyncClient:
 
 
 async def get_user(user_id: str) -> dict | None:
-    """Fetch user data from auth internal endpoint. Returns None on error."""
+    """Fetch user data from auth internal endpoint.
+
+    Returns None only for 404 (user not found).
+    Raises on transport/HTTP errors so callers can apply retries.
+    """
     url = f"{settings.auth_internal_url}/api/v1/users/internal/{user_id}"
     try:
         resp = await get_http_client().get(
             url, headers={"X-Internal-Key": settings.internal_api_key}
         )
-        if resp.status_code == 404:
-            return None
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
+    except httpx.HTTPError:
         logger.exception("Failed to fetch user %s from auth service", user_id)
+        raise
+
+    if resp.status_code == 404:
         return None
+
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPError:
+        logger.exception("Auth service returned error for user %s", user_id)
+        raise
+
+    return resp.json()

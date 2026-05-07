@@ -108,3 +108,54 @@ class TestHandle:
 
         assert trace == ["reserve", "send", "finalize"]
         assert mock_finalize.await_args.kwargs["status"] == "SENT"
+
+
+class TestProcessMessage:
+    async def test_sends_domain_errors_to_dlq(self):
+        from src.consumers.review_liked import _process_message
+
+        payload = _payload()
+        with (
+            patch(
+                "src.consumers.review_liked._handle",
+                new_callable=AsyncMock,
+                side_effect=KeyError("review_id"),
+            ),
+            patch(
+                "src.consumers.review_liked._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+        ):
+            should_commit = await _process_message(payload, AsyncMock())
+
+        assert should_commit is True
+        assert "domain_error:KeyError" in mock_dlq.await_args.args[2]
+
+    async def test_retries_then_sends_to_dlq(self):
+        from sqlalchemy.exc import OperationalError
+
+        from src.consumers.review_liked import _process_message
+
+        payload = _payload()
+        with (
+            patch("src.consumers.review_liked.settings.consumer_max_retries", 2),
+            patch(
+                "src.consumers.review_liked.settings.consumer_retry_delay_seconds",
+                0.0,
+            ),
+            patch(
+                "src.consumers.review_liked._handle",
+                new_callable=AsyncMock,
+                side_effect=OperationalError("SELECT 1", {}, Exception("db down")),
+            ) as mock_handle,
+            patch(
+                "src.consumers.review_liked._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+            patch("src.consumers.review_liked.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            should_commit = await _process_message(payload, AsyncMock())
+
+        assert should_commit is True
+        assert mock_handle.await_count == 2
+        assert "retry_exhausted:OperationalError" in mock_dlq.await_args.args[2]

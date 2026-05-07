@@ -93,7 +93,9 @@ class TestHandle:
             await _handle(_payload(), AsyncMock())
 
         assert trace == ["reserve", "send", "finalize"]
-        assert mock_finalize.await_args.kwargs["status"] == "SENT"
+        await_args = mock_finalize.await_args
+        assert await_args is not None
+        assert await_args.kwargs["status"] == "SENT"
 
     async def test_marks_failed_and_sends_dlq_when_template_missing(self):
         from src.consumers.delivery import _handle
@@ -127,6 +129,61 @@ class TestHandle:
         ):
             await _handle(_payload(), AsyncMock())
 
-        assert mock_finalize.await_args.kwargs["status"] == "FAILED"
-        assert mock_finalize.await_args.kwargs["error"] == "Template not found"
+        await_args = mock_finalize.await_args
+        assert await_args is not None
+        assert await_args.kwargs["status"] == "FAILED"
+        assert await_args.kwargs["error"] == "Template not found"
         mock_dlq.assert_called_once()
+
+
+class TestProcessMessage:
+    async def test_sends_domain_errors_to_dlq(self):
+        from src.consumers.delivery import _process_message
+
+        payload = _payload()
+        with (
+            patch(
+                "src.consumers.delivery._handle",
+                new_callable=AsyncMock,
+                side_effect=ValueError("bad payload"),
+            ),
+            patch(
+                "src.consumers.delivery._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+        ):
+            should_commit = await _process_message(payload, AsyncMock())
+
+        assert should_commit is True
+        await_args = mock_dlq.await_args
+        assert await_args is not None
+        assert "domain_error:ValueError" in await_args.args[2]
+
+    async def test_retries_then_sends_to_dlq(self):
+        from sqlalchemy.exc import OperationalError
+
+        from src.consumers.delivery import _process_message
+
+        payload = _payload()
+
+        with (
+            patch("src.consumers.delivery.settings.consumer_max_retries", 2),
+            patch("src.consumers.delivery.settings.consumer_retry_delay_seconds", 0.0),
+            patch(
+                "src.consumers.delivery._handle",
+                new_callable=AsyncMock,
+                side_effect=OperationalError("SELECT 1", {}, Exception("db down")),
+            ) as mock_handle,
+            patch(
+                "src.consumers.delivery._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+            patch("src.consumers.delivery.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            should_commit = await _process_message(payload, AsyncMock())
+
+        assert should_commit is True
+        assert mock_handle.await_count == 2
+        await_args = mock_dlq.await_args
+        assert await_args is not None
+        assert "retry_exhausted:OperationalError" in await_args.args[2]

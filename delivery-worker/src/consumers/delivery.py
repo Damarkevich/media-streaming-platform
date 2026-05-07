@@ -4,13 +4,16 @@ Each message represents a pre-fanned-out delivery task:
   campaign_id, user_id, template_id, template_variables, channel, idempotency_key
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
 
+import httpx
 import orjson
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.db import async_session
@@ -20,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 TOPIC = "notifications.delivery"
 DLQ_TOPIC = "notifications.delivery.dlq"
+DOMAIN_EXCEPTIONS = (KeyError, ValueError, TypeError)
+RETRYABLE_EXCEPTIONS = (
+    SQLAlchemyError,
+    httpx.HTTPError,
+    TimeoutError,
+    ConnectionError,
+)
 
 
 async def run() -> None:
@@ -39,11 +49,57 @@ async def run() -> None:
     logger.info("delivery consumer started, topic=%s", TOPIC)
     try:
         async for msg in consumer:
-            await _handle(msg.value, dlq_producer)
-            await consumer.commit()
+            should_commit = await _process_message(msg.value, dlq_producer)
+            if should_commit:
+                await consumer.commit()
     finally:
         await consumer.stop()
         await dlq_producer.stop()
+
+
+async def _process_message(payload: dict, dlq_producer: AIOKafkaProducer) -> bool:
+    max_attempts = max(1, settings.consumer_max_retries)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await _handle(payload, dlq_producer)
+        except DOMAIN_EXCEPTIONS as exc:
+            logger.warning("Dropping invalid payload to DLQ: %s", exc)
+            await _publish_dlq(
+                dlq_producer, payload, f"domain_error:{type(exc).__name__}"
+            )
+            return True
+        except RETRYABLE_EXCEPTIONS as exc:
+            if attempt == max_attempts:
+                logger.exception(
+                    "Retryable error exhausted attempts=%d, sending to DLQ",
+                    max_attempts,
+                )
+                await _publish_dlq(
+                    dlq_producer,
+                    payload,
+                    f"retry_exhausted:{type(exc).__name__}",
+                )
+                return True
+
+            delay = settings.consumer_retry_delay_seconds * attempt
+            logger.warning(
+                "Retryable error on attempt %d/%d, retry in %.2fs",
+                attempt,
+                max_attempts,
+                delay,
+                exc_info=True,
+            )
+            await asyncio.sleep(delay)
+        except Exception as exc:
+            logger.exception("Unexpected consumer error, sending to DLQ")
+            await _publish_dlq(
+                dlq_producer, payload, f"unexpected_error:{type(exc).__name__}"
+            )
+            return True
+        else:
+            return True
+
+    return True
 
 
 async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:

@@ -200,14 +200,7 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
     )
 
 
-_cached_template: dict | None = None
-
-
 async def _get_review_liked_template() -> dict | None:
-    global _cached_template  # noqa: PLW0603
-    if _cached_template is not None:
-        return _cached_template
-
     async with async_session() as session:
         row = await session.execute(
             text(
@@ -217,9 +210,7 @@ async def _get_review_liked_template() -> dict | None:
             {"name": TEMPLATE_NAME},
         )
         result = row.mappings().first()
-        if result:
-            _cached_template = dict(result)
-    return _cached_template
+        return dict(result) if result else None
 
 
 async def _publish_dlq(

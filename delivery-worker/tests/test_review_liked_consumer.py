@@ -26,7 +26,7 @@ class TestHandle:
                 new_callable=AsyncMock,
             ) as mock_throttled,
         ):
-            await _handle(_payload())
+            await _handle(_payload(), AsyncMock())
 
         mock_throttled.assert_not_called()
 
@@ -49,7 +49,7 @@ class TestHandle:
                 new_callable=AsyncMock,
             ) as mock_finalize,
         ):
-            await _handle(_payload())
+            await _handle(_payload(), AsyncMock())
 
         assert mock_finalize.await_args.kwargs["status"] == "THROTTLED"
 
@@ -104,10 +104,87 @@ class TestHandle:
             ) as mock_finalize,
             patch("src.consumers.review_liked.throttle.set_throttle", new_callable=AsyncMock),
         ):
-            await _handle(_payload())
+            await _handle(_payload(), AsyncMock())
 
         assert trace == ["reserve", "send", "finalize"]
         assert mock_finalize.await_args.kwargs["status"] == "SENT"
+
+    async def test_marks_failed_and_sends_dlq_when_template_missing(self):
+        from src.consumers.review_liked import _handle
+
+        with (
+            patch(
+                "src.consumers.review_liked.idempotency.reserve_key",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "src.consumers.review_liked.throttle.is_throttled",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "src.consumers.review_liked._get_review_liked_template",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "src.consumers.review_liked.idempotency.finalize_key",
+                new_callable=AsyncMock,
+            ) as mock_finalize,
+            patch(
+                "src.consumers.review_liked._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+        ):
+            await _handle(_payload(), AsyncMock())
+
+        await_args = mock_finalize.await_args
+        assert await_args is not None
+        assert await_args.kwargs["status"] == "FAILED"
+        assert await_args.kwargs["error"] == "Template not found"
+        mock_dlq.assert_called_once()
+
+    async def test_marks_failed_and_sends_dlq_when_user_missing(self):
+        from src.consumers.review_liked import _handle
+
+        with (
+            patch(
+                "src.consumers.review_liked.idempotency.reserve_key",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "src.consumers.review_liked.throttle.is_throttled",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "src.consumers.review_liked._get_review_liked_template",
+                new_callable=AsyncMock,
+                return_value={"subject_template": "s", "body_template": "b"},
+            ),
+            patch(
+                "src.consumers.review_liked.auth_client.get_user",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "src.consumers.review_liked.idempotency.finalize_key",
+                new_callable=AsyncMock,
+            ) as mock_finalize,
+            patch(
+                "src.consumers.review_liked._publish_dlq",
+                new_callable=AsyncMock,
+            ) as mock_dlq,
+        ):
+            await _handle(_payload(), AsyncMock())
+
+        await_args = mock_finalize.await_args
+        assert await_args is not None
+        assert await_args.kwargs["status"] == "FAILED"
+        assert await_args.kwargs["error"] == "User not found"
+        mock_dlq.assert_called_once()
 
 
 class TestProcessMessage:

@@ -68,7 +68,7 @@ async def _process_message(payload: dict, dlq_producer: AIOKafkaProducer) -> boo
     max_attempts = max(1, settings.consumer_max_retries)
     for attempt in range(1, max_attempts + 1):
         try:
-            await _handle(payload)
+            await _handle(payload, dlq_producer)
         except DOMAIN_EXCEPTIONS as exc:
             logger.warning("Dropping invalid review_liked payload to DLQ: %s", exc)
             await _publish_dlq(
@@ -109,7 +109,7 @@ async def _process_message(payload: dict, dlq_producer: AIOKafkaProducer) -> boo
     return True
 
 
-async def _handle(payload: dict) -> None:
+async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
     review_id: str = payload.get("review_id", "")
     review_author_id: str = payload.get("review_author_id", "")
     liker_user_id: str = payload.get("liker_user_id", "")
@@ -148,6 +148,7 @@ async def _handle(payload: dict) -> None:
             status="FAILED",
             error="Template not found",
         )
+        await _publish_dlq(dlq_producer, payload, "template_not_found")
         return
 
     # Fetch author's email
@@ -161,6 +162,7 @@ async def _handle(payload: dict) -> None:
             status="FAILED",
             error="User not found",
         )
+        await _publish_dlq(dlq_producer, payload, "user_not_found")
         return
 
     to_email: str = user["email"]

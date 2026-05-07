@@ -13,7 +13,10 @@ class TestRunQueuedCampaigns:
         mock_producer.stop = AsyncMock()
 
         with (
-            patch("src.jobs.campaign_fanout.AIOKafkaProducer", return_value=mock_producer),
+            patch(
+                "src.jobs.campaign_fanout.AIOKafkaProducer",
+                return_value=mock_producer,
+            ) as mock_producer_ctor,
             patch(
                 "src.jobs.campaign_fanout._process_one_campaign",
                 new_callable=AsyncMock,
@@ -22,6 +25,13 @@ class TestRunQueuedCampaigns:
         ):
             await run_queued_campaigns()
 
+        from src.core.config import settings
+
+        mock_producer_ctor.assert_called_once_with(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            acks="all",
+            enable_idempotence=True,
+        )
         mock_producer.start.assert_called_once()
         mock_producer.stop.assert_called_once()
 

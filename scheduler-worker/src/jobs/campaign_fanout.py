@@ -26,7 +26,11 @@ DELIVERY_TOPIC = "notifications.delivery"
 
 async def run_queued_campaigns() -> None:
     """Entry point for periodic queued-campaign processing."""
-    producer = AIOKafkaProducer(bootstrap_servers=settings.kafka_bootstrap_servers)
+    producer = AIOKafkaProducer(
+        bootstrap_servers=settings.kafka_bootstrap_servers,
+        acks="all",
+        enable_idempotence=True,
+    )
     await producer.start()
     processed = 0
     try:

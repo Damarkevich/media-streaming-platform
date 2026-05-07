@@ -1,7 +1,7 @@
 """Tests for src.services.campaigns."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -112,43 +112,3 @@ class TestMarkQueued:
         assert exc_info.value.status_code == 409
         assert "DONE" in exc_info.value.detail
 
-
-class TestRunFanout:
-    async def test_logs_error_when_campaign_not_found(self):
-        from src.services.campaigns import run_fanout
-
-        campaign_id = uuid.uuid4()
-        mock_session = AsyncMock()
-        mock_session.get = AsyncMock(return_value=None)
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-        with patch("src.services.campaigns.async_session", return_value=mock_ctx):
-            # Should not raise — just log and return
-            await run_fanout(campaign_id)
-
-    async def test_marks_campaign_failed_on_exception(self):
-        from src.models.campaign import Campaign
-        from src.services.campaigns import run_fanout
-
-        campaign_id = uuid.uuid4()
-        mock_campaign = MagicMock(spec=Campaign)
-        mock_campaign.id = campaign_id
-        mock_campaign.status = "QUEUED"
-        mock_session = AsyncMock()
-        mock_session.get = AsyncMock(return_value=mock_campaign)
-        mock_session.commit = AsyncMock()
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-        with patch("src.services.campaigns.async_session", return_value=mock_ctx):
-            with patch(
-                "src.services.campaigns._fanout",
-                side_effect=RuntimeError("kafka down"),
-            ):
-                await run_fanout(campaign_id)
-
-        assert mock_campaign.status == "FAILED"
-        mock_session.commit.assert_called()

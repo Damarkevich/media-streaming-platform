@@ -10,10 +10,12 @@ import sys
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import text
 
 from src.core.config import settings
 from src.core.db import async_session
+from src.jobs.campaign_fanout import run_queued_campaigns
 from src.jobs.weekly_digest import run_weekly_digest
 
 logging.basicConfig(
@@ -73,10 +75,19 @@ async def main() -> None:
         misfire_grace_time=3600,
         coalesce=True,
     )
+    scheduler.add_job(
+        run_queued_campaigns,
+        trigger=IntervalTrigger(seconds=settings.campaign_fanout_poll_seconds),
+        id="campaign_fanout",
+        name="Queued campaigns fanout",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info(
-        "scheduler started, next run: %s",
+        "scheduler started, next runs: weekly_digest=%s campaign_fanout=%s",
         scheduler.get_job("weekly_digest").next_run_time,
+        scheduler.get_job("campaign_fanout").next_run_time,
     )
 
     try:

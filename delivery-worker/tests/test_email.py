@@ -103,3 +103,24 @@ class TestGetBrevoClient:
         )
         email_module._client = None
 
+
+class TestCloseBrevoClient:
+    async def test_closes_aclose_when_initialized(self):
+        import src.services.email as email_module
+
+        mock_client = MagicMock()
+        mock_client.aclose = AsyncMock()
+        email_module._client = mock_client
+
+        await email_module.close_brevo_client()
+
+        mock_client.aclose.assert_called_once()
+        assert email_module._client is None
+
+    async def test_noop_when_not_initialized(self):
+        import src.services.email as email_module
+
+        email_module._client = None
+        await email_module.close_brevo_client()
+        assert email_module._client is None
+

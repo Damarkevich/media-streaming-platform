@@ -99,3 +99,24 @@ class TestGetHttpClient:
         finally:
             await client.aclose()
             auth_client_module._client = None
+
+
+class TestCloseHttpClient:
+    async def test_closes_client_when_initialized(self):
+        import src.services.auth_client as auth_client_module
+
+        mock_client = MagicMock()
+        mock_client.aclose = AsyncMock()
+        auth_client_module._client = mock_client
+
+        await auth_client_module.close_http_client()
+
+        mock_client.aclose.assert_called_once()
+        assert auth_client_module._client is None
+
+    async def test_noop_when_not_initialized(self):
+        import src.services.auth_client as auth_client_module
+
+        auth_client_module._client = None
+        await auth_client_module.close_http_client()
+        assert auth_client_module._client is None

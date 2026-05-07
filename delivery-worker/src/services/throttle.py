@@ -22,6 +22,16 @@ def get_redis() -> aioredis.Redis:
     return _redis
 
 
+async def close_redis() -> None:
+    """Close singleton Redis client if it was initialized."""
+    global _redis  # noqa: PLW0603
+    if _redis is None:
+        return
+
+    await _redis.aclose()
+    _redis = None
+
+
 async def is_throttled(review_author_id: str) -> bool:
     """Return True if this author already received a review_liked email today."""
     key = f"{THROTTLE_KEY_PREFIX}:{review_author_id}"

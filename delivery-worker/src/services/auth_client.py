@@ -16,6 +16,16 @@ def get_http_client() -> httpx.AsyncClient:
     return _client
 
 
+async def close_http_client() -> None:
+    """Close singleton auth HTTP client if it was initialized."""
+    global _client  # noqa: PLW0603
+    if _client is None:
+        return
+
+    await _client.aclose()
+    _client = None
+
+
 async def get_user(user_id: str) -> dict | None:
     """Fetch user data from auth internal endpoint.
 

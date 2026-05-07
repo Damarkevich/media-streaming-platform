@@ -6,7 +6,6 @@ Applies per-author daily throttle via Redis before sending.
 
 import asyncio
 import logging
-from datetime import UTC, datetime
 
 import httpx
 import orjson
@@ -16,13 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.db import async_session
-from src.services import (
-    auth_client,
-    email,
-    idempotency,
-    template_renderer,
-    throttle,
-)
+from src.services import idempotency, notification_sender, throttle
 
 logger = logging.getLogger(__name__)
 
@@ -151,53 +144,23 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
         await _publish_dlq(dlq_producer, payload, "template_not_found")
         return
 
-    # Fetch author's email
-    user = await auth_client.get_user(review_author_id)
-    if user is None:
-        logger.warning(
-            "User %s not found, dropping review_liked delivery", review_author_id
-        )
-        await idempotency.finalize_key(
-            idempotency_key=idempotency_key,
-            status="FAILED",
-            error="User not found",
-        )
-        await _publish_dlq(dlq_producer, payload, "user_not_found")
-        return
-
-    to_email: str = user["email"]
-    first_name: str = user.get("first_name") or ""
-    last_name: str = user.get("last_name") or ""
-    to_name = f"{first_name} {last_name}".strip() or to_email
-
+    # Send notification
     variables = {
-        "first_name": first_name,
-        "last_name": last_name,
         "review_id": review_id,
         "review_text_preview": f"review #{review_id}",
         "likes_count": 1,
     }
-    subject, body = template_renderer.render(
-        template["subject_template"], template["body_template"], variables
+    ok = await notification_sender.send_notification(
+        user_id=review_author_id,
+        template=template,
+        variables=variables,
+        idempotency_key=idempotency_key,
     )
-
-    ok = await email.send_email(to_email, to_name, subject, body)
-    sent_at: datetime | None = None
-    error: str | None = None
-    status = "FAILED"
     if ok:
-        status = "SENT"
-        sent_at = datetime.now(UTC)
+        # Set throttle after successful send
         await throttle.set_throttle(review_author_id)
     else:
-        error = "Brevo send_transac_email returned error"
-
-    await idempotency.finalize_key(
-        idempotency_key=idempotency_key,
-        status=status,
-        sent_at=sent_at,
-        error=error,
-    )
+        await _publish_dlq(dlq_producer, payload, "send_failed")
 
 
 async def _get_review_liked_template() -> dict | None:

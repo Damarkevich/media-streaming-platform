@@ -7,7 +7,6 @@ Each message represents a pre-fanned-out delivery task:
 import asyncio
 import logging
 import uuid
-from datetime import UTC, datetime
 
 import httpx
 import orjson
@@ -17,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.db import async_session
-from src.services import auth_client, email, idempotency, template_renderer
+from src.services import idempotency, notification_sender
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +121,7 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
             logger.debug("Skipping duplicate delivery key=%s", idempotency_key)
             return
 
-        # Fetch template
+        # Fetch template from DB
         tpl_row = await session.execute(
             text(
                 "SELECT subject_template, body_template FROM notif.templates WHERE id = :id"
@@ -141,52 +140,16 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
             await _publish_dlq(dlq_producer, payload, "template_not_found")
             return
 
-        # Fetch user email
-        user = await auth_client.get_user(user_id)
-        if user is None:
-            logger.warning("User %s not found, dropping delivery", user_id)
-            await idempotency.finalize_key(
-                idempotency_key=idempotency_key,
-                status="FAILED",
-                error="User not found",
-                session=session,
-            )
-            await _publish_dlq(dlq_producer, payload, "user_not_found")
-            return
-
-        to_email: str = user["email"]
-        first_name: str = user.get("first_name") or ""
-        last_name: str = user.get("last_name") or ""
-        to_name = f"{first_name} {last_name}".strip() or to_email
-
-        # Render
-        variables = {
-            "first_name": first_name,
-            "last_name": last_name,
-            **template_variables,
-        }
-        subject, body = template_renderer.render(
-            tpl["subject_template"], tpl["body_template"], variables
-        )
-
-        # Send
-        sent_at: datetime | None = None
-        error: str | None = None
-        status = "FAILED"
-        ok = await email.send_email(to_email, to_name, subject, body)
-        if ok:
-            status = "SENT"
-            sent_at = datetime.now(UTC)
-        else:
-            error = "Brevo send_transac_email returned error"
-
-        await idempotency.finalize_key(
-            idempotency_key=idempotency_key,
-            status=status,
-            sent_at=sent_at,
-            error=error,
+        # Send notification (user fetch, render, email send, delivery recording)
+        ok = await notification_sender.send_notification(
             session=session,
+            user_id=user_id,
+            template=tpl,
+            variables=template_variables,
+            idempotency_key=idempotency_key,
         )
+        if not ok:
+            await _publish_dlq(dlq_producer, payload, "send_failed")
 
 
 async def _publish_dlq(

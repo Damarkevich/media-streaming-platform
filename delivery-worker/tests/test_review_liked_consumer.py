@@ -62,12 +62,9 @@ class TestHandle:
             trace.append("reserve")
             return True
 
-        async def send_side_effect(*args, **kwargs):
+        async def send_notification_side_effect(*args, **kwargs):
             trace.append("send")
             return True
-
-        async def finalize_side_effect(*args, **kwargs):
-            trace.append("finalize")
 
         with (
             patch(
@@ -88,26 +85,16 @@ class TestHandle:
                 },
             ),
             patch(
-                "src.consumers.review_liked.auth_client.get_user",
+                "src.consumers.review_liked.notification_sender.send_notification",
                 new_callable=AsyncMock,
-                return_value={
-                    "email": "u@example.com",
-                    "first_name": "A",
-                    "last_name": "B",
-                },
-            ),
-            patch("src.consumers.review_liked.template_renderer.render", return_value=("subject", "body")),
-            patch("src.consumers.review_liked.email.send_email", side_effect=send_side_effect),
-            patch(
-                "src.consumers.review_liked.idempotency.finalize_key",
-                side_effect=finalize_side_effect,
-            ) as mock_finalize,
+                side_effect=send_notification_side_effect,
+            ) as mock_send,
             patch("src.consumers.review_liked.throttle.set_throttle", new_callable=AsyncMock),
         ):
             await _handle(_payload(), AsyncMock())
 
-        assert trace == ["reserve", "send", "finalize"]
-        assert mock_finalize.await_args.kwargs["status"] == "SENT"
+        assert trace == ["reserve", "send"]
+        mock_send.assert_called_once()
 
     async def test_marks_failed_and_sends_dlq_when_template_missing(self):
         from src.consumers.review_liked import _handle
@@ -165,14 +152,10 @@ class TestHandle:
                 return_value={"subject_template": "s", "body_template": "b"},
             ),
             patch(
-                "src.consumers.review_liked.auth_client.get_user",
+                "src.consumers.review_liked.notification_sender.send_notification",
                 new_callable=AsyncMock,
-                return_value=None,
+                return_value=False,
             ),
-            patch(
-                "src.consumers.review_liked.idempotency.finalize_key",
-                new_callable=AsyncMock,
-            ) as mock_finalize,
             patch(
                 "src.consumers.review_liked._publish_dlq",
                 new_callable=AsyncMock,
@@ -180,11 +163,9 @@ class TestHandle:
         ):
             await _handle(_payload(), AsyncMock())
 
-        await_args = mock_finalize.await_args
-        assert await_args is not None
-        assert await_args.kwargs["status"] == "FAILED"
-        assert await_args.kwargs["error"] == "User not found"
         mock_dlq.assert_called_once()
+        call_args = mock_dlq.await_args
+        assert call_args[0][2] == "send_failed"
 
 
 class TestProcessMessage:

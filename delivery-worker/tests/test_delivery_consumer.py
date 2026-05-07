@@ -42,7 +42,7 @@ class TestHandle:
                 new_callable=AsyncMock,
                 return_value=False,
             ),
-            patch("src.consumers.delivery.email.send_email", new_callable=AsyncMock) as mock_send,
+            patch("src.consumers.delivery.notification_sender.send_notification", new_callable=AsyncMock) as mock_send,
         ):
             await _handle(_payload(), AsyncMock())
 
@@ -63,12 +63,9 @@ class TestHandle:
             trace.append("reserve")
             return True
 
-        async def send_side_effect(*args, **kwargs):
+        async def send_notification_side_effect(*args, **kwargs):
             trace.append("send")
             return True
-
-        async def finalize_side_effect(*args, **kwargs):
-            trace.append("finalize")
 
         with (
             patch("src.consumers.delivery.async_session", return_value=mock_ctx),
@@ -76,26 +73,12 @@ class TestHandle:
                 "src.consumers.delivery.idempotency.reserve_key",
                 side_effect=reserve_side_effect,
             ),
-            patch("src.consumers.delivery.auth_client.get_user", new_callable=AsyncMock) as mock_get_user,
-            patch("src.consumers.delivery.template_renderer.render") as mock_render,
-            patch("src.consumers.delivery.email.send_email", side_effect=send_side_effect),
-            patch(
-                "src.consumers.delivery.idempotency.finalize_key",
-                side_effect=finalize_side_effect,
-            ) as mock_finalize,
+            patch("src.consumers.delivery.notification_sender.send_notification", new_callable=AsyncMock, side_effect=send_notification_side_effect) as mock_send_notification,
         ):
-            mock_get_user.return_value = {
-                "email": "u@example.com",
-                "first_name": "A",
-                "last_name": "B",
-            }
-            mock_render.return_value = ("subject", "body")
             await _handle(_payload(), AsyncMock())
 
-        assert trace == ["reserve", "send", "finalize"]
-        await_args = mock_finalize.await_args
-        assert await_args is not None
-        assert await_args.kwargs["status"] == "SENT"
+        assert trace == ["reserve", "send"]
+        mock_send_notification.assert_called_once()
 
     async def test_marks_failed_and_sends_dlq_when_template_missing(self):
         from src.consumers.delivery import _handle

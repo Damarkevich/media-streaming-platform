@@ -39,9 +39,10 @@ class TestGetUser:
     async def test_raises_on_network_error(self):
         from src.services.auth_client import get_user
 
-        mock_client = AsyncMock()
+        mock_client = MagicMock()
+        request = httpx.Request("GET", "http://test-auth:8000/api/v1/users/internal/some-user")
         mock_client.get = AsyncMock(
-            side_effect=httpx.ConnectError("connection refused")
+            side_effect=httpx.ConnectError("connection refused", request=request)
         )
 
         with patch("src.services.auth_client.get_http_client", return_value=mock_client):
@@ -80,3 +81,21 @@ class TestGetUser:
 
         call_url = mock_client.get.call_args[0][0]
         assert user_id in call_url
+
+
+class TestGetHttpClient:
+    async def test_uses_configured_timeout(self):
+        import src.services.auth_client as auth_client_module
+
+        auth_client_module._client = None  # reset singleton for deterministic test
+        client = auth_client_module.get_http_client()
+        try:
+            from src.core.config import settings
+
+            assert client.timeout.connect == settings.auth_http_timeout_seconds
+            assert client.timeout.read == settings.auth_http_timeout_seconds
+            assert client.timeout.write == settings.auth_http_timeout_seconds
+            assert client.timeout.pool == settings.auth_http_timeout_seconds
+        finally:
+            await client.aclose()
+            auth_client_module._client = None

@@ -26,10 +26,12 @@ class Settings(BaseSettings):
     brevo_api_key: str
     brevo_sender_email: str = "noreply@movies-platform.com"
     brevo_sender_name: str = "Movies Platform"
+    brevo_timeout_seconds: float = 10.0
 
     # Auth internal
     auth_internal_url: str = "http://movies-auth:8000"
     internal_api_key: str = ""
+    auth_http_timeout_seconds: float = 15.0
 
     # Consumer retry behavior
     consumer_max_retries: int = 3

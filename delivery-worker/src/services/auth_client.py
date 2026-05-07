@@ -12,7 +12,7 @@ _client: httpx.AsyncClient | None = None
 def get_http_client() -> httpx.AsyncClient:
     global _client  # noqa: PLW0603
     if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(timeout=15.0)
+        _client = httpx.AsyncClient(timeout=settings.auth_http_timeout_seconds)
     return _client
 
 

@@ -16,7 +16,10 @@ _client: brevo.AsyncBrevo | None = None
 def get_brevo_client() -> brevo.AsyncBrevo:
     global _client  # noqa: PLW0603
     if _client is None:
-        _client = brevo.AsyncBrevo(api_key=settings.brevo_api_key)
+        _client = brevo.AsyncBrevo(
+            api_key=settings.brevo_api_key,
+            timeout=settings.brevo_timeout_seconds,
+        )
     return _client
 
 

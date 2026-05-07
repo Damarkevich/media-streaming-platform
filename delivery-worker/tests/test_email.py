@@ -1,5 +1,4 @@
 """Tests for src.services.email."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -43,6 +42,24 @@ class TestSendEmail:
 
         assert result is False
 
+    async def test_returns_false_on_brevo_timeout(self):
+        from src.services.email import send_email
+
+        mock_transactional = AsyncMock()
+        mock_transactional.send_transac_email = AsyncMock(side_effect=TimeoutError)
+        mock_client = MagicMock()
+        mock_client.transactional_emails = mock_transactional
+
+        with patch("src.services.email.get_brevo_client", return_value=mock_client):
+            result = await send_email(
+                to_email="timeout@example.com",
+                to_name="Timeout User",
+                subject="Subject",
+                html_content="<p>Body</p>",
+            )
+
+        assert result is False
+
     async def test_sends_correct_recipient(self):
         from src.services.email import send_email
 
@@ -69,4 +86,20 @@ class TestSendEmail:
         assert recipients[0].email == "alice@example.com"
         assert recipients[0].name == "Alice"
         assert captured.get("subject") == "Test"
+        assert "request_options" not in captured
+
+
+class TestGetBrevoClient:
+    def test_uses_configured_client_timeout(self):
+        import src.services.email as email_module
+
+        email_module._client = None
+        with patch("src.services.email.brevo.AsyncBrevo") as mock_brevo:
+            email_module.get_brevo_client()
+
+        mock_brevo.assert_called_once_with(
+            api_key=email_module.settings.brevo_api_key,
+            timeout=email_module.settings.brevo_timeout_seconds,
+        )
+        email_module._client = None
 

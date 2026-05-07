@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import ORJSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,7 +52,6 @@ async def get_campaign(
 @router.post("/{campaign_id}/send", status_code=status.HTTP_202_ACCEPTED)
 async def send_campaign(
     campaign_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
     _: Annotated[None, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ORJSONResponse:
@@ -61,10 +60,8 @@ async def send_campaign(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found"
         )
-    # Mark QUEUED (validates status + commits) while session is still open
+    # API only marks campaign as QUEUED; fan-out is handled by scheduler-worker.
     await svc.mark_queued(session, campaign)
-    # Fan-out runs in the background with its own session
-    background_tasks.add_task(svc.run_fanout, campaign_id)
     return ORJSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={"campaign_id": str(campaign_id), "status": "queued"},

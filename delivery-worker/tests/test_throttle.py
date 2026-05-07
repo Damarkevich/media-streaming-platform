@@ -69,3 +69,24 @@ class TestSetThrottle:
         call_args = mock_redis.set.call_args
         from src.core.config import settings
         assert call_args[1]["ex"] == settings.review_liked_throttle_ttl
+
+
+class TestCloseRedis:
+    async def test_closes_redis_when_initialized(self):
+        import src.services.throttle as throttle_module
+
+        mock_redis = MagicMock()
+        mock_redis.aclose = AsyncMock()
+        throttle_module._redis = mock_redis
+
+        await throttle_module.close_redis()
+
+        mock_redis.aclose.assert_called_once()
+        assert throttle_module._redis is None
+
+    async def test_noop_when_not_initialized(self):
+        import src.services.throttle as throttle_module
+
+        throttle_module._redis = None
+        await throttle_module.close_redis()
+        assert throttle_module._redis is None

@@ -2,6 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+import pytest
+
 
 class TestGetUser:
     async def test_returns_user_dict_on_success(self):
@@ -33,16 +36,18 @@ class TestGetUser:
 
         assert result is None
 
-    async def test_returns_none_on_network_error(self):
+    async def test_raises_on_network_error(self):
         from src.services.auth_client import get_user
 
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(side_effect=Exception("connection refused"))
+        mock_client = MagicMock()
+        request = httpx.Request("GET", "http://test-auth:8000/api/v1/users/internal/some-user")
+        mock_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("connection refused", request=request)
+        )
 
         with patch("src.services.auth_client.get_http_client", return_value=mock_client):
-            result = await get_user("some-user")
-
-        assert result is None
+            with pytest.raises(httpx.HTTPError):
+                await get_user("some-user")
 
     async def test_sends_internal_key_header(self):
         from src.services.auth_client import get_user
@@ -76,3 +81,42 @@ class TestGetUser:
 
         call_url = mock_client.get.call_args[0][0]
         assert user_id in call_url
+
+
+class TestGetHttpClient:
+    async def test_uses_configured_timeout(self):
+        import src.services.auth_client as auth_client_module
+
+        auth_client_module._client = None  # reset singleton for deterministic test
+        client = auth_client_module.get_http_client()
+        try:
+            from src.core.config import settings
+
+            assert client.timeout.connect == settings.auth_http_timeout_seconds
+            assert client.timeout.read == settings.auth_http_timeout_seconds
+            assert client.timeout.write == settings.auth_http_timeout_seconds
+            assert client.timeout.pool == settings.auth_http_timeout_seconds
+        finally:
+            await client.aclose()
+            auth_client_module._client = None
+
+
+class TestCloseHttpClient:
+    async def test_closes_client_when_initialized(self):
+        import src.services.auth_client as auth_client_module
+
+        mock_client = MagicMock()
+        mock_client.aclose = AsyncMock()
+        auth_client_module._client = mock_client
+
+        await auth_client_module.close_http_client()
+
+        mock_client.aclose.assert_called_once()
+        assert auth_client_module._client is None
+
+    async def test_noop_when_not_initialized(self):
+        import src.services.auth_client as auth_client_module
+
+        auth_client_module._client = None
+        await auth_client_module.close_http_client()
+        assert auth_client_module._client is None

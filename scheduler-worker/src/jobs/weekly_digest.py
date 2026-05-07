@@ -66,6 +66,8 @@ async def _run() -> None:
     week_tag = datetime.now(UTC).strftime("%Y-W%W")
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
+        acks="all",
+        enable_idempotence=True,
     )
     await producer.start()
     try:

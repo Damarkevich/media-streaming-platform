@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Awaitable, Callable
 
 import brevo
 from brevo.transactional_emails import (
@@ -16,8 +17,29 @@ _client: brevo.AsyncBrevo | None = None
 def get_brevo_client() -> brevo.AsyncBrevo:
     global _client  # noqa: PLW0603
     if _client is None:
-        _client = brevo.AsyncBrevo(api_key=settings.brevo_api_key)
+        _client = brevo.AsyncBrevo(
+            api_key=settings.brevo_api_key,
+            timeout=settings.brevo_timeout_seconds,
+        )
     return _client
+
+
+async def close_brevo_client() -> None:
+    """Close singleton Brevo client if it was initialized."""
+    global _client  # noqa: PLW0603
+    if _client is None:
+        return
+
+    close_fn: Callable[[], object] | None = getattr(_client, "aclose", None)
+    if close_fn is None:
+        close_fn = getattr(_client, "close", None)
+
+    if close_fn is not None:
+        maybe_awaitable = close_fn()
+        if isinstance(maybe_awaitable, Awaitable):
+            await maybe_awaitable
+
+    _client = None
 
 
 async def send_email(

@@ -163,10 +163,20 @@ class TestRun:
             patches[1],
             patches[2],
             patches[3],
-            patch("src.jobs.weekly_digest.AIOKafkaProducer", return_value=mock_producer),
+            patch(
+                "src.jobs.weekly_digest.AIOKafkaProducer",
+                return_value=mock_producer,
+            ) as mock_producer_ctor,
         ):
             await _run()
 
+        from src.core.config import settings
+
+        mock_producer_ctor.assert_called_once_with(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            acks="all",
+            enable_idempotence=True,
+        )
         assert len(sent_messages) == len(FAKE_USER_IDS)
         topics = {m["topic"] for m in sent_messages}
         assert topics == {"notifications.delivery"}

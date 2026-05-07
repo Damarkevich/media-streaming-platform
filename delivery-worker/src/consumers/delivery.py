@@ -4,22 +4,31 @@ Each message represents a pre-fanned-out delivery task:
   campaign_id, user_id, template_id, template_variables, channel, idempotency_key
 """
 
+import asyncio
 import logging
 import uuid
-from datetime import UTC, datetime
 
+import httpx
 import orjson
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.db import async_session
-from src.services import auth_client, delivery_record, email, template_renderer
+from src.services import idempotency, notification_sender
 
 logger = logging.getLogger(__name__)
 
 TOPIC = "notifications.delivery"
 DLQ_TOPIC = "notifications.delivery.dlq"
+DOMAIN_EXCEPTIONS = (KeyError, ValueError, TypeError)
+RETRYABLE_EXCEPTIONS = (
+    SQLAlchemyError,
+    httpx.HTTPError,
+    TimeoutError,
+    ConnectionError,
+)
 
 
 async def run() -> None:
@@ -39,11 +48,57 @@ async def run() -> None:
     logger.info("delivery consumer started, topic=%s", TOPIC)
     try:
         async for msg in consumer:
-            await _handle(msg.value, dlq_producer)
-            await consumer.commit()
+            should_commit = await _process_message(msg.value, dlq_producer)
+            if should_commit:
+                await consumer.commit()
     finally:
         await consumer.stop()
         await dlq_producer.stop()
+
+
+async def _process_message(payload: dict, dlq_producer: AIOKafkaProducer) -> bool:
+    max_attempts = max(1, settings.consumer_max_retries)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await _handle(payload, dlq_producer)
+        except DOMAIN_EXCEPTIONS as exc:
+            logger.warning("Dropping invalid payload to DLQ: %s", exc)
+            await _publish_dlq(
+                dlq_producer, payload, f"domain_error:{type(exc).__name__}"
+            )
+            return True
+        except RETRYABLE_EXCEPTIONS as exc:
+            if attempt == max_attempts:
+                logger.exception(
+                    "Retryable error exhausted attempts=%d, sending to DLQ",
+                    max_attempts,
+                )
+                await _publish_dlq(
+                    dlq_producer,
+                    payload,
+                    f"retry_exhausted:{type(exc).__name__}",
+                )
+                return True
+
+            delay = settings.consumer_retry_delay_seconds * attempt
+            logger.warning(
+                "Retryable error on attempt %d/%d, retry in %.2fs",
+                attempt,
+                max_attempts,
+                delay,
+                exc_info=True,
+            )
+            await asyncio.sleep(delay)
+        except Exception as exc:
+            logger.exception("Unexpected consumer error, sending to DLQ")
+            await _publish_dlq(
+                dlq_producer, payload, f"unexpected_error:{type(exc).__name__}"
+            )
+            return True
+        else:
+            return True
+
+    return True
 
 
 async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
@@ -54,16 +109,19 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
     template_variables: dict = payload.get("template_variables", {})
 
     async with async_session() as session:
-        # Idempotency: skip if already recorded
-        row = await session.execute(
-            text("SELECT id FROM notif.deliveries WHERE idempotency_key = :k"),
-            {"k": idempotency_key},
+        # Reserve idempotency key first (at-least-once safe pattern).
+        reserved = await idempotency.reserve_key(
+            campaign_id=campaign_id,
+            user_id=user_id,
+            channel="EMAIL",
+            idempotency_key=idempotency_key,
+            session=session,
         )
-        if row.first() is not None:
+        if not reserved:
             logger.debug("Skipping duplicate delivery key=%s", idempotency_key)
             return
 
-        # Fetch template
+        # Fetch template from DB
         tpl_row = await session.execute(
             text(
                 "SELECT subject_template, body_template FROM notif.templates WHERE id = :id"
@@ -73,52 +131,25 @@ async def _handle(payload: dict, dlq_producer: AIOKafkaProducer) -> None:
         tpl = tpl_row.mappings().first()
         if tpl is None:
             logger.error("Template %s not found, dropping message", template_id)
+            await idempotency.finalize_key(
+                idempotency_key=idempotency_key,
+                status="FAILED",
+                error="Template not found",
+                session=session,
+            )
             await _publish_dlq(dlq_producer, payload, "template_not_found")
             return
 
-        # Fetch user email
-        user = await auth_client.get_user(user_id)
-        if user is None:
-            logger.warning("User %s not found, dropping delivery", user_id)
-            await _publish_dlq(dlq_producer, payload, "user_not_found")
-            return
-
-        to_email: str = user["email"]
-        first_name: str = user.get("first_name") or ""
-        last_name: str = user.get("last_name") or ""
-        to_name = f"{first_name} {last_name}".strip() or to_email
-
-        # Render
-        variables = {
-            "first_name": first_name,
-            "last_name": last_name,
-            **template_variables,
-        }
-        subject, body = template_renderer.render(
-            tpl["subject_template"], tpl["body_template"], variables
-        )
-
-        # Send
-        sent_at: datetime | None = None
-        error: str | None = None
-        status = "FAILED"
-        ok = await email.send_email(to_email, to_name, subject, body)
-        if ok:
-            status = "SENT"
-            sent_at = datetime.now(UTC)
-        else:
-            error = "Brevo send_transac_email returned error"
-
-        await delivery_record.record_delivery(
-            session,
-            campaign_id=campaign_id,
+        # Send notification (user fetch, render, email send, delivery recording)
+        ok = await notification_sender.send_notification(
+            session=session,
             user_id=user_id,
-            channel="EMAIL",
+            template=tpl,
+            variables=template_variables,
             idempotency_key=idempotency_key,
-            status=status,
-            sent_at=sent_at,
-            error=error,
         )
+        if not ok:
+            await _publish_dlq(dlq_producer, payload, "send_failed")
 
 
 async def _publish_dlq(

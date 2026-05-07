@@ -27,5 +27,9 @@ class Settings(BaseSettings):
     # Fallback cron if not in DB — every Friday 09:00
     weekly_digest_cron: str = "0 9 * * 5"
 
+    # Campaign fan-out polling (processes notif.campaigns in QUEUED status)
+    campaign_fanout_poll_seconds: int = 15
+    campaign_fanout_batch_size: int = 10
+
 
 settings = Settings()

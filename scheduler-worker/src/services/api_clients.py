@@ -56,7 +56,7 @@ async def iter_user_ids(page_size: int = 500) -> AsyncIterator[str]:
             resp.raise_for_status()
         except Exception:
             logger.exception("Failed to fetch users page=%d from auth service", page)
-            break
+            raise
         data = resp.json()
         items: list[dict] = data.get("items", [])
         for item in items:

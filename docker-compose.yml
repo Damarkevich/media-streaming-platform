@@ -511,6 +511,26 @@ services:
     env_file:
       - .env
 
+  movies-billing:
+    container_name: movies-billing
+    build: ./billing
+    restart: unless-stopped
+    depends_on:
+      movies-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8010/api/health')\" || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
   movies-async-api:
     container_name: movies-async-api
     build: ./async_api
@@ -601,6 +621,8 @@ services:
         condition: service_healthy
       movies-admin:
         condition: service_started
+      movies-billing:
+        condition: service_healthy
       movies-async-api:
         condition: service_healthy
       movies-event-ingest:

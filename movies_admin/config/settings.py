@@ -27,7 +27,6 @@ INSTALLED_APPS = [
     "drf_standardized_errors",
     "movies.apps.MoviesConfig",
     "accounts.apps.AccountsConfig",
-    "billing.apps.BillingConfig",
 ]
 
 MIDDLEWARE = [
@@ -123,10 +122,6 @@ AUTH_USER_MODEL = "accounts.User"
 
 AUTH_API_LOGIN_URL = os.environ.get("AUTH_API_LOGIN_URL", "")
 
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-
 if not AUTH_API_LOGIN_URL:
     msg = "AUTH_API_LOGIN_URL environment variable is not set"
     raise ValueError(msg)
@@ -161,9 +156,6 @@ SPECTACULAR_SETTINGS = {
         "ValidationErrorEnum": "drf_standardized_errors.openapi_serializers.ValidationErrorEnum.choices",
         "ClientErrorEnum": "drf_standardized_errors.openapi_serializers.ClientErrorEnum.choices",
         "ServerErrorEnum": "drf_standardized_errors.openapi_serializers.ServerErrorEnum.choices",
-        "PaymentStatusEnum": "billing.models.PaymentStatus.choices",
-        "RefundStatusEnum": "billing.models.RefundStatus.choices",
-        "WebhookEventStatusEnum": "billing.models.WebhookEventStatus.choices",
         "ErrorCode401Enum": "drf_standardized_errors.openapi_serializers.ErrorCode401Enum.choices",
         "ErrorCode403Enum": "drf_standardized_errors.openapi_serializers.ErrorCode403Enum.choices",
         "ErrorCode404Enum": "drf_standardized_errors.openapi_serializers.ErrorCode404Enum.choices",

@@ -1,4 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor
+
+from django.db import close_old_connections
 from django.test import TestCase
+from django.test import TransactionTestCase
 
 from accounts.models import User
 from billing.models import Payment, PaymentStatus, Refund, RefundStatus, WebhookEventStatus
@@ -117,3 +121,51 @@ class WebhookServiceTests(TestCase):
         self.assertEqual(webhook_event.status, WebhookEventStatus.PROCESSED)
         self.refund.refresh_from_db()
         self.assertEqual(self.refund.status, RefundStatus.SUCCEEDED)
+
+
+class WebhookServiceConcurrencyTests(TransactionTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="webhook-concurrency-user@example.com",
+            password="secret",
+        )
+        self.payment = Payment.objects.create(
+            user=self.user,
+            operation_id="payment-webhook-concurrency-op",
+            status=PaymentStatus.PENDING,
+            amount=49900,
+            currency="rub",
+            stripe_customer_id="cus_wh_concurrency_1",
+            stripe_payment_intent_id="pi_wh_concurrency_1",
+        )
+
+    def test_concurrent_conflicting_payment_events_keep_terminal_consistency(self):
+        succeeded_event = {
+            "id": "evt_pay_concurrency_succeeded_1",
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_wh_concurrency_1"}},
+        }
+        failed_event = {
+            "id": "evt_pay_concurrency_failed_1",
+            "type": "payment_intent.payment_failed",
+            "data": {"object": {"id": "pi_wh_concurrency_1"}},
+        }
+
+        def process(event: dict, payload: bytes):
+            close_old_connections()
+            try:
+                return process_stripe_event(event=event, raw_payload=payload)
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_succeeded = executor.submit(process, succeeded_event, b"p-concurrency-1")
+            future_failed = executor.submit(process, failed_event, b"p-concurrency-2")
+            succeeded_result = future_succeeded.result()
+            failed_result = future_failed.result()
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(self.payment.status, PaymentStatus.SUCCEEDED)
+        self.assertTrue(succeeded_result[1])
+        self.assertTrue(failed_result[1])

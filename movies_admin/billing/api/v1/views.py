@@ -115,11 +115,29 @@ class StripeWebhookAPIView(APIView):
         payload = request.body
         signature = request.headers.get("Stripe-Signature", "")
 
-        event = stripe.Webhook.construct_event(
-            payload=payload,
-            sig_header=signature,
-            secret=settings.STRIPE_WEBHOOK_SECRET,
-        )
+        if not signature:
+            return Response(
+                {"detail": "Stripe-Signature header is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload=payload,
+                sig_header=signature,
+                secret=settings.STRIPE_WEBHOOK_SECRET,
+            )
+        except ValueError:
+            return Response(
+                {"detail": "Invalid Stripe webhook payload."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except stripe.error.SignatureVerificationError:
+            return Response(
+                {"detail": "Invalid Stripe signature."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         webhook_event, created = process_stripe_event(event=event, raw_payload=payload)
         return Response(
             {

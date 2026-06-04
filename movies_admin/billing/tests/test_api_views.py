@@ -1,11 +1,20 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
+import stripe
 
 from accounts.models import User
-from billing.models import Payment, PaymentStatus, Refund, RefundStatus, WebhookEvent, WebhookEventStatus
+from billing.models import (
+    BillingProfile,
+    Payment,
+    PaymentStatus,
+    Refund,
+    RefundStatus,
+    WebhookEvent,
+    WebhookEventStatus,
+)
 from billing.services.errors import BillingValidationError
 from billing.services.payments import PaymentCreateResult
 from billing.services.refunds import RefundCreateResult
@@ -242,6 +251,69 @@ class BillingApiViewsTests(TestCase):
             "Payment has no Stripe PaymentIntent ID for refund creation.",
         )
 
+    @patch("billing.api.v1.views.stripe.Webhook.construct_event")
+    @patch("billing.services.payments.stripe.PaymentIntent.create")
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    def test_payment_status_recovers_via_webhook_after_create_response_loss(
+        self,
+        payment_intent_create_mock,
+        construct_event_mock,
+    ):
+        BillingProfile.objects.create(
+            user=self.user,
+            stripe_customer_id="cus_ec3_api",
+        )
+        payment_intent_create_mock.return_value = {
+            "id": "pi_ec3_api_1",
+            "client_secret": "cs_ec3_api_1",
+        }
+
+        self.client.post(
+            reverse("billing-payment-create"),
+            {
+                "operation_id": "api-op-ec3",
+                "amount": 49900,
+                "currency": "rub",
+            },
+            format="json",
+        )
+
+        payment = Payment.objects.get(operation_id="api-op-ec3")
+
+        construct_event_mock.return_value = {
+            "id": "evt_api_ec3_1",
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_ec3_api_1"}},
+        }
+        webhook_response = self.client.post(
+            reverse("billing-stripe-webhook"),
+            data="{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="t=123,v1=ec3",
+        )
+
+        detail_response = self.client.get(
+            reverse("billing-payment-detail", kwargs={"payment_id": payment.id})
+        )
+
+        retry_response = self.client.post(
+            reverse("billing-payment-create"),
+            {
+                "operation_id": "api-op-ec3",
+                "amount": 49900,
+                "currency": "rub",
+            },
+            format="json",
+        )
+
+        self.assertEqual(webhook_response.status_code, 200)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.data["status"], PaymentStatus.SUCCEEDED)
+        self.assertEqual(retry_response.status_code, 200)
+        self.assertFalse(retry_response.data["created"])
+        self.assertEqual(retry_response.data["status"], PaymentStatus.SUCCEEDED)
+        payment_intent_create_mock.assert_called_once()
+
 
 class StripeWebhookApiViewTests(TestCase):
     def setUp(self):
@@ -277,6 +349,60 @@ class StripeWebhookApiViewTests(TestCase):
         self.assertTrue(response.data["created"])
         construct_event_mock.assert_called_once()
         process_event_mock.assert_called_once()
+
+    @patch("billing.api.v1.views.process_stripe_event")
+    @patch("billing.api.v1.views.stripe.Webhook.construct_event")
+    def test_webhook_endpoint_returns_400_for_missing_signature(
+        self, construct_event_mock, process_event_mock
+    ):
+        response = self.client.post(
+            reverse("billing-stripe-webhook"),
+            data="{}",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["detail"], "Stripe-Signature header is required.")
+        construct_event_mock.assert_not_called()
+        process_event_mock.assert_not_called()
+
+    @patch("billing.api.v1.views.process_stripe_event")
+    @patch("billing.api.v1.views.stripe.Webhook.construct_event")
+    def test_webhook_endpoint_returns_400_for_invalid_payload(
+        self, construct_event_mock, process_event_mock
+    ):
+        construct_event_mock.side_effect = ValueError("bad payload")
+
+        response = self.client.post(
+            reverse("billing-stripe-webhook"),
+            data="not-json",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="t=123,v1=abc",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["detail"], "Invalid Stripe webhook payload.")
+        process_event_mock.assert_not_called()
+
+    @patch("billing.api.v1.views.process_stripe_event")
+    @patch("billing.api.v1.views.stripe.Webhook.construct_event")
+    def test_webhook_endpoint_returns_400_for_invalid_signature(
+        self, construct_event_mock, process_event_mock
+    ):
+        construct_event_mock.side_effect = stripe.error.SignatureVerificationError(
+            "bad signature", "sig_header"
+        )
+
+        response = self.client.post(
+            reverse("billing-stripe-webhook"),
+            data="{}",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="t=123,v1=bad",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["detail"], "Invalid Stripe signature.")
+        process_event_mock.assert_not_called()
 
 
 class BillingApiViewsUnauthorizedTests(TestCase):

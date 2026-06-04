@@ -1,9 +1,10 @@
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+import stripe
 
 from accounts.models import User
-from billing.models import Payment, PaymentStatus
+from billing.models import Payment, PaymentStatus, Refund, RefundStatus
 from billing.services.errors import BillingValidationError
 from billing.services.refunds import create_refund_for_payment
 
@@ -122,3 +123,47 @@ class RefundServiceTests(TestCase):
             )
 
         refund_create_mock.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_marks_refund_failed_when_stripe_temporarily_unavailable(self, refund_create_mock):
+        refund_create_mock.side_effect = stripe.error.APIConnectionError("connection lost")
+
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-stripe-down",
+                amount=49900,
+            )
+
+        refund = Refund.objects.get(operation_id="refund-op-stripe-down")
+        self.assertEqual(refund.status, RefundStatus.FAILED)
+        self.assertIsNone(refund.stripe_refund_id)
+        self.assertIn("stripe_error", refund.metadata)
+        refund_create_mock.assert_called_once()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_retries_failed_refund_with_same_operation_id(self, refund_create_mock):
+        refund_create_mock.side_effect = [
+            stripe.error.APIConnectionError("connection lost"),
+            {"id": "re_retry_ok_1"},
+        ]
+
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-retry-after-stripe-down",
+                amount=49900,
+            )
+
+        second_result = create_refund_for_payment(
+            payment=self.payment,
+            operation_id="refund-op-retry-after-stripe-down",
+            amount=49900,
+        )
+
+        self.assertFalse(second_result.created)
+        self.assertEqual(second_result.refund.stripe_refund_id, "re_retry_ok_1")
+        self.assertEqual(second_result.refund.status, RefundStatus.PENDING)
+        self.assertEqual(refund_create_mock.call_count, 2)

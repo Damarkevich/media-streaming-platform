@@ -44,54 +44,71 @@ def create_refund_for_payment(
         msg = "Refund amount cannot exceed the original payment amount."
         raise BillingValidationError(msg)
 
+    created = False
     with transaction.atomic():
         existing_refund = (
             Refund.objects.select_for_update().filter(operation_id=operation_id).first()
         )
         if existing_refund is not None:
-            return RefundCreateResult(refund=existing_refund, created=False)
+            if existing_refund.payment_id != payment.pk:
+                msg = "Operation ID already exists for another payment."
+                raise BillingValidationError(msg)
+            if existing_refund.stripe_refund_id:
+                return RefundCreateResult(refund=existing_refund, created=False)
+            refund = existing_refund
+            locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        else:
+            created = True
+            locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
+            reserved_amount = (
+                Refund.objects.filter(
+                    payment=locked_payment,
+                    status__in=(
+                        RefundStatus.NEW,
+                        RefundStatus.PENDING,
+                        RefundStatus.SUCCEEDED,
+                    ),
+                ).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+                or 0
+            )
+            available_amount = locked_payment.amount - reserved_amount
+            if refund_amount > available_amount:
+                msg = "Refund amount exceeds available refundable amount."
+                raise BillingValidationError(msg)
 
-        locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
-        reserved_amount = (
-            Refund.objects.filter(
+            refund = Refund.objects.create(
                 payment=locked_payment,
-                status__in=(
-                    RefundStatus.NEW,
-                    RefundStatus.PENDING,
-                    RefundStatus.SUCCEEDED,
-                ),
-            ).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
-            or 0
-        )
-        available_amount = locked_payment.amount - reserved_amount
-        if refund_amount > available_amount:
-            msg = "Refund amount exceeds available refundable amount."
-            raise BillingValidationError(msg)
+                operation_id=operation_id,
+                status=RefundStatus.NEW,
+                amount=refund_amount,
+                currency=locked_payment.currency,
+                reason=reason,
+            )
 
-        refund = Refund.objects.create(
-            payment=locked_payment,
-            operation_id=operation_id,
-            status=RefundStatus.PENDING,
-            amount=refund_amount,
-            currency=locked_payment.currency,
-            reason=reason,
+    try:
+        stripe_refund = stripe.Refund.create(
+            payment_intent=locked_payment.stripe_payment_intent_id,
+            amount=refund.amount,
+            reason="requested_by_customer" if reason else None,
+            metadata={
+                "payment_id": str(payment.pk),
+                "refund_id": str(refund.pk),
+                "operation_id": operation_id,
+            },
+            idempotency_key=f"refund-create:{operation_id}",
         )
-
-    stripe_refund = stripe.Refund.create(
-        payment_intent=locked_payment.stripe_payment_intent_id,
-        amount=refund.amount,
-        reason="requested_by_customer" if reason else None,
-        metadata={
-            "payment_id": str(payment.pk),
-            "refund_id": str(refund.pk),
-            "operation_id": operation_id,
-        },
-        idempotency_key=f"refund-create:{operation_id}",
-    )
+    except stripe.error.StripeError as exc:
+        metadata = dict(refund.metadata)
+        metadata["stripe_error"] = str(exc)
+        refund.metadata = metadata
+        refund.status = RefundStatus.FAILED
+        refund.save(update_fields=["metadata", "status", "updated_at"])
+        msg = "Stripe is temporarily unavailable for refund creation. Please retry."
+        raise BillingValidationError(msg) from exc
 
     refund.stripe_refund_id = getattr(stripe_refund, "id", None) or stripe_refund.get(
         "id"
     )
     refund.status = RefundStatus.PENDING
     refund.save(update_fields=["stripe_refund_id", "status", "updated_at"])
-    return RefundCreateResult(refund=refund, created=True)
+    return RefundCreateResult(refund=refund, created=created)

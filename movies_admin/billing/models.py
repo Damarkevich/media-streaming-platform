@@ -1,5 +1,4 @@
 import uuid
-from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -64,9 +63,7 @@ class Payment(models.Model):
         choices=PaymentStatus.choices,
         default=PaymentStatus.NEW,
     )
-    amount = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00")
-    )
+    amount = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=8, default="rub")
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
     stripe_payment_intent_id = models.CharField(
@@ -99,9 +96,7 @@ class Refund(models.Model):
         choices=RefundStatus.choices,
         default=RefundStatus.NEW,
     )
-    amount = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00")
-    )
+    amount = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=8, default="rub")
     reason = models.CharField(max_length=255, blank=True)
     stripe_refund_id = models.CharField(

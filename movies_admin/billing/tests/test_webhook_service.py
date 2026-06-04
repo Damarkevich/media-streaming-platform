@@ -1,0 +1,72 @@
+from django.test import TestCase
+
+from accounts.models import User
+from billing.models import Payment, PaymentStatus, Refund, RefundStatus, WebhookEventStatus
+from billing.services.webhooks import process_stripe_event
+
+
+class WebhookServiceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="webhook-user@example.com",
+            password="secret",
+        )
+        self.payment = Payment.objects.create(
+            user=self.user,
+            operation_id="payment-webhook-op",
+            status=PaymentStatus.PENDING,
+            amount=49900,
+            currency="rub",
+            stripe_customer_id="cus_wh_1",
+            stripe_payment_intent_id="pi_wh_1",
+        )
+        self.refund = Refund.objects.create(
+            payment=self.payment,
+            operation_id="refund-webhook-op",
+            status=RefundStatus.PENDING,
+            amount=49900,
+            currency="rub",
+            stripe_refund_id="re_wh_1",
+        )
+
+    def test_marks_payment_succeeded_for_payment_intent_succeeded(self):
+        event = {
+            "id": "evt_pay_succeeded_1",
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_wh_1"}},
+        }
+
+        webhook_event, created = process_stripe_event(event=event, raw_payload=b"p1")
+
+        self.assertTrue(created)
+        self.assertEqual(webhook_event.status, WebhookEventStatus.PROCESSED)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.status, PaymentStatus.SUCCEEDED)
+
+    def test_marks_refund_succeeded_for_refund_updated(self):
+        event = {
+            "id": "evt_ref_updated_1",
+            "type": "refund.updated",
+            "data": {"object": {"id": "re_wh_1", "status": "succeeded"}},
+        }
+
+        webhook_event, created = process_stripe_event(event=event, raw_payload=b"p2")
+
+        self.assertTrue(created)
+        self.assertEqual(webhook_event.status, WebhookEventStatus.PROCESSED)
+        self.refund.refresh_from_db()
+        self.assertEqual(self.refund.status, RefundStatus.SUCCEEDED)
+
+    def test_deduplicates_event_by_stripe_event_id(self):
+        event = {
+            "id": "evt_duplicate_1",
+            "type": "payment_intent.payment_failed",
+            "data": {"object": {"id": "pi_wh_1"}},
+        }
+
+        first_event, first_created = process_stripe_event(event=event, raw_payload=b"p3")
+        second_event, second_created = process_stripe_event(event=event, raw_payload=b"p3")
+
+        self.assertTrue(first_created)
+        self.assertFalse(second_created)
+        self.assertEqual(first_event.id, second_event.id)

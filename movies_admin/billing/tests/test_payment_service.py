@@ -1,4 +1,3 @@
-from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -32,13 +31,14 @@ class PaymentServiceTests(TestCase):
         result = create_payment_intent_for_user(
             self.user,
             operation_id="op-pay-1",
-            amount=Decimal("499.00"),
+            amount=49900,
         )
 
         self.assertTrue(result.created)
         self.assertEqual(result.payment.operation_id, "op-pay-1")
         self.assertEqual(result.payment.stripe_payment_intent_id, "pi_stage3_1")
         self.assertEqual(result.client_secret, "cs_stage3_1")
+        self.assertNotIn("client_secret", result.payment.metadata)
         customer_create_mock.assert_called_once()
         payment_intent_create_mock.assert_called_once()
 
@@ -57,15 +57,18 @@ class PaymentServiceTests(TestCase):
         first_result = create_payment_intent_for_user(
             self.user,
             operation_id="op-pay-dup",
-            amount=Decimal("499.00"),
+            amount=49900,
         )
         second_result = create_payment_intent_for_user(
             self.user,
             operation_id="op-pay-dup",
-            amount=Decimal("499.00"),
+            amount=49900,
         )
 
         self.assertTrue(first_result.created)
         self.assertFalse(second_result.created)
         self.assertEqual(first_result.payment.id, second_result.payment.id)
+        self.assertEqual(first_result.client_secret, "cs_duplicate_1")
+        self.assertIsNone(second_result.client_secret)
+        self.assertNotIn("client_secret", first_result.payment.metadata)
         payment_intent_create_mock.assert_called_once()

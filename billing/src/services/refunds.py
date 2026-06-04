@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -68,8 +71,6 @@ async def _get_or_create_refund(
         if existing_refund.payment_id != payment.id:
             msg = "Operation ID already exists for another payment."
             raise BillingValidationError(msg)
-        if existing_refund.stripe_refund_id:
-            return RefundCreateResult(refund=existing_refund, created=False)
         return RefundCreateResult(refund=existing_refund, created=False)
 
     reserved_amount = await session.scalar(
@@ -172,6 +173,15 @@ async def create_refund_for_payment(
         if draft.refund.stripe_refund_id:
             return RefundCreateResult(refund=draft.refund, created=False)
 
+    logger.info(
+        "Creating Stripe Refund",
+        extra={
+            "operation_id": operation_id,
+            "payment_id": str(payment_id),
+            "refund_id": str(draft.refund.id),
+            "amount": draft.refund.amount,
+        },
+    )
     try:
         stripe_refund = stripe.Refund.create(
             payment_intent=payment.stripe_payment_intent_id,
@@ -181,12 +191,25 @@ async def create_refund_for_payment(
             idempotency_key=f"refund-create:{operation_id}",
         )
     except stripe.error.StripeError as exc:
+        logger.error(
+            "Stripe refund creation failed",
+            extra={"operation_id": operation_id, "refund_id": str(draft.refund.id)},
+            exc_info=True,
+        )
         await _mark_refund_failed(session, refund_id=draft.refund.id, exc=exc)
         msg = "Stripe is temporarily unavailable for refund creation. Please retry."
         raise BillingValidationError(msg) from exc
 
     stripe_refund_id = (
         stripe_refund.get("id") if isinstance(stripe_refund, dict) else stripe_refund.id
+    )
+    logger.info(
+        "Stripe Refund created, pending webhook confirmation",
+        extra={
+            "operation_id": operation_id,
+            "refund_id": str(draft.refund.id),
+            "stripe_refund_id": stripe_refund_id,
+        },
     )
     return await _finalize_refund_pending(
         session,

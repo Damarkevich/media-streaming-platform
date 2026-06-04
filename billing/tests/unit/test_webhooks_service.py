@@ -124,3 +124,24 @@ async def test_process_unknown_event_is_ignored():
     assert result.created is True
     assert result.webhook_event.status == WebhookEventStatus.IGNORED.value
     assert result.webhook_event.error_message == "Unsupported Stripe event type."
+
+
+# EC-6: payment_intent.payment_failed on PENDING payment → FAILED
+@pytest.mark.asyncio
+async def test_process_payment_failed_updates_pending_payment_to_failed():
+    payment = SimpleNamespace(status=PaymentStatus.PENDING.value)
+    session = FakeSession([None, payment])
+
+    result = await process_stripe_event(
+        session,
+        event={
+            "id": "evt_6",
+            "type": "payment_intent.payment_failed",
+            "data": {"object": {"id": "pi_6"}},
+        },
+        raw_payload=b'{"ok":1}',
+    )
+
+    assert result.created is True
+    assert payment.status == PaymentStatus.FAILED.value
+    assert result.webhook_event.status == WebhookEventStatus.PROCESSED.value

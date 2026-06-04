@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -18,6 +19,8 @@ from src.models.billing import (
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -142,6 +145,10 @@ async def process_stripe_event(
             .with_for_update(of=WebhookEvent)
         )
         if existing is not None:
+            logger.info(
+                "Duplicate webhook event, skipping",
+                extra={"stripe_event_id": event_id, "event_type": event_type},
+            )
             return WebhookProcessResult(webhook_event=existing, created=False)
 
         webhook_event = WebhookEvent(
@@ -154,6 +161,10 @@ async def process_stripe_event(
         session.add(webhook_event)
         await session.flush()
 
+        logger.info(
+            "Processing Stripe webhook event",
+            extra={"stripe_event_id": event_id, "event_type": event_type},
+        )
         obj = _extract_object(event)
 
         if event_type in {"payment_intent.succeeded", "payment_intent.payment_failed"}:
@@ -173,6 +184,10 @@ async def process_stripe_event(
             )
 
         else:
+            logger.warning(
+                "Unsupported Stripe event type, ignoring",
+                extra={"stripe_event_id": event_id, "event_type": event_type},
+            )
             _mark_ignored(webhook_event, "Unsupported Stripe event type.")
 
         webhook_event.processed_at = datetime.now(tz=UTC)

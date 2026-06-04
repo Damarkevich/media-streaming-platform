@@ -87,6 +87,7 @@ async def test_create_payment_returns_existing_intent_without_stripe_call(monkey
     user_id = uuid4()
     profile = SimpleNamespace(stripe_customer_id="cus_2")
     existing_payment = SimpleNamespace(
+        id=uuid4(),
         user_id=user_id,
         operation_id="op-3",
         amount=29900,

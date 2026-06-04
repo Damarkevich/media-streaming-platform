@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 async def create_or_get_customer_for_user(
@@ -40,8 +43,10 @@ async def create_or_get_customer_for_user(
         raise RuntimeError(msg)
 
     if profile.stripe_customer_id:
+        logger.debug("Billing profile resolved", extra={"user_id": str(user_id)})
         return profile, False
 
+    logger.info("Creating Stripe customer", extra={"user_id": str(user_id)})
     idempotency_key = f"customer-create:{user_id}:{operation_id or uuid4()}"
     customer = stripe.Customer.create(
         metadata={"user_id": str(user_id)},
@@ -53,6 +58,10 @@ async def create_or_get_customer_for_user(
         msg = "Stripe did not return customer id"
         raise RuntimeError(msg)
 
+    logger.info(
+        "Stripe customer created",
+        extra={"user_id": str(user_id), "stripe_customer_id": customer_id},
+    )
     profile.stripe_customer_id = customer_id
     await session.flush()
     return profile, True

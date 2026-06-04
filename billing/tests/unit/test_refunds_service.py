@@ -132,3 +132,73 @@ async def test_create_refund_handles_stripe_error_and_marks_failed(monkeypatch):
 
     assert new_refund.status == RefundStatus.FAILED.value
     assert "stripe_error" in new_refund.metadata_json
+
+
+# EC-7: Partial refund (amount < payment.amount) succeeds
+@pytest.mark.asyncio
+async def test_create_partial_refund_uses_specified_amount(monkeypatch):
+    payment_id = uuid4()
+    payment = SimpleNamespace(
+        id=payment_id,
+        user_id=uuid4(),
+        status=PaymentStatus.SUCCEEDED.value,
+        amount=500,
+        currency="rub",
+        stripe_payment_intent_id="pi_partial",
+    )
+    locked_refund = SimpleNamespace(
+        id=uuid4(),
+        payment_id=payment_id,
+        operation_id="r-partial",
+        status=None,
+        amount=200,
+        currency="rub",
+        reason="",
+        stripe_refund_id=None,
+    )
+    session = FakeSession([payment, None, 0, locked_refund])
+
+    monkeypatch.setattr("src.services.refunds.configure_stripe_client", lambda: "sk_test")
+    monkeypatch.setattr(
+        "src.services.refunds.stripe.Refund.create",
+        lambda **kwargs: {"id": "re_partial"},
+    )
+
+    result = await create_refund_for_payment(
+        session,
+        user_id=payment.user_id,
+        payment_id=payment.id,
+        operation_id="r-partial",
+        amount=200,
+    )
+
+    assert result.created is True
+    assert locked_refund.stripe_refund_id == "re_partial"
+    assert locked_refund.status == RefundStatus.PENDING.value
+
+
+# EC-11: Refund exceeds available refundable amount
+@pytest.mark.asyncio
+async def test_create_refund_raises_when_amount_exceeds_available(monkeypatch):
+    payment_id = uuid4()
+    payment = SimpleNamespace(
+        id=payment_id,
+        user_id=uuid4(),
+        status=PaymentStatus.SUCCEEDED.value,
+        amount=500,
+        currency="rub",
+        stripe_payment_intent_id="pi_over",
+    )
+    # All 500 already reserved by prior refunds
+    session = FakeSession([payment, None, 500])
+
+    monkeypatch.setattr("src.services.refunds.configure_stripe_client", lambda: "sk_test")
+
+    with pytest.raises(BillingValidationError, match="exceeds available refundable amount"):
+        await create_refund_for_payment(
+            session,
+            user_id=payment.user_id,
+            payment_id=payment.id,
+            operation_id="r-over",
+            amount=100,
+        )

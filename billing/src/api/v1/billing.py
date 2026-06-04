@@ -126,7 +126,7 @@ async def create_refund(
 async def stripe_webhook(
     request: Request,
     stripe_signature: StripeSignatureHeader = None,
-    session: SessionDep = None,
+    session: SessionDep = None,  # type: ignore[assignment]
 ) -> WebhookResponse:
     if not stripe_signature:
         raise HTTPException(

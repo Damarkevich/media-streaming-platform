@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -74,10 +77,22 @@ async def create_payment_intent_for_user(
             raise BillingValidationError(msg)
 
         if payment.stripe_payment_intent_id:
+            logger.info(
+                "Payment already has PaymentIntent, returning idempotent result",
+                extra={"operation_id": operation_id, "payment_id": str(payment.id)},
+            )
             return PaymentCreateResult(
                 payment=payment, created=False, client_secret=None
             )
 
+        logger.info(
+            "Creating Stripe PaymentIntent",
+            extra={
+                "operation_id": operation_id,
+                "user_id": str(user_id),
+                "amount": amount,
+            },
+        )
         payment_intent = stripe.PaymentIntent.create(
             amount=payment.amount,
             currency=payment.currency,
@@ -99,6 +114,14 @@ async def create_payment_intent_for_user(
             payment_intent.get("client_secret")
             if isinstance(payment_intent, dict)
             else payment_intent.client_secret
+        )
+        logger.info(
+            "PaymentIntent created",
+            extra={
+                "operation_id": operation_id,
+                "payment_id": str(payment.id),
+                "stripe_payment_intent_id": payment.stripe_payment_intent_id,
+            },
         )
         return PaymentCreateResult(
             payment=payment,

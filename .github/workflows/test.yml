@@ -17,6 +17,7 @@ jobs:
         service:
           - async_api
           - auth
+          - billing
           - event_ingest
           - ugc
 
@@ -52,3 +53,43 @@ jobs:
         run: |
           uv run coverage run -m pytest -v
           uv run coverage report
+
+  test-movies-admin:
+    name: Test movies_admin on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13', '3.14']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "movies_admin/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: movies_admin
+        run: |
+          uv sync
+
+      - name: Run billing admin tests
+        working-directory: movies_admin
+        env:
+          AUTH_API_LOGIN_URL: http://movies-auth:8000/api/v1/auth/api-login
+          POSTGRES_DB: movies_database
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_password
+          BILLING_POSTGRES_PASSWORD: test_password
+        run: |
+          uv run python manage.py test billing.tests.test_admin_refunds -v 2

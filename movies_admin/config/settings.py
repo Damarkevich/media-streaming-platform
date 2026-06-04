@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "drf_standardized_errors",
     "movies.apps.MoviesConfig",
     "accounts.apps.AccountsConfig",
+    "billing.apps.BillingConfig",
 ]
 
 MIDDLEWARE = [
@@ -56,8 +57,27 @@ DATABASES = {
         "HOST": os.getenv("SQL_HOST", "127.0.0.1"),
         "PORT": os.getenv("SQL_PORT", 5432),  # noqa: PLW1508
         "OPTIONS": db_options,
-    }
+    },
+    # Read-only connection to the billing service database (unmanaged models).
+    "billing": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv(
+            "BILLING_POSTGRES_DB", os.getenv("POSTGRES_DB", "movies_database")
+        ),
+        "USER": os.getenv("BILLING_POSTGRES_USER", os.getenv("POSTGRES_USER")),
+        "PASSWORD": os.getenv(
+            "BILLING_POSTGRES_PASSWORD", os.getenv("POSTGRES_PASSWORD")
+        ),
+        "HOST": os.getenv("BILLING_SQL_HOST", os.getenv("SQL_HOST", "127.0.0.1")),
+        "PORT": os.getenv("BILLING_SQL_PORT", os.getenv("SQL_PORT", 5432)),  # noqa: PLW1508
+        "OPTIONS": {"options": "-c search_path=billing,public"},
+    },
 }
+
+DATABASE_ROUTERS = ["billing.routers.BillingRouter"]
+
+# URL of the internal billing FastAPI service (used for admin refund actions).
+BILLING_SERVICE_URL = os.getenv("BILLING_SERVICE_URL", "http://movies-billing:8010")
 
 
 def _ensure_content_schema_for_tests(sender, connection, **kwargs):  # noqa: ARG001

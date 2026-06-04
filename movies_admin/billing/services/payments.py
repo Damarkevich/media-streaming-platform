@@ -7,6 +7,7 @@ from django.db import transaction
 
 from billing.models import Payment, PaymentStatus
 from billing.services.customers import create_or_get_customer_for_user
+from billing.services.errors import BillingValidationError
 from billing.services.stripe_client import configure_stripe_client
 
 
@@ -24,6 +25,10 @@ def create_payment_intent_for_user(
     amount: int,
     currency: str = "rub",
 ) -> PaymentCreateResult:
+    if amount < 1:
+        msg = "Amount must be greater than zero in minor units."
+        raise BillingValidationError(msg)
+
     profile, _ = create_or_get_customer_for_user(user, operation_id=operation_id)
     configure_stripe_client()
 

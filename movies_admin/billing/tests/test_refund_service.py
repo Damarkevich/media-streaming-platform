@@ -4,6 +4,7 @@ from django.test import TestCase, override_settings
 
 from accounts.models import User
 from billing.models import Payment, PaymentStatus
+from billing.services.errors import BillingValidationError
 from billing.services.refunds import create_refund_for_payment
 
 
@@ -59,3 +60,15 @@ class RefundServiceTests(TestCase):
         self.assertFalse(second.created)
         self.assertEqual(first.refund.id, second.refund.id)
         refund_create_mock.assert_called_once()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_raises_validation_error_when_refund_exceeds_payment(self, refund_create_mock):
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-too-large",
+                amount=60000,
+            )
+
+        refund_create_mock.assert_not_called()

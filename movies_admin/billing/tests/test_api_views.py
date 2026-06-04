@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from billing.models import Payment, PaymentStatus, Refund, RefundStatus, WebhookEvent, WebhookEventStatus
+from billing.services.errors import BillingValidationError
 from billing.services.payments import PaymentCreateResult
 from billing.services.refunds import RefundCreateResult
 
@@ -126,6 +127,29 @@ class BillingApiViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
         refund_create_mock.assert_not_called()
+
+    @patch("billing.api.v1.views.create_refund_for_payment")
+    def test_refund_create_endpoint_returns_400_for_invalid_amount(self, refund_create_mock):
+        refund_create_mock.side_effect = BillingValidationError(
+            "Refund amount cannot exceed the original payment amount."
+        )
+
+        response = self.client.post(
+            reverse("billing-refund-create"),
+            {
+                "payment_id": str(self.payment.id),
+                "operation_id": "api-refund-op-too-large",
+                "amount": 99999,
+                "reason": "user request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Refund amount cannot exceed the original payment amount.",
+        )
 
 
 class StripeWebhookApiViewTests(TestCase):

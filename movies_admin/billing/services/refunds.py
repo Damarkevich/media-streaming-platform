@@ -6,6 +6,7 @@ import stripe
 from django.db import transaction
 
 from billing.models import Payment, Refund, RefundStatus
+from billing.services.errors import BillingValidationError
 from billing.services.stripe_client import configure_stripe_client
 
 
@@ -24,7 +25,14 @@ def create_refund_for_payment(
 ) -> RefundCreateResult:
     configure_stripe_client()
 
+    if amount is not None and amount < 1:
+        msg = "Refund amount must be greater than zero in minor units."
+        raise BillingValidationError(msg)
+
     refund_amount = amount or payment.amount
+    if refund_amount > payment.amount:
+        msg = "Refund amount cannot exceed the original payment amount."
+        raise BillingValidationError(msg)
 
     with transaction.atomic():
         refund, created = Refund.objects.get_or_create(

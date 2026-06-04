@@ -4,6 +4,7 @@ from django.test import TestCase, override_settings
 
 from accounts.models import User
 from billing.models import BillingProfile
+from billing.services.errors import BillingValidationError
 from billing.services.payments import create_payment_intent_for_user
 
 
@@ -72,3 +73,15 @@ class PaymentServiceTests(TestCase):
         self.assertIsNone(second_result.client_secret)
         self.assertNotIn("client_secret", first_result.payment.metadata)
         payment_intent_create_mock.assert_called_once()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.payments.stripe.PaymentIntent.create")
+    def test_raises_validation_error_for_non_positive_amount(self, payment_intent_create_mock):
+        with self.assertRaises(BillingValidationError):
+            create_payment_intent_for_user(
+                self.user,
+                operation_id="op-pay-invalid",
+                amount=0,
+            )
+
+        payment_intent_create_mock.assert_not_called()

@@ -10,6 +10,7 @@ from billing.api.v1.serializers import (
     StripeWebhookResponseSerializer,
 )
 from billing.models import Payment
+from billing.services.errors import BillingValidationError
 from billing.services.payments import create_payment_intent_for_user
 from billing.services.refunds import create_refund_for_payment
 from billing.services.webhooks import process_stripe_event
@@ -34,12 +35,15 @@ class BillingPaymentCreateAPIView(APIView):
     def post(self, request):
         serializer = PaymentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = create_payment_intent_for_user(
-            request.user,
-            operation_id=serializer.validated_data["operation_id"],
-            amount=serializer.validated_data["amount"],
-            currency=serializer.validated_data["currency"],
-        )
+        try:
+            result = create_payment_intent_for_user(
+                request.user,
+                operation_id=serializer.validated_data["operation_id"],
+                amount=serializer.validated_data["amount"],
+                currency=serializer.validated_data["currency"],
+            )
+        except BillingValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         payload = PaymentSerializer(result.payment).data
         payload["client_secret"] = result.client_secret
         payload["created"] = result.created
@@ -75,12 +79,15 @@ class BillingRefundCreateAPIView(APIView):
             pk=serializer.validated_data["payment_id"],
             user=request.user,
         )
-        result = create_refund_for_payment(
-            payment=payment,
-            operation_id=serializer.validated_data["operation_id"],
-            amount=serializer.validated_data.get("amount"),
-            reason=serializer.validated_data.get("reason", ""),
-        )
+        try:
+            result = create_refund_for_payment(
+                payment=payment,
+                operation_id=serializer.validated_data["operation_id"],
+                amount=serializer.validated_data.get("amount"),
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except BillingValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         payload = RefundSerializer(result.refund).data
         payload["created"] = result.created
         return Response(payload, status=status.HTTP_200_OK)

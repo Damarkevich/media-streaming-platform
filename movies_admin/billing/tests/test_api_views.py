@@ -196,6 +196,52 @@ class BillingApiViewsTests(TestCase):
             "Refund amount exceeds available refundable amount.",
         )
 
+    @patch("billing.api.v1.views.create_refund_for_payment")
+    def test_refund_create_endpoint_returns_400_when_payment_not_succeeded(self, refund_create_mock):
+        refund_create_mock.side_effect = BillingValidationError(
+            "Refund can be created only for succeeded payments."
+        )
+
+        response = self.client.post(
+            reverse("billing-refund-create"),
+            {
+                "payment_id": str(self.payment.id),
+                "operation_id": "api-refund-op-not-succeeded",
+                "amount": 10000,
+                "reason": "user request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Refund can be created only for succeeded payments.",
+        )
+
+    @patch("billing.api.v1.views.create_refund_for_payment")
+    def test_refund_create_endpoint_returns_400_when_payment_has_no_intent(self, refund_create_mock):
+        refund_create_mock.side_effect = BillingValidationError(
+            "Payment has no Stripe PaymentIntent ID for refund creation."
+        )
+
+        response = self.client.post(
+            reverse("billing-refund-create"),
+            {
+                "payment_id": str(self.payment.id),
+                "operation_id": "api-refund-op-no-intent",
+                "amount": 10000,
+                "reason": "user request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Payment has no Stripe PaymentIntent ID for refund creation.",
+        )
+
 
 class StripeWebhookApiViewTests(TestCase):
     def setUp(self):

@@ -70,3 +70,50 @@ class WebhookServiceTests(TestCase):
         self.assertTrue(first_created)
         self.assertFalse(second_created)
         self.assertEqual(first_event.id, second_event.id)
+
+    def test_marks_unknown_event_type_as_ignored(self):
+        event = {
+            "id": "evt_unknown_1",
+            "type": "customer.created",
+            "data": {"object": {"id": "cus_1"}},
+        }
+
+        webhook_event, created = process_stripe_event(event=event, raw_payload=b"p4")
+
+        self.assertTrue(created)
+        self.assertEqual(webhook_event.status, WebhookEventStatus.IGNORED)
+        self.assertEqual(webhook_event.error_message, "Unsupported Stripe event type.")
+
+    def test_does_not_downgrade_payment_from_succeeded_to_failed(self):
+        self.payment.status = PaymentStatus.SUCCEEDED
+        self.payment.save(update_fields=["status"])
+
+        event = {
+            "id": "evt_pay_failed_after_success_1",
+            "type": "payment_intent.payment_failed",
+            "data": {"object": {"id": "pi_wh_1"}},
+        }
+
+        webhook_event, created = process_stripe_event(event=event, raw_payload=b"p5")
+
+        self.assertTrue(created)
+        self.assertEqual(webhook_event.status, WebhookEventStatus.PROCESSED)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.status, PaymentStatus.SUCCEEDED)
+
+    def test_does_not_downgrade_refund_from_succeeded_to_failed(self):
+        self.refund.status = RefundStatus.SUCCEEDED
+        self.refund.save(update_fields=["status"])
+
+        event = {
+            "id": "evt_ref_failed_after_success_1",
+            "type": "refund.updated",
+            "data": {"object": {"id": "re_wh_1", "status": "failed"}},
+        }
+
+        webhook_event, created = process_stripe_event(event=event, raw_payload=b"p6")
+
+        self.assertTrue(created)
+        self.assertEqual(webhook_event.status, WebhookEventStatus.PROCESSED)
+        self.refund.refresh_from_db()
+        self.assertEqual(self.refund.status, RefundStatus.SUCCEEDED)

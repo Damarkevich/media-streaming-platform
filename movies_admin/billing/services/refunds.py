@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 
-from billing.models import Payment, Refund, RefundStatus
+from billing.models import Payment, PaymentStatus, Refund, RefundStatus
 from billing.services.errors import BillingValidationError
 from billing.services.stripe_client import configure_stripe_client
 
@@ -26,6 +26,14 @@ def create_refund_for_payment(
     reason: str = "",
 ) -> RefundCreateResult:
     configure_stripe_client()
+
+    if payment.status != PaymentStatus.SUCCEEDED:
+        msg = "Refund can be created only for succeeded payments."
+        raise BillingValidationError(msg)
+
+    if not payment.stripe_payment_intent_id:
+        msg = "Payment has no Stripe PaymentIntent ID for refund creation."
+        raise BillingValidationError(msg)
 
     if amount is not None and amount < 1:
         msg = "Refund amount must be greater than zero in minor units."

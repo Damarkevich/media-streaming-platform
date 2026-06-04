@@ -92,3 +92,33 @@ class RefundServiceTests(TestCase):
             )
 
         self.assertEqual(refund_create_mock.call_count, 1)
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_raises_validation_error_when_payment_not_succeeded(self, refund_create_mock):
+        self.payment.status = PaymentStatus.PENDING
+        self.payment.save(update_fields=["status"])
+
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-not-succeeded",
+                amount=10000,
+            )
+
+        refund_create_mock.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_raises_validation_error_when_payment_has_no_intent_id(self, refund_create_mock):
+        self.payment.stripe_payment_intent_id = None
+        self.payment.save(update_fields=["stripe_payment_intent_id"])
+
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-no-intent",
+                amount=10000,
+            )
+
+        refund_create_mock.assert_not_called()

@@ -32,6 +32,7 @@ def create_payment_intent_for_user(
     profile, _ = create_or_get_customer_for_user(user, operation_id=operation_id)
     configure_stripe_client()
 
+    should_create_intent = False
     with transaction.atomic():
         payment, created = Payment.objects.get_or_create(
             operation_id=operation_id,
@@ -43,17 +44,37 @@ def create_payment_intent_for_user(
                 "stripe_customer_id": profile.stripe_customer_id,
             },
         )
-        if not created:
-            return PaymentCreateResult(
-                payment=payment,
-                created=False,
-                client_secret=None,
-            )
+        if created:
+            should_create_intent = True
+        else:
+            if payment.user.pk != user.pk:
+                msg = "Operation ID already exists for another user."
+                raise BillingValidationError(msg)
+            if payment.amount != amount or payment.currency != currency:
+                msg = "Operation ID already exists with different amount or currency."
+                raise BillingValidationError(msg)
+            if payment.stripe_payment_intent_id:
+                return PaymentCreateResult(
+                    payment=payment,
+                    created=False,
+                    client_secret=None,
+                )
+            should_create_intent = True
+
+    if not should_create_intent:
+        return PaymentCreateResult(
+            payment=payment,
+            created=False,
+            client_secret=None,
+        )
+
+    payment_amount = payment.amount
+    payment_currency = payment.currency
 
     idempotency_key = f"payment-create:{operation_id}"
     payment_intent = stripe.PaymentIntent.create(
-        amount=amount,
-        currency=currency,
+        amount=payment_amount,
+        currency=payment_currency,
         customer=profile.stripe_customer_id,
         metadata={"user_id": str(user.pk), "payment_id": str(payment.pk)},
         automatic_payment_methods={"enabled": True},
@@ -72,6 +93,6 @@ def create_payment_intent_for_user(
 
     return PaymentCreateResult(
         payment=payment,
-        created=True,
+        created=created,
         client_secret=client_secret,
     )

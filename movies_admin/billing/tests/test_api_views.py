@@ -68,6 +68,28 @@ class BillingApiViewsTests(TestCase):
         self.assertTrue(response.data["created"])
         payment_create_mock.assert_called_once()
 
+    @patch("billing.api.v1.views.create_payment_intent_for_user")
+    def test_payment_create_endpoint_returns_400_for_invalid_operation(self, payment_create_mock):
+        payment_create_mock.side_effect = BillingValidationError(
+            "Operation ID already exists with different amount or currency."
+        )
+
+        response = self.client.post(
+            reverse("billing-payment-create"),
+            {
+                "operation_id": "api-op-conflict",
+                "amount": 39900,
+                "currency": "rub",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Operation ID already exists with different amount or currency.",
+        )
+
     def test_payment_detail_endpoint(self):
         response = self.client.get(
             reverse("billing-payment-detail", kwargs={"payment_id": self.payment.id})
@@ -149,6 +171,29 @@ class BillingApiViewsTests(TestCase):
         self.assertEqual(
             response.data["detail"],
             "Refund amount cannot exceed the original payment amount.",
+        )
+
+    @patch("billing.api.v1.views.create_refund_for_payment")
+    def test_refund_create_endpoint_returns_400_for_cumulative_overflow(self, refund_create_mock):
+        refund_create_mock.side_effect = BillingValidationError(
+            "Refund amount exceeds available refundable amount."
+        )
+
+        response = self.client.post(
+            reverse("billing-refund-create"),
+            {
+                "payment_id": str(self.payment.id),
+                "operation_id": "api-refund-op-cumulative-too-large",
+                "amount": 25000,
+                "reason": "user request",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "Refund amount exceeds available refundable amount.",
         )
 
 

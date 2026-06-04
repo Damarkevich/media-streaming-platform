@@ -72,3 +72,23 @@ class RefundServiceTests(TestCase):
             )
 
         refund_create_mock.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.refunds.stripe.Refund.create")
+    def test_raises_validation_error_when_cumulative_refunds_exceed_payment(self, refund_create_mock):
+        refund_create_mock.return_value = {"id": "re_first_ok_1"}
+
+        create_refund_for_payment(
+            payment=self.payment,
+            operation_id="refund-op-first",
+            amount=30000,
+        )
+
+        with self.assertRaises(BillingValidationError):
+            create_refund_for_payment(
+                payment=self.payment,
+                operation_id="refund-op-second-too-large",
+                amount=25000,
+            )
+
+        self.assertEqual(refund_create_mock.call_count, 1)

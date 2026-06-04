@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import stripe
 from django.db import transaction
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
 from billing.models import Payment, Refund, RefundStatus
 from billing.services.errors import BillingValidationError
@@ -35,21 +37,40 @@ def create_refund_for_payment(
         raise BillingValidationError(msg)
 
     with transaction.atomic():
-        refund, created = Refund.objects.get_or_create(
-            operation_id=operation_id,
-            defaults={
-                "payment": payment,
-                "status": RefundStatus.PENDING,
-                "amount": refund_amount,
-                "currency": payment.currency,
-                "reason": reason,
-            },
+        existing_refund = (
+            Refund.objects.select_for_update().filter(operation_id=operation_id).first()
         )
-        if not created:
-            return RefundCreateResult(refund=refund, created=False)
+        if existing_refund is not None:
+            return RefundCreateResult(refund=existing_refund, created=False)
+
+        locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        reserved_amount = (
+            Refund.objects.filter(
+                payment=locked_payment,
+                status__in=(
+                    RefundStatus.NEW,
+                    RefundStatus.PENDING,
+                    RefundStatus.SUCCEEDED,
+                ),
+            ).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+            or 0
+        )
+        available_amount = locked_payment.amount - reserved_amount
+        if refund_amount > available_amount:
+            msg = "Refund amount exceeds available refundable amount."
+            raise BillingValidationError(msg)
+
+        refund = Refund.objects.create(
+            payment=locked_payment,
+            operation_id=operation_id,
+            status=RefundStatus.PENDING,
+            amount=refund_amount,
+            currency=locked_payment.currency,
+            reason=reason,
+        )
 
     stripe_refund = stripe.Refund.create(
-        payment_intent=payment.stripe_payment_intent_id,
+        payment_intent=locked_payment.stripe_payment_intent_id,
         amount=refund.amount,
         reason="requested_by_customer" if reason else None,
         metadata={

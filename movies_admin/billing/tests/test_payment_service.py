@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from accounts.models import User
-from billing.models import BillingProfile
+from billing.models import BillingProfile, Payment, PaymentStatus
 from billing.services.errors import BillingValidationError
 from billing.services.payments import create_payment_intent_for_user
 
@@ -85,3 +85,66 @@ class PaymentServiceTests(TestCase):
             )
 
         payment_intent_create_mock.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.payments.stripe.PaymentIntent.create")
+    def test_raises_validation_error_for_duplicate_operation_with_different_amount(
+        self, payment_intent_create_mock
+    ):
+        BillingProfile.objects.create(
+            user=self.user,
+            stripe_customer_id="cus_existing_diff_amount",
+        )
+        Payment.objects.create(
+            user=self.user,
+            operation_id="op-pay-conflict",
+            status=PaymentStatus.PENDING,
+            amount=49900,
+            currency="rub",
+            stripe_customer_id="cus_existing_diff_amount",
+            stripe_payment_intent_id="pi_existing_conflict",
+        )
+
+        with self.assertRaises(BillingValidationError):
+            create_payment_intent_for_user(
+                self.user,
+                operation_id="op-pay-conflict",
+                amount=39900,
+            )
+
+        payment_intent_create_mock.assert_not_called()
+
+    @override_settings(STRIPE_SECRET_KEY="sk_test_123")
+    @patch("billing.services.payments.stripe.PaymentIntent.create")
+    def test_recovers_duplicate_operation_without_stripe_payment_intent(
+        self, payment_intent_create_mock
+    ):
+        BillingProfile.objects.create(
+            user=self.user,
+            stripe_customer_id="cus_existing_recovery",
+        )
+        payment = Payment.objects.create(
+            user=self.user,
+            operation_id="op-pay-recover",
+            status=PaymentStatus.PENDING,
+            amount=49900,
+            currency="rub",
+            stripe_customer_id="cus_existing_recovery",
+            stripe_payment_intent_id=None,
+        )
+        payment_intent_create_mock.return_value = {
+            "id": "pi_recovered_1",
+            "client_secret": "cs_recovered_1",
+        }
+
+        result = create_payment_intent_for_user(
+            self.user,
+            operation_id="op-pay-recover",
+            amount=49900,
+        )
+
+        self.assertFalse(result.created)
+        self.assertEqual(result.client_secret, "cs_recovered_1")
+        payment.refresh_from_db()
+        self.assertEqual(payment.stripe_payment_intent_id, "pi_recovered_1")
+        payment_intent_create_mock.assert_called_once()

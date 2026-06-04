@@ -15,4 +15,5 @@ dependencies = [
     "httpx>=0.28.1",
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
+    "stripe>=15.2.0",
 ]

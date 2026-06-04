@@ -1,6 +1,8 @@
 import os
+import sys
 from pathlib import Path
 
+from django.db.backends.signals import connection_created
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,6 +27,7 @@ INSTALLED_APPS = [
     "drf_standardized_errors",
     "movies.apps.MoviesConfig",
     "accounts.apps.AccountsConfig",
+    "billing.apps.BillingConfig",
 ]
 
 MIDDLEWARE = [
@@ -40,6 +43,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+db_options: dict[str, str] = {}
+sql_options = os.getenv("SQL_OPTIONS")
+if sql_options:
+    db_options["options"] = sql_options
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -48,9 +56,23 @@ DATABASES = {
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
         "HOST": os.getenv("SQL_HOST", "127.0.0.1"),
         "PORT": os.getenv("SQL_PORT", 5432),  # noqa: PLW1508
-        "OPTIONS": {"options": os.getenv("SQL_OPTIONS")},
+        "OPTIONS": db_options,
     }
 }
+
+
+def _ensure_content_schema_for_tests(sender, connection, **kwargs):  # noqa: ARG001
+    if connection.vendor != "postgresql":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute('CREATE SCHEMA IF NOT EXISTS "content";')
+
+
+if "test" in sys.argv:
+    connection_created.connect(
+        _ensure_content_schema_for_tests,
+        dispatch_uid="movies_admin.ensure_content_schema_for_tests",
+    )
 
 TEMPLATES = [
     {
@@ -100,6 +122,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
 AUTH_API_LOGIN_URL = os.environ.get("AUTH_API_LOGIN_URL", "")
+
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
 if not AUTH_API_LOGIN_URL:
     msg = "AUTH_API_LOGIN_URL environment variable is not set"

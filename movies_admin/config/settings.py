@@ -83,6 +83,8 @@ BILLING_SERVICE_URL = os.getenv("BILLING_SERVICE_URL", "http://movies-billing:80
 def _ensure_content_schema_for_tests(sender, connection, **kwargs):  # noqa: ARG001
     if connection.vendor != "postgresql":
         return
+    if connection.alias != "default":
+        return
     with connection.cursor() as cursor:
         cursor.execute('CREATE SCHEMA IF NOT EXISTS "content";')
 

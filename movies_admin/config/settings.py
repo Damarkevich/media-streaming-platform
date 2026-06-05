@@ -1,6 +1,8 @@
 import os
+import sys
 from pathlib import Path
 
+from django.db.backends.signals import connection_created
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,6 +27,7 @@ INSTALLED_APPS = [
     "drf_standardized_errors",
     "movies.apps.MoviesConfig",
     "accounts.apps.AccountsConfig",
+    "billing.apps.BillingConfig",
 ]
 
 MIDDLEWARE = [
@@ -40,6 +43,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+db_options: dict[str, str] = {}
+sql_options = os.getenv("SQL_OPTIONS")
+if sql_options:
+    db_options["options"] = sql_options
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -48,9 +56,44 @@ DATABASES = {
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
         "HOST": os.getenv("SQL_HOST", "127.0.0.1"),
         "PORT": os.getenv("SQL_PORT", 5432),  # noqa: PLW1508
-        "OPTIONS": {"options": os.getenv("SQL_OPTIONS")},
-    }
+        "OPTIONS": db_options,
+    },
+    # Read-only connection to the billing service database (unmanaged models).
+    "billing": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv(
+            "BILLING_POSTGRES_DB", os.getenv("POSTGRES_DB", "movies_database")
+        ),
+        "USER": os.getenv("BILLING_POSTGRES_USER", os.getenv("POSTGRES_USER")),
+        "PASSWORD": os.getenv(
+            "BILLING_POSTGRES_PASSWORD", os.getenv("POSTGRES_PASSWORD")
+        ),
+        "HOST": os.getenv("BILLING_SQL_HOST", os.getenv("SQL_HOST", "127.0.0.1")),
+        "PORT": os.getenv("BILLING_SQL_PORT", os.getenv("SQL_PORT", 5432)),  # noqa: PLW1508
+        "OPTIONS": {"options": "-c search_path=billing,public"},
+    },
 }
+
+DATABASE_ROUTERS = ["billing.routers.BillingRouter"]
+
+# URL of the internal billing FastAPI service (used for admin refund actions).
+BILLING_SERVICE_URL = os.getenv("BILLING_SERVICE_URL", "http://movies-billing:8010")
+
+
+def _ensure_content_schema_for_tests(sender, connection, **kwargs):  # noqa: ARG001
+    if connection.vendor != "postgresql":
+        return
+    if connection.alias != "default":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute('CREATE SCHEMA IF NOT EXISTS "content";')
+
+
+if "test" in sys.argv:
+    connection_created.connect(
+        _ensure_content_schema_for_tests,
+        dispatch_uid="movies_admin.ensure_content_schema_for_tests",
+    )
 
 TEMPLATES = [
     {

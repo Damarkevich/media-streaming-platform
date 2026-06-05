@@ -15,9 +15,11 @@ jobs:
         service:
           - async_api
           - auth
+          - billing
           - event_ingest
           - etl-kafka-clickhouse
           - etl-postgres-elasticsearch
+          - movies_admin
           - ugc
 
     steps:

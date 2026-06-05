@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from src.models.billing import (
     Payment,
@@ -158,8 +159,22 @@ async def process_stripe_event(
             payload_hash=payload_hash,
             payload=event,
         )
-        session.add(webhook_event)
-        await session.flush()
+        try:
+            session.add(webhook_event)
+            await session.flush()
+        except IntegrityError:
+            # Another transaction inserted the same event concurrently.
+            await session.rollback()
+            existing = await session.scalar(
+                select(WebhookEvent).where(WebhookEvent.stripe_event_id == event_id)
+            )
+            if existing is None:
+                raise
+            logger.info(
+                "Duplicate webhook event after concurrent insert, skipping",
+                extra={"stripe_event_id": event_id, "event_type": event_type},
+            )
+            return WebhookProcessResult(webhook_event=existing, created=False)
 
         logger.info(
             "Processing Stripe webhook event",

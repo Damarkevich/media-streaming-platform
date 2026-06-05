@@ -51,8 +51,8 @@ jobs:
           GOOGLE_CLIENT_ID: test_google_client_id
           GOOGLE_CLIENT_SECRET: test_google_client_secret
         run: |
-          uv run coverage run -m pytest -v
-          uv run coverage report
+          uv run python -m coverage run -m pytest -v
+          uv run python -m coverage report
 
   test-movies-admin:
     name: Test movies_admin on Python ${{ matrix.python-version }}
@@ -61,6 +61,21 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.13', '3.14']
+
+    services:
+      postgres:
+        image: postgres:18.1
+        env:
+          POSTGRES_DB: movies_database
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -90,6 +105,9 @@ jobs:
           POSTGRES_DB: movies_database
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test_password
+          SQL_HOST: localhost
+          SQL_PORT: 5432
           BILLING_POSTGRES_PASSWORD: test_password
+          BILLING_SQL_HOST: localhost
         run: |
           uv run python manage.py test billing.tests.test_admin_refunds -v 2

@@ -1,5 +1,4 @@
 import logging
-import uuid
 
 import httpx
 from django.conf import settings

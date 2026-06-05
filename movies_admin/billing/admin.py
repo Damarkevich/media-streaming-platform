@@ -176,7 +176,7 @@ def _initiate_full_refund(modeladmin, request, queryset):
             )
             continue
 
-        operation_id = f"admin-refund:{uuid.uuid4()}"
+        operation_id = f"admin-refund:{payment.id}"
         try:
             resp = httpx.post(
                 f"{billing_url}/api/v1/billing/refunds/create",

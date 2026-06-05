@@ -26,9 +26,13 @@ class FakeSession:
         return _BeginCtx()
 
     async def scalar(self, _query):
-        if not self._scalar_results:
-            return None
-        return self._scalar_results.pop(0)
+        if self._scalar_results:
+            return self._scalar_results.pop(0)
+        # When scalar_results is exhausted, return the last added object so that
+        # _finalize_payment_intent (Transaction 2) can re-fetch the draft payment.
+        if self.added:
+            return self.added[-1]
+        return None
 
     def add(self, obj):
         self.added.append(obj)

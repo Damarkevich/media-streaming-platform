@@ -27,6 +27,26 @@ class PaymentCreateResult:
     client_secret: str | None = None
 
 
+async def _finalize_payment_intent(
+    session: AsyncSession,
+    *,
+    payment_id: UUID,
+    stripe_payment_intent_id: str,
+    created: bool,
+    client_secret: str | None,
+) -> PaymentCreateResult:
+    async with session.begin():
+        payment = await session.scalar(
+            select(Payment).where(Payment.id == payment_id).with_for_update(of=Payment)
+        )
+        payment.stripe_payment_intent_id = stripe_payment_intent_id
+        payment.status = PaymentStatus.PENDING.value
+        await session.flush()
+        return PaymentCreateResult(
+            payment=payment, created=created, client_secret=client_secret
+        )
+
+
 async def create_payment_intent_for_user(
     session: AsyncSession,
     *,
@@ -41,6 +61,8 @@ async def create_payment_intent_for_user(
 
     configure_stripe_client()
 
+    # Transaction 1: resolve customer + create draft payment.
+    # Stripe call is deferred to avoid holding DB locks during network I/O.
     async with session.begin():
         profile, _ = await create_or_get_customer_for_user(
             session,
@@ -85,46 +107,55 @@ async def create_payment_intent_for_user(
                 payment=payment, created=False, client_secret=None
             )
 
-        logger.info(
-            "Creating Stripe PaymentIntent",
-            extra={
-                "operation_id": operation_id,
-                "user_id": str(user_id),
-                "amount": amount,
-            },
-        )
-        payment_intent = stripe.PaymentIntent.create(
-            amount=payment.amount,
-            currency=payment.currency,
-            customer=profile.stripe_customer_id,
-            metadata={"user_id": str(user_id), "payment_id": str(payment.id)},
-            automatic_payment_methods={"enabled": True},
-            idempotency_key=f"payment-create:{operation_id}",
-        )
+        # Capture identifiers before the transaction closes.
+        stripe_customer_id = profile.stripe_customer_id
+        payment_id = payment.id
+        payment_amount = payment.amount
+        payment_currency = payment.currency
 
-        payment.stripe_payment_intent_id = (
-            payment_intent.get("id")
-            if isinstance(payment_intent, dict)
-            else payment_intent.id
-        )
-        payment.status = PaymentStatus.PENDING.value
-        await session.flush()
+    # Stripe call outside the transaction — no DB locks held.
+    logger.info(
+        "Creating Stripe PaymentIntent",
+        extra={
+            "operation_id": operation_id,
+            "user_id": str(user_id),
+            "amount": payment_amount,
+        },
+    )
+    payment_intent = stripe.PaymentIntent.create(
+        amount=payment_amount,
+        currency=payment_currency,
+        customer=stripe_customer_id,
+        metadata={"user_id": str(user_id), "payment_id": str(payment_id)},
+        automatic_payment_methods={"enabled": True},
+        idempotency_key=f"payment-create:{operation_id}",
+    )
 
-        client_secret = (
-            payment_intent.get("client_secret")
-            if isinstance(payment_intent, dict)
-            else payment_intent.client_secret
-        )
-        logger.info(
-            "PaymentIntent created",
-            extra={
-                "operation_id": operation_id,
-                "payment_id": str(payment.id),
-                "stripe_payment_intent_id": payment.stripe_payment_intent_id,
-            },
-        )
-        return PaymentCreateResult(
-            payment=payment,
-            created=created,
-            client_secret=client_secret,
-        )
+    stripe_payment_intent_id = (
+        payment_intent.get("id")
+        if isinstance(payment_intent, dict)
+        else payment_intent.id
+    )
+    client_secret = (
+        payment_intent.get("client_secret")
+        if isinstance(payment_intent, dict)
+        else payment_intent.client_secret
+    )
+
+    logger.info(
+        "PaymentIntent created",
+        extra={
+            "operation_id": operation_id,
+            "payment_id": str(payment_id),
+            "stripe_payment_intent_id": stripe_payment_intent_id,
+        },
+    )
+
+    # Transaction 2: persist the Stripe result.
+    return await _finalize_payment_intent(
+        session,
+        payment_id=payment_id,
+        stripe_payment_intent_id=stripe_payment_intent_id,
+        created=created,
+        client_secret=client_secret,
+    )

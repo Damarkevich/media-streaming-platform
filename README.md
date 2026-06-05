@@ -9,9 +9,6 @@ This is a microservices backend for an online cinema platform.
 
 The repository contains business services (auth, catalog, UGC, notifications), background workers, ETL pipelines, and local infrastructure orchestration via Docker Compose.
 
-Additional feature specs:
-- [Billing (Stripe) user ways](billing-user-ways.md)
-
 ## 2. CI/CD
 
 The project uses GitHub Actions for continuous integration and delivery. All workflows are configured to run on Python 3.13 and 3.14.

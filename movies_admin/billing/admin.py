@@ -175,9 +175,7 @@ def _initiate_full_refund(modeladmin, request, queryset):
                     "(current status: %(status)s)."
                 )
                 % {"id": payment.id, "status": payment.status},
-                level=messages.WARNING,
             )
-            skipped_count += 1
             continue
 
         operation_id = f"admin-refund:{uuid.uuid4()}"

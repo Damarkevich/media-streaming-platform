@@ -182,14 +182,17 @@ async def create_refund_for_payment(
             "amount": draft.refund.amount,
         },
     )
+    stripe_kwargs: dict = {
+        "payment_intent": payment.stripe_payment_intent_id,
+        "amount": draft.refund.amount,
+        "metadata": _build_refund_metadata(payment, draft.refund, operation_id),
+        "idempotency_key": f"refund-create:{operation_id}",
+    }
+    if reason:
+        stripe_kwargs["reason"] = "requested_by_customer"
+
     try:
-        stripe_refund = stripe.Refund.create(
-            payment_intent=payment.stripe_payment_intent_id,
-            amount=draft.refund.amount,
-            reason="requested_by_customer" if reason else None,
-            metadata=_build_refund_metadata(payment, draft.refund, operation_id),
-            idempotency_key=f"refund-create:{operation_id}",
-        )
+        stripe_refund = stripe.Refund.create(**stripe_kwargs)
     except stripe.error.StripeError as exc:
         logger.error(
             "Stripe refund creation failed",

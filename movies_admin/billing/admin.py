@@ -164,8 +164,6 @@ def _initiate_full_refund(modeladmin, request, queryset):
     """Admin action: initiate a full refund for each selected succeeded payment."""
     billing_url = getattr(settings, "BILLING_SERVICE_URL", "http://movies-billing:8010")
     succeeded_count = 0
-    skipped_count = 0
-
     for payment in queryset:
         if payment.status != "succeeded":
             modeladmin.message_user(

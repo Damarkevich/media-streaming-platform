@@ -24,9 +24,9 @@ from src.services.webhooks import process_stripe_event
 
 router = APIRouter(redirect_slashes=False)
 
-UserIdDep = Annotated[UUID, Depends(get_user_id_header)]
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-StripeSignatureHeader = Annotated[
+type UserIdDep = Annotated[UUID, Depends(get_user_id_header)]
+type SessionDep = Annotated[AsyncSession, Depends(get_session)]
+type StripeSignatureHeader = Annotated[
     str | None,
     Header(alias="Stripe-Signature"),
 ]
@@ -125,8 +125,8 @@ async def create_refund(
 @router.post("/webhooks/stripe", response_model=WebhookResponse)
 async def stripe_webhook(
     request: Request,
+    session: SessionDep,
     stripe_signature: StripeSignatureHeader = None,
-    session: SessionDep = None,  # type: ignore[assignment]
 ) -> WebhookResponse:
     if not stripe_signature:
         raise HTTPException(

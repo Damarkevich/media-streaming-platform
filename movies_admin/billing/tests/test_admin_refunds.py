@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import httpx
-import pytest
 from django.contrib import admin
 from django.contrib.messages import constants as msg
 from django.test import RequestFactory, SimpleTestCase
@@ -101,15 +100,15 @@ class BillingModelsReadOnlyTests(SimpleTestCase):
     def test_payment_save_raises_runtime_error(self):
         payment = Payment()
 
-        with pytest.raises(RuntimeError) as exc:
+        with self.assertRaises(RuntimeError) as exc:  # noqa: PT027
             payment.save()
 
-        assert "read-only" in str(exc.value).lower()
+        assert "read-only" in str(exc.exception).lower()
 
     def test_payment_delete_raises_runtime_error(self):
         payment = Payment()
 
-        with pytest.raises(RuntimeError) as exc:
+        with self.assertRaises(RuntimeError) as exc:  # noqa: PT027
             payment.delete()
 
-        assert "read-only" in str(exc.value).lower()
+        assert "read-only" in str(exc.exception).lower()

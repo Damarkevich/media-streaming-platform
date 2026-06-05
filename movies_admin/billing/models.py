@@ -26,7 +26,26 @@ class WebhookEventStatus(models.TextChoices):
     FAILED = "failed", _("Failed")
 
 
-class BillingProfile(models.Model):
+class ReadOnlyBillingModel(models.Model):
+    class Meta:
+        abstract = True
+
+    def save(self, *_args, **_kwargs):
+        msg = (
+            "Billing models are read-only in movies_admin. "
+            "Use Billing API for write operations."
+        )
+        raise RuntimeError(msg)
+
+    def delete(self, *_args, **_kwargs):
+        msg = (
+            "Billing models are read-only in movies_admin. "
+            "Use Billing API for write operations."
+        )
+        raise RuntimeError(msg)
+
+
+class BillingProfile(ReadOnlyBillingModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(verbose_name=_("user ID"), null=False)
     stripe_customer_id = models.CharField(
@@ -46,7 +65,7 @@ class BillingProfile(models.Model):
         return f"BillingProfile({self.user_id})"
 
 
-class Payment(models.Model):
+class Payment(ReadOnlyBillingModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(verbose_name=_("user ID"), null=False, db_index=True)
     operation_id = models.CharField(
@@ -91,7 +110,7 @@ class Payment(models.Model):
         return f"{self.amount / 100:.2f} {self.currency.upper()}"
 
 
-class Refund(models.Model):
+class Refund(ReadOnlyBillingModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     payment = models.ForeignKey(
         Payment,
@@ -139,7 +158,7 @@ class Refund(models.Model):
         return f"{self.amount / 100:.2f} {self.currency.upper()}"
 
 
-class WebhookEvent(models.Model):
+class WebhookEvent(ReadOnlyBillingModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     stripe_event_id = models.CharField(
         max_length=255, unique=True, verbose_name=_("Stripe event ID")

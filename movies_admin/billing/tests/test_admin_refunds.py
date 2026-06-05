@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import httpx
+import pytest
 from django.contrib import admin
 from django.contrib.messages import constants as msg
 from django.test import RequestFactory, SimpleTestCase
@@ -94,3 +95,21 @@ class BillingAdminRefundMessageSafetyTests(SimpleTestCase):
         assert level == msg.ERROR
         assert "temporarily unavailable" in str(message_text).lower()
         assert "Connection reset by peer" not in str(message_text)
+
+
+class BillingModelsReadOnlyTests(SimpleTestCase):
+    def test_payment_save_raises_runtime_error(self):
+        payment = Payment()
+
+        with pytest.raises(RuntimeError) as exc:
+            payment.save()
+
+        assert "read-only" in str(exc.value).lower()
+
+    def test_payment_delete_raises_runtime_error(self):
+        payment = Payment()
+
+        with pytest.raises(RuntimeError) as exc:
+            payment.delete()
+
+        assert "read-only" in str(exc.value).lower()

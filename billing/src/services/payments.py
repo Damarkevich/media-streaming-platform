@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import anyio
 import stripe
 from sqlalchemy import select
 
@@ -25,6 +26,10 @@ class PaymentCreateResult:
     payment: Payment
     created: bool
     client_secret: str | None = None
+
+
+async def _create_stripe_payment_intent(**kwargs):
+    return await anyio.to_thread.run_sync(lambda: stripe.PaymentIntent.create(**kwargs))
 
 
 async def _finalize_payment_intent(
@@ -122,7 +127,7 @@ async def create_payment_intent_for_user(
             "amount": payment_amount,
         },
     )
-    payment_intent = stripe.PaymentIntent.create(
+    payment_intent = await _create_stripe_payment_intent(
         amount=payment_amount,
         currency=payment_currency,
         customer=stripe_customer_id,

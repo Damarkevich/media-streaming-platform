@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import anyio
 import stripe
 from sqlalchemy import func, select
 
@@ -23,6 +24,10 @@ logger = logging.getLogger(__name__)
 class RefundCreateResult:
     refund: Refund
     created: bool
+
+
+async def _create_stripe_refund(**kwargs):
+    return await anyio.to_thread.run_sync(lambda: stripe.Refund.create(**kwargs))
 
 
 def _validate_payment_for_refund(
@@ -192,7 +197,7 @@ async def create_refund_for_payment(
         stripe_kwargs["reason"] = "requested_by_customer"
 
     try:
-        stripe_refund = stripe.Refund.create(**stripe_kwargs)
+        stripe_refund = await _create_stripe_refund(**stripe_kwargs)
     except stripe.error.StripeError as exc:
         logger.error(
             "Stripe refund creation failed",

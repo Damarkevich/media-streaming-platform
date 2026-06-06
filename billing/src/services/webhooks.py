@@ -34,7 +34,7 @@ def _resolve_event_id(event: dict, payload_hash: str) -> str:
     event_id = event.get("id")
     if event_id:
         return event_id
-    return f"missing-id:{payload_hash}"
+    return f"invalid-missing-id:{payload_hash}"
 
 
 def _extract_object(event: dict) -> dict:
@@ -175,6 +175,16 @@ async def process_stripe_event(
                 extra={"stripe_event_id": event_id, "event_type": event_type},
             )
             return WebhookProcessResult(webhook_event=existing, created=False)
+
+        if event.get("id") is None:
+            logger.warning(
+                "Stripe webhook payload missing event id, ignoring",
+                extra={"stripe_event_id": event_id, "event_type": event_type},
+            )
+            _mark_ignored(webhook_event, "Stripe webhook event is missing required id.")
+            webhook_event.processed_at = datetime.now(tz=UTC)
+            await session.flush()
+            return WebhookProcessResult(webhook_event=webhook_event, created=True)
 
         logger.info(
             "Processing Stripe webhook event",

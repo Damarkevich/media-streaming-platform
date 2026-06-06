@@ -10,7 +10,7 @@ def test_resolve_event_id_uses_event_id_when_present() -> None:
 def test_resolve_event_id_falls_back_to_payload_hash() -> None:
     event = {}
 
-    assert _resolve_event_id(event, "hash") == "missing-id:hash"
+    assert _resolve_event_id(event, "hash") == "invalid-missing-id:hash"
 
 
 def test_extract_object_returns_dict_object() -> None:

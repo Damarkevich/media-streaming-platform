@@ -126,6 +126,12 @@ async def _mark_refund_failed(
         locked_refund = await session.scalar(
             select(Refund).where(Refund.id == refund_id).with_for_update(of=Refund)
         )
+        if locked_refund is None:
+            logger.error(
+                "Unable to mark refund as failed because refund row is missing",
+                extra={"refund_id": str(refund_id)},
+            )
+            return
         metadata = dict(locked_refund.metadata_json)
         metadata["stripe_error"] = str(exc)
         locked_refund.metadata_json = metadata
@@ -144,6 +150,13 @@ async def _finalize_refund_pending(
         locked_refund = await session.scalar(
             select(Refund).where(Refund.id == refund_id).with_for_update(of=Refund)
         )
+        if locked_refund is None:
+            logger.error(
+                "Unable to finalize refund because refund row is missing",
+                extra={"refund_id": str(refund_id)},
+            )
+            msg = "Refund record is unavailable. Please retry the operation."
+            raise BillingValidationError(msg)
         locked_refund.stripe_refund_id = stripe_refund_id
         locked_refund.status = RefundStatus.PENDING.value
         await session.flush()

@@ -96,6 +96,36 @@ class BillingAdminRefundMessageSafetyTests(SimpleTestCase):
         assert "Connection reset by peer" not in str(message_text)
 
 
+class BillingAdminRefundOperationIdTests(SimpleTestCase):
+    def setUp(self):
+        self.model_admin = MagicMock()
+        self.request = RequestFactory().post("/admin/billing/payment/")
+        self.payment = SimpleNamespace(
+            id=uuid4(),
+            status="succeeded",
+            user_id=uuid4(),
+        )
+
+    def test_operation_id_is_unique_per_attempt(self):
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+
+        with patch("billing.admin.httpx.post", return_value=response) as post_mock:
+            _initiate_full_refund(
+                self.model_admin,
+                self.request,
+                [self.payment, self.payment],
+            )
+
+        operation_ids = [call.kwargs["json"]["operation_id"] for call in post_mock.call_args_list]
+        expected_prefix = f"admin-refund:{self.payment.id}:"
+
+        assert len(operation_ids) == 2
+        assert operation_ids[0].startswith(expected_prefix)
+        assert operation_ids[1].startswith(expected_prefix)
+        assert operation_ids[0] != operation_ids[1]
+
+
 class BillingModelsReadOnlyTests(SimpleTestCase):
     def test_payment_save_raises_runtime_error(self):
         payment = Payment()

@@ -1,8 +1,6 @@
 from types import SimpleNamespace
-from uuid import uuid4
 
 import pytest
-
 from src.models.billing import PaymentStatus, RefundStatus, WebhookEventStatus
 from src.services.webhooks import process_stripe_event
 
@@ -145,3 +143,92 @@ async def test_process_payment_failed_updates_pending_payment_to_failed():
     assert result.created is True
     assert payment.status == PaymentStatus.FAILED.value
     assert result.webhook_event.status == WebhookEventStatus.PROCESSED.value
+
+
+@pytest.mark.asyncio
+async def test_process_event_without_id_is_ignored_and_not_applied():
+    payment = SimpleNamespace(status=PaymentStatus.PENDING.value)
+    session = FakeSession([None, payment])
+
+    result = await process_stripe_event(
+        session,
+        event={
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_missing_id"}},
+        },
+        raw_payload=b'{"ok":1}',
+    )
+
+    assert result.created is True
+    assert result.webhook_event.status == WebhookEventStatus.IGNORED.value
+    assert result.webhook_event.error_message == "Stripe webhook event is missing required id."
+    assert payment.status == PaymentStatus.PENDING.value
+
+
+@pytest.mark.asyncio
+async def test_process_event_with_empty_id_is_ignored_and_not_applied():
+    payment = SimpleNamespace(status=PaymentStatus.PENDING.value)
+    session = FakeSession([None, payment])
+
+    result = await process_stripe_event(
+        session,
+        event={
+            "id": "",
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_empty_id"}},
+        },
+        raw_payload=b'{"ok":1}',
+    )
+
+    assert result.created is True
+    assert result.webhook_event.status == WebhookEventStatus.IGNORED.value
+    assert result.webhook_event.error_message == "Stripe webhook event is missing required id."
+    assert payment.status == PaymentStatus.PENDING.value
+
+
+@pytest.mark.asyncio
+async def test_process_payment_canceled_updates_pending_payment_to_canceled():
+    payment = SimpleNamespace(status=PaymentStatus.PENDING.value)
+    session = FakeSession([None, payment])
+
+    result = await process_stripe_event(
+        session,
+        event={
+            "id": "evt_7",
+            "type": "payment_intent.canceled",
+            "data": {"object": {"id": "pi_7"}},
+        },
+        raw_payload=b'{"ok":1}',
+    )
+
+    assert result.created is True
+    assert payment.status == PaymentStatus.CANCELED.value
+    assert result.webhook_event.status == WebhookEventStatus.PROCESSED.value
+
+
+@pytest.mark.asyncio
+async def test_out_of_order_payment_failed_then_succeeded_ends_succeeded():
+    payment = SimpleNamespace(status=PaymentStatus.PENDING.value)
+
+    first_result = await process_stripe_event(
+        FakeSession([None, payment]),
+        event={
+            "id": "evt_8_failed",
+            "type": "payment_intent.payment_failed",
+            "data": {"object": {"id": "pi_8"}},
+        },
+        raw_payload=b'{"failed":1}',
+    )
+    second_result = await process_stripe_event(
+        FakeSession([None, payment]),
+        event={
+            "id": "evt_8_succeeded",
+            "type": "payment_intent.succeeded",
+            "data": {"object": {"id": "pi_8"}},
+        },
+        raw_payload=b'{"succeeded":1}',
+    )
+
+    assert first_result.webhook_event.status == WebhookEventStatus.PROCESSED.value
+    assert second_result.webhook_event.status == WebhookEventStatus.PROCESSED.value
+    assert payment.status == PaymentStatus.SUCCEEDED.value

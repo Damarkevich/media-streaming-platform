@@ -34,7 +34,7 @@ def _resolve_event_id(event: dict, payload_hash: str) -> str:
     event_id = event.get("id")
     if event_id:
         return event_id
-    return f"missing-id:{payload_hash}"
+    return f"invalid-missing-id:{payload_hash}"
 
 
 def _extract_object(event: dict) -> dict:
@@ -81,6 +81,12 @@ async def _handle_payment_event(
     if event_type == "payment_intent.succeeded":
         if payment.status != PaymentStatus.SUCCEEDED.value:
             payment.status = PaymentStatus.SUCCEEDED.value
+        webhook_event.status = WebhookEventStatus.PROCESSED.value
+        return
+
+    if event_type == "payment_intent.canceled":
+        if payment.status in {PaymentStatus.NEW.value, PaymentStatus.PENDING.value}:
+            payment.status = PaymentStatus.CANCELED.value
         webhook_event.status = WebhookEventStatus.PROCESSED.value
         return
 
@@ -176,13 +182,27 @@ async def process_stripe_event(
             )
             return WebhookProcessResult(webhook_event=existing, created=False)
 
+        if not event.get("id"):
+            logger.warning(
+                "Stripe webhook payload missing event id, ignoring",
+                extra={"stripe_event_id": event_id, "event_type": event_type},
+            )
+            _mark_ignored(webhook_event, "Stripe webhook event is missing required id.")
+            webhook_event.processed_at = datetime.now(tz=UTC)
+            await session.flush()
+            return WebhookProcessResult(webhook_event=webhook_event, created=True)
+
         logger.info(
             "Processing Stripe webhook event",
             extra={"stripe_event_id": event_id, "event_type": event_type},
         )
         obj = _extract_object(event)
 
-        if event_type in {"payment_intent.succeeded", "payment_intent.payment_failed"}:
+        if event_type in {
+            "payment_intent.succeeded",
+            "payment_intent.payment_failed",
+            "payment_intent.canceled",
+        }:
             await _handle_payment_event(
                 session,
                 event_type=event_type,

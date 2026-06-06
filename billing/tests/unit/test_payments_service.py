@@ -21,6 +21,7 @@ class FakeSession:
         self._scalar_results = list(scalar_results)
         self.added = []
         self.flush_calls = 0
+        self.fail_flush_once = False
 
     def begin(self):
         return _BeginCtx()
@@ -38,6 +39,9 @@ class FakeSession:
         self.added.append(obj)
 
     async def flush(self):
+        if self.fail_flush_once:
+            self.fail_flush_once = False
+            raise RuntimeError("db finalize failed")
         self.flush_calls += 1
 
 
@@ -151,3 +155,61 @@ async def test_create_payment_rejects_operation_id_reuse_for_other_user(monkeypa
             amount=9900,
             currency="rub",
         )
+
+
+@pytest.mark.asyncio
+async def test_create_payment_recovers_after_finalize_failure(monkeypatch):
+    user_id = uuid4()
+    profile = SimpleNamespace(stripe_customer_id="cus_recover")
+    existing_payment = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        operation_id="op-recover",
+        amount=10900,
+        currency="rub",
+        stripe_payment_intent_id=None,
+        status=PaymentStatus.PENDING.value,
+    )
+    session = FakeSession([existing_payment, existing_payment])
+
+    async def _fake_customer(*args, **kwargs):
+        return profile, False
+
+    monkeypatch.setattr("src.services.payments.create_or_get_customer_for_user", _fake_customer)
+    monkeypatch.setattr("src.services.payments.configure_stripe_client", lambda: "sk_test")
+
+    stripe_call_count = 0
+
+    def _fake_payment_intent_create(**kwargs):
+        nonlocal stripe_call_count
+        stripe_call_count += 1
+        return {"id": "pi_recover", "client_secret": "cs_recover"}
+
+    monkeypatch.setattr("src.services.payments.stripe.PaymentIntent.create", _fake_payment_intent_create)
+
+    session.fail_flush_once = True
+    with pytest.raises(RuntimeError, match="db finalize failed"):
+        await create_payment_intent_for_user(
+            session,
+            user_id=user_id,
+            operation_id="op-recover",
+            amount=10900,
+            currency="rub",
+        )
+
+    # Emulate DB rollback: previous flush failed, so Stripe ID was not persisted.
+    existing_payment.stripe_payment_intent_id = None
+
+    # Retry with the same operation_id should reconcile persisted Stripe ID.
+    session._scalar_results.extend([existing_payment, existing_payment])
+    result = await create_payment_intent_for_user(
+        session,
+        user_id=user_id,
+        operation_id="op-recover",
+        amount=10900,
+        currency="rub",
+    )
+
+    assert stripe_call_count == 2
+    assert result.payment.stripe_payment_intent_id == "pi_recover"
+    assert result.client_secret == "cs_recover"

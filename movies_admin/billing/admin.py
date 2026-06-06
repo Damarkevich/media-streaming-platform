@@ -1,4 +1,5 @@
 import logging
+from uuid import uuid4
 
 import httpx
 from django.conf import settings
@@ -175,7 +176,7 @@ def _initiate_full_refund(modeladmin, request, queryset):
             )
             continue
 
-        operation_id = f"admin-refund:{payment.id}"
+        operation_id = f"admin-refund:{payment.id}:{uuid4()}"
         try:
             resp = httpx.post(
                 f"{billing_url}/api/v1/billing/refunds/create",

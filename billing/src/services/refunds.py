@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import anyio
 import stripe
 from sqlalchemy import func, select
 
@@ -23,6 +24,10 @@ logger = logging.getLogger(__name__)
 class RefundCreateResult:
     refund: Refund
     created: bool
+
+
+async def _create_stripe_refund(**kwargs):
+    return await anyio.to_thread.run_sync(lambda: stripe.Refund.create(**kwargs))
 
 
 def _validate_payment_for_refund(
@@ -121,6 +126,12 @@ async def _mark_refund_failed(
         locked_refund = await session.scalar(
             select(Refund).where(Refund.id == refund_id).with_for_update(of=Refund)
         )
+        if locked_refund is None:
+            logger.error(
+                "Unable to mark refund as failed because refund row is missing",
+                extra={"refund_id": str(refund_id)},
+            )
+            return
         metadata = dict(locked_refund.metadata_json)
         metadata["stripe_error"] = str(exc)
         locked_refund.metadata_json = metadata
@@ -139,6 +150,13 @@ async def _finalize_refund_pending(
         locked_refund = await session.scalar(
             select(Refund).where(Refund.id == refund_id).with_for_update(of=Refund)
         )
+        if locked_refund is None:
+            logger.error(
+                "Unable to finalize refund because refund row is missing",
+                extra={"refund_id": str(refund_id)},
+            )
+            msg = "Refund record is unavailable. Please retry the operation."
+            raise BillingValidationError(msg)
         locked_refund.stripe_refund_id = stripe_refund_id
         locked_refund.status = RefundStatus.PENDING.value
         await session.flush()
@@ -173,6 +191,12 @@ async def create_refund_for_payment(
         if draft.refund.stripe_refund_id:
             return RefundCreateResult(refund=draft.refund, created=False)
 
+        if not draft.created:
+            logger.info(
+                "Recovering incomplete refund create after previous partial failure",
+                extra={"operation_id": operation_id, "refund_id": str(draft.refund.id)},
+            )
+
     logger.info(
         "Creating Stripe Refund",
         extra={
@@ -192,7 +216,7 @@ async def create_refund_for_payment(
         stripe_kwargs["reason"] = "requested_by_customer"
 
     try:
-        stripe_refund = stripe.Refund.create(**stripe_kwargs)
+        stripe_refund = await _create_stripe_refund(**stripe_kwargs)
     except stripe.error.StripeError as exc:
         logger.error(
             "Stripe refund creation failed",

@@ -24,6 +24,10 @@ A Django-based admin interface for managing movies in the project. This Readme d
     uv run python manage.py migrate
     ```
 
+    Note: this applies Django migrations for the admin app databases only.
+    Billing schema objects are managed by the billing service Alembic migrations,
+    and are intentionally excluded by `billing.routers.BillingRouter.allow_migrate`.
+
 4. **Create a superuser:**
     ```bash
     uv run python manage.py createsuperuser

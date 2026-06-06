@@ -182,7 +182,7 @@ async def process_stripe_event(
             )
             return WebhookProcessResult(webhook_event=existing, created=False)
 
-        if event.get("id") is None:
+        if not event.get("id"):
             logger.warning(
                 "Stripe webhook payload missing event id, ignoring",
                 extra={"stripe_event_id": event_id, "event_type": event_type},

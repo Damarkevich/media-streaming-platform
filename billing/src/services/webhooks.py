@@ -84,6 +84,12 @@ async def _handle_payment_event(
         webhook_event.status = WebhookEventStatus.PROCESSED.value
         return
 
+    if event_type == "payment_intent.canceled":
+        if payment.status in {PaymentStatus.NEW.value, PaymentStatus.PENDING.value}:
+            payment.status = PaymentStatus.CANCELED.value
+        webhook_event.status = WebhookEventStatus.PROCESSED.value
+        return
+
     if payment.status in {PaymentStatus.NEW.value, PaymentStatus.PENDING.value}:
         payment.status = PaymentStatus.FAILED.value
     webhook_event.status = WebhookEventStatus.PROCESSED.value
@@ -192,7 +198,11 @@ async def process_stripe_event(
         )
         obj = _extract_object(event)
 
-        if event_type in {"payment_intent.succeeded", "payment_intent.payment_failed"}:
+        if event_type in {
+            "payment_intent.succeeded",
+            "payment_intent.payment_failed",
+            "payment_intent.canceled",
+        }:
             await _handle_payment_event(
                 session,
                 event_type=event_type,

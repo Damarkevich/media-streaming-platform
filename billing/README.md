@@ -127,6 +127,18 @@ Expected result:
 
 - no repeated state transitions.
 
+### UW-7: Webhook payload without Stripe event id
+
+1. Billing API receives webhook payload without `event.id`.
+2. Service marks the webhook event as suspicious input.
+3. Event is stored for audit with `ignored` status.
+4. Payment/refund business state is not changed.
+
+Expected result:
+
+- invalid webhook payload is traceable in audit logs;
+- no accidental payment/refund state mutation.
+
 ## Sequence Diagrams (Updated)
 
 ### SD-1: Successful payment with lazy customer creation
@@ -256,6 +268,7 @@ High-priority scenarios covered by tests include:
 
 - duplicate payment creation attempts;
 - duplicate webhook delivery;
+- webhook payload without Stripe `event.id`;
 - invalid webhook signature;
 - first-time customer creation;
 - repeated refund request idempotency;
@@ -306,3 +319,4 @@ uv run uvicorn src.main:app --host 0.0.0.0 --port 8010
 - race-safe profile/payment/refund writes using DB locks and constraints;
 - safe retry behavior for transient Stripe failures;
 - webhook deduplication and protection from invalid state downgrades.
+- suspicious webhook payloads without Stripe `event.id` are ignored and audited.

@@ -112,6 +112,12 @@ async def create_payment_intent_for_user(
                 payment=payment, created=False, client_secret=None
             )
 
+        if not created:
+            logger.info(
+                "Recovering incomplete payment create after previous partial failure",
+                extra={"operation_id": operation_id, "payment_id": str(payment.id)},
+            )
+
         # Capture identifiers before the transaction closes.
         stripe_customer_id = profile.stripe_customer_id
         payment_id = payment.id

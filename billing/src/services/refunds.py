@@ -178,6 +178,12 @@ async def create_refund_for_payment(
         if draft.refund.stripe_refund_id:
             return RefundCreateResult(refund=draft.refund, created=False)
 
+        if not draft.created:
+            logger.info(
+                "Recovering incomplete refund create after previous partial failure",
+                extra={"operation_id": operation_id, "refund_id": str(draft.refund.id)},
+            )
+
     logger.info(
         "Creating Stripe Refund",
         extra={
